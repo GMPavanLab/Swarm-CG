@@ -315,7 +315,7 @@ for sim_file in user_provided_sim_files:
 top_include_dirbase = os.path.dirname(arg_entries['top_input_filename'])
 for top_include in top_includes_filenames:
 	# shutil.copy(top_include_dirbase+'/'+top_include, ns.exec_folder+'/'+config.input_sim_files_dirname) #  PROBLEM LUCA
-  shutil.copy(ns.input_folder+'/'+top_include, ns.exec_folder+'/'+config.input_sim_files_dirname)
+  shutil.copy(ns.input_folder+'/'+top_include_dirbase+'/'+top_include, ns.exec_folder+'/'+config.input_sim_files_dirname)
 
 # modify the TOP file to adapt includes paths
 with open(ns.exec_folder+'/'+config.input_sim_files_dirname+'/'+ns.top_input_basename, 'r') as fp:

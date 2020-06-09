@@ -24,23 +24,14 @@ import config
 def header_package(module_line):
 
 	return '''\
-
             
-            ███████╗██╗    ██╗ █████╗ ██████╗ ███╗   ███╗       ██████╗ ██████╗ 
-            ██╔════╝██║    ██║██╔══██╗██╔══██╗████╗ ████║      ██╔════╝██╔════╝ 
-            ███████╗██║ █╗ ██║███████║██████╔╝██╔████╔██║█████╗██║     ██║  ███╗
-            ╚════██║██║███╗██║██╔══██║██╔══██╗██║╚██╔╝██║╚════╝██║     ██║   ██║
-            ███████║╚███╔███╔╝██║  ██║██║  ██║██║ ╚═╝ ██║      ╚██████╗╚██████╔╝
-            ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝ 
-                                                                                
-
-            
-                     ██████╗ ██████╗ ████████╗██╗       ██████╗ ██████╗ 
-                    ██╔═══██╗██╔══██╗╚══██╔══╝██║      ██╔════╝██╔════╝ 
-                    ██║   ██║██████╔╝   ██║   ██║█████╗██║     ██║  ███╗
-                    ██║   ██║██╔═══╝    ██║   ██║╚════╝██║     ██║   ██║
-                    ╚██████╔╝██║        ██║   ██║      ╚██████╗╚██████╔╝
-                     ╚═════╝ ╚═╝        ╚═╝   ╚═╝       ╚═════╝ ╚═════╝   v'''+config.module_version+'''
+        
+             ███████╗██╗    ██╗ █████╗ ██████╗ ███╗   ███╗       ██████╗ ██████╗ 
+             ██╔════╝██║    ██║██╔══██╗██╔══██╗████╗ ████║      ██╔════╝██╔════╝ 
+             ███████╗██║ █╗ ██║███████║██████╔╝██╔████╔██║█████╗██║     ██║  ███╗
+             ╚════██║██║███╗██║██╔══██║██╔══██╗██║╚██╔╝██║╚════╝██║     ██║   ██║
+             ███████║╚███╔███╔╝██║  ██║██║  ██║██║ ╚═╝ ██║      ╚██████╗╚██████╔╝
+             ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝   v'''+config.module_version+'''
             '''+module_line+'''
 '''+config.sep_close+'''
 |             Opti-CG is distributed under the terms of the GNU GPL License v3.0              |
@@ -909,410 +900,67 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 
 
 # build atomistic graph of the molecule + find if atoms are heavy or not
-def build_aa_graph_and_find_heavy_atoms(ns):
+# def build_aa_graph_and_find_heavy_atoms(ns):
 
-	aa_graph = nx.Graph()
-	all_hydrogen_atoms_id, all_heavy_atoms_id = set(), set()
+# 	aa_graph = nx.Graph()
+# 	all_hydrogen_atoms_id, all_heavy_atoms_id = set(), set()
 
-	for atom_id_1 in ns.all_atoms:
-		if ns.all_atoms[atom_id_1]['heavy']:
-			all_heavy_atoms_id.add(atom_id_1)
-			aa_graph.add_node(atom_id_1, type=ns.all_atoms[atom_id_1]['atom_type'])
+# 	for atom_id_1 in ns.all_atoms:
+# 		if ns.all_atoms[atom_id_1]['heavy']:
+# 			all_heavy_atoms_id.add(atom_id_1)
+# 			aa_graph.add_node(atom_id_1, type=ns.all_atoms[atom_id_1]['atom_type'])
 
-			for atom_id_2 in ns.all_atoms[atom_id_1]['conn']:
-				if ns.all_atoms[atom_id_2]['heavy']:
-					aa_graph.add_edge(atom_id_1, atom_id_2)
-		else:
-			all_hydrogen_atoms_id.add(atom_id_1)
+# 			for atom_id_2 in ns.all_atoms[atom_id_1]['conn']:
+# 				if ns.all_atoms[atom_id_2]['heavy']:
+# 					aa_graph.add_edge(atom_id_1, atom_id_2)
+# 		else:
+# 			all_hydrogen_atoms_id.add(atom_id_1)
 
-	return aa_graph, all_heavy_atoms_id, all_hydrogen_atoms_id
+# 	return aa_graph, all_heavy_atoms_id, all_hydrogen_atoms_id
 
 
 # comparing geoms for identical atomistic content of beads, split into separate groups if atom content is different (atom types and connectivity via graph isomorphism)
-def compare_atom_content(ns, all_cg_geoms, cg_graph, aa_graph, cg_node_matcher_2, cg_edge_matcher, aa_node_matcher):
-
-	same_types_conn_filtered_cg_geoms = dict()
-	geoms_types = {'cg_lvl': {}, 'aa_lvl': {}}
-	nb_geoms_types = 0
-
-	for geom_id in range(len(all_cg_geoms)):
-
-		geom = all_cg_geoms[geom_id]
-		new_geom_type = cg_graph.subgraph(geom).copy() # CG subgraph of the geom beads as a first filter -- copy since we might remove edges for dihedrals
-		if len(geom) == 4: # for dihedrals remove the additional edge within cycles of 4 beads -- dihedrals with rotatable within cycles of 3 beads shall already be discarded from previous steps
-			try:
-				new_geom_type.remove_edge(geom[0], geom[3])
-			except nx.NetworkXError:
-				pass # if there was no edge between opposite beads of the dihedral
-		cg_geom_with_neighbors = set([conn_bead_id for bead_id in geom for conn_bead_id in ns.all_beads[bead_id]['conn']]) # extend cg graph to n+1 neighbors so atomistic branching will be taken into account + handle case that include the very central bead of a graph/molecule -- this is necessary to handle cyclic cores correctly, especially
-		aa_sg_view_new_geom = aa_graph.subgraph([atom_id for bead_id in cg_geom_with_neighbors for atom_id in ns.all_beads[bead_id]['atoms_id']]) # atomistic subgraph of the beads content, specifically for handling/splitting geoms with edges inside atomistic cycles (benzenes, etc.) or case that include the very central bead of a graph/molecule
-		# aa_sg_view_new_geom = aa_graph.subgraph([atom_id for bead_id in geom for atom_id in ns.all_beads[bead_id]['atoms_id']]) # atomistic subgraph of the beads content, specifically for handling/splitting geoms with edges inside atomistic cycles (benzenes, etc.) or case that include the very central bead of a graph/molecule
-		found_geom_type = False
-
-		for known_geom_type in geoms_types['cg_lvl']:
-
-			GM = nx.algorithms.isomorphism.GraphMatcher(known_geom_type, new_geom_type, node_match=cg_node_matcher_2, edge_match=cg_edge_matcher)
-			if GM.is_isomorphic():
-
-				aa_sg_view_known_geom = geoms_types['aa_lvl'][geoms_types['cg_lvl'][known_geom_type]]
-				if nx.algorithms.isomorphism.is_isomorphic(aa_sg_view_new_geom, aa_sg_view_known_geom, node_match=aa_node_matcher):
-
-					found_geom_type = True
-					ref_geom_ids_order = all_cg_geoms[same_types_conn_filtered_cg_geoms[geoms_types['cg_lvl'][known_geom_type]][0]]
-					all_cg_geoms[geom_id] = tuple([GM.mapping[bead_id] for bead_id in ref_geom_ids_order]) # get ordering right for identical elements within the reference list of objects
-					same_types_conn_filtered_cg_geoms[geoms_types['cg_lvl'][known_geom_type]].append(geom_id)
-					break
-
-		if not found_geom_type:
-			nb_geoms_types += 1
-			geoms_types['cg_lvl'][new_geom_type] = nb_geoms_types
-			geoms_types['aa_lvl'][nb_geoms_types] = aa_sg_view_new_geom
-			same_types_conn_filtered_cg_geoms[nb_geoms_types] = [geom_id]
-
-	return same_types_conn_filtered_cg_geoms
-
-
-# TODO: split this in any better way
-# distributions clustering and Boltzmann inversion
-def distrib_clustering(geom, out_itp, default_dist_thres_geom, same_types_conn_filtered_cg_geoms, values_geoms, hists_geoms_dist, exec_folder, ns, all_cg_geoms, values_geoms_rad=None, cg_graph=None):
-
-	if geom == 'bond':
-		dist_thres_geom, bw, max_fct_geom, bins_geoms, bins_geom_dist_matrix = ns.dist_thres_bonds, ns.bw_bonds, ns.max_fct_bonds, ns.bins_bonds, ns.bins_bonds_dist_matrix
-	elif geom == 'angle':
-		dist_thres_geom, bw, max_fct_geom, bins_geoms, bins_geom_dist_matrix = ns.dist_thres_angles, ns.bw_angles, ns.max_fct_angles, ns.bins_angles, ns.bins_angles_dist_matrix
-	elif geom == 'dihedral':
-		dist_thres_geom, bw, max_fct_geom, bins_geoms, bins_geom_dist_matrix = ns.dist_thres_dihedrals, ns.bw_dihedrals, ns.max_fct_dihedrals, ns.bins_dihedrals, ns.bins_dihedrals_dist_matrix
-
-	out_itp[geom] = []
-
-	# graphical parameters for plotting
-	color_cycle = plt.rcParams['axes.prop_cycle'].by_key()['color']
-	plt.rcParams['grid.color'] = 'lightgrey'
-	plt.rcParams['grid.linestyle'] = (ns.subplot_size, ns.subplot_size/2) # dashed sized according to plot size, but here unit is points
-	plt.rcParams['grid.linewidth'] = ns.subplot_size/10
-
-	nb_geoms_grp_filtered = 0
-	textcolors = ['black', 'white']
-
-	for cg_geom_types in same_types_conn_filtered_cg_geoms:
-
-		# calculate EMD distance for all pairwise distributions
-		# print()
-		# print(geom.capitalize(), 'beads type:', cg_geom_types)
-		all_emd_dists = []
-
-		for i in range(len(same_types_conn_filtered_cg_geoms[cg_geom_types])):
-			for j in range(i+1, len(same_types_conn_filtered_cg_geoms[cg_geom_types])):
-				all_emd_dists.append(emd(hists_geoms_dist[same_types_conn_filtered_cg_geoms[cg_geom_types][i]], hists_geoms_dist[same_types_conn_filtered_cg_geoms[cg_geom_types][j]], bins_geom_dist_matrix))
-
-		# clustering using distances between distributions, only if we have 2+ geoms in current group
-		if len(same_types_conn_filtered_cg_geoms[cg_geom_types]) > 1:
-			linkage_matrix = linkage(all_emd_dists, method='median') # WPGMC algorithm
-			clusters = fcluster(linkage_matrix, dist_thres_geom, criterion='distance')
-			nb_clusters = max(clusters)
-		else:
-			nb_clusters = 1
-			clusters = np.array([1])
-		nb_geoms_grp_filtered += nb_clusters
-
-		# plot all distributions in geom group
-		fig, ax = plt.subplots(nrows=max(2, nb_clusters+1), ncols=3, figsize=(3*ns.subplot_size, max(2, nb_clusters+1)*ns.subplot_size), squeeze=False)
-		
-		xmin, xmax = np.inf, -np.inf
-		ax[0][1].set_title('Distributions for '+geom.upper()+'S GRP '+str(cg_geom_types)+' (connectivity based)')
-		elem_id = 0
-		averaged_grp = np.zeros(len(hists_geoms_dist[same_types_conn_filtered_cg_geoms[cg_geom_types][0]])) # get the averaged grp distrib while looping
-
-		for geom_id in same_types_conn_filtered_cg_geoms[cg_geom_types]:
-
-			averaged_grp += hists_geoms_dist[geom_id]
-			ax[0][1].grid(zorder=0.5)
-			ax[0][1].plot(bins_geoms[:-1]+bw/2, hists_geoms_dist[geom_id], label=geom[0].upper()+str(elem_id+1))
-			ax[0][1].fill_between(bins_geoms[:-1]+bw/2, hists_geoms_dist[geom_id], alpha=0.15)
-			xmin, xmax = min(xmin, bins_geoms[np.min(np.nonzero(hists_geoms_dist[geom_id]))]), max(xmax, bins_geoms[np.max(np.nonzero(hists_geoms_dist[geom_id]))+1])
-			elem_id += 1
-
-		averaged_grp /= len(same_types_conn_filtered_cg_geoms[cg_geom_types])
-		if geom == 'bond':
-			xmin, xmax = xmin-bw, xmax+bw
-			quantif, unit, nb_digits_rounding = 'Distances', 'nm', 2
-		else:
-			xmin, xmax = xmin+bw/2, xmax-bw/2
-			quantif, unit, nb_digits_rounding = 'Angles values', 'degrees', 1
-		ax[0][1].set_xlim(left=xmin, right=xmax)
-		ax[0][1].legend(loc='best')
-		ax[0][1].set_xlabel(quantif+' ('+unit+')')
-		ax[0][1].set_ylabel('Density')
-
-		# average all distributions in the group currently based on beads connectivity exclusively
-		ax[0][0].set_title('Avg distribs for '+geom.upper()+'S GRP '+str(cg_geom_types)+' (connectivity based)')
-		ax[0][0].grid(zorder=0.5)
-		ax[0][0].plot(bins_geoms[:-1]+bw/2, averaged_grp, color='black', label='Avg')
-		ax[0][0].fill_between(bins_geoms[:-1]+bw/2, averaged_grp, color='black', alpha=0.15)
-		ax[0][0].set_xlim(left=xmin, right=xmax)
-		ax[0][0].legend(loc='best')
-		ax[0][0].set_xlabel(quantif+' ('+unit+')')
-		ax[0][0].set_ylabel('Density')
-
-		# make all y axes consistent
-		ymax_distrib = max(ax[0][0].get_ylim()[1], ax[0][1].get_ylim()[1])
-		ax[0][0].set_ylim(bottom=0, top=ymax_distrib)
-		ax[0][1].set_ylim(bottom=0, top=ymax_distrib)
-		colors_list = list(range(len(same_types_conn_filtered_cg_geoms[cg_geom_types]))) # TODO: Coloring is repeated without changing linestyle when the beads grp contains more than 10 bonds
-
-		# plot the distance matrix between distributions
-		all_emd_dists_square = squareform(all_emd_dists) # get square distance matrix from the condensed one
-		ax[0][2].set_title('EMD distances between distributions ('+unit+')')
-		im = ax[0][2].imshow(all_emd_dists_square, cmap='Reds', vmin=0, vmax=dist_thres_geom, aspect='equal', origin='lower')
-		ax[0][2].set_xticks(np.arange(0, len(same_types_conn_filtered_cg_geoms[cg_geom_types]), 1))
-		ax[0][2].set_yticks(np.arange(0, len(same_types_conn_filtered_cg_geoms[cg_geom_types]), 1))
-		ax[0][2].set_xticklabels([geom[0].upper()+str(tl) for tl in np.arange(0, len(same_types_conn_filtered_cg_geoms[cg_geom_types]), 1)+1])
-		ax[0][2].set_yticklabels([geom[0].upper()+str(tl) for tl in np.arange(0, len(same_types_conn_filtered_cg_geoms[cg_geom_types]), 1)+1])
-		cbar = ax[0][2].figure.colorbar(im, ax=ax[0][2], fraction=0.046, pad=0.04)
-
-		# annotate the distance heatmap
-		for i in range(len(same_types_conn_filtered_cg_geoms[cg_geom_types])):
-		    for j in range(len(same_types_conn_filtered_cg_geoms[cg_geom_types])):
-		        ax[0][2].text(j, i, round(all_emd_dists_square[i, j], nb_digits_rounding), ha='center', va='center', color=textcolors[int(all_emd_dists_square[i, j] > dist_thres_geom/2)])
-
-		# plot distributions for elements that were grouped based on distance clustering between distributions
-		for i in range(nb_clusters):
-
-			grp_ids = list(compress(same_types_conn_filtered_cg_geoms[cg_geom_types], clusters == i+1))
-			elem_ids = list(compress(colors_list, clusters == i+1))
-			averaged_cluster = np.zeros(len(hists_geoms_dist[same_types_conn_filtered_cg_geoms[cg_geom_types][0]])) # get the averaged grp distrib while looping
-			new_geom_type = str(cg_geom_types)+'.'+str(i+1)
-
-			# print('CLUSTER:', new_geom_type, '-- grp_ids:', grp_ids, '-- elem_ids:', elem_ids, '-- real:', [all_cg_geoms[xx] for xx in grp_ids])
-
-			ax[i+1][1].set_title('Distribs for clustered '+geom.upper()+'S GRP '+new_geom_type+' (conn+distrib based)')
-			ax[i+1][1].grid(zorder=0.5)
-			ax[i+1][1].set_xlim(left=xmin, right=xmax)
-			ax[i+1][1].set_ylim(bottom=0, top=ymax_distrib)
-
-			for j in range(len(elem_ids)):
-				averaged_cluster += hists_geoms_dist[grp_ids[j]]
-				ax[i+1][1].plot(bins_geoms[:-1]+bw/2, hists_geoms_dist[grp_ids[j]], color=color_cycle[elem_ids[j]%10], label=geom[0].upper()+str(elem_ids[j]+1))
-				# ax[i+1][1].plot(bins_geoms[:-1]+bw/2, hists_geoms_dist[grp_ids[j]], color=color_cycle[elem_ids[j]%10], label='Beads: '+(' '.join(map(str, all_cg_geoms[grp_ids[j]]))))
-				ax[i+1][1].fill_between(bins_geoms[:-1]+bw/2, hists_geoms_dist[grp_ids[j]], color=color_cycle[elem_ids[j]%10], alpha=0.15)
-
-				# update edges types after distributions clustering
-				if geom == 'bond':
-					edge = all_cg_geoms[grp_ids[j]]
-					nx.set_edge_attributes(cg_graph, {edge: {'edge_type': new_geom_type}})
-
-			averaged_cluster /= len(grp_ids)
-			ax[i+1][1].legend(loc='best')
-			# if i == nb_clusters-1:
-			ax[i+1][1].set_xlabel(quantif+' ('+unit+')')
-			ax[i+1][1].set_ylabel('Density')
-
-			# plot averaged distributions for each cluster, which is now filtered by distances between distribution (also symmetry-wise)
-			ax[i+1][0].set_title('Avg distribs for '+geom.upper()+'S GRP '+new_geom_type+' (conn+distrib based)')
-			ax[i+1][0].grid(zorder=0.5)
-			ax[i+1][0].set_xlim(left=xmin, right=xmax)
-			ax[i+1][0].set_ylim(bottom=0, top=ymax_distrib)
-			ax[i+1][0].plot(bins_geoms[:-1]+bw/2, averaged_cluster, color='black', label='Avg')
-			ax[i+1][0].fill_between(bins_geoms[:-1]+bw/2, averaged_cluster, color='black', alpha=0.15)
-			ax[i+1][0].legend(loc='best')
-			# if i == nb_clusters-1:
-			ax[i+1][0].set_xlabel(quantif+' ('+unit+')')
-			ax[i+1][0].set_ylabel('Density')
-
-			# TODO: generate a bigger sized image when the legend does not fit = catch the legend problem WARNING
-
-			# Boltzmann inversion using averaged distributions in current cluster
-			# ax[i+1][2].set_visible(False) # hide last line plot, below distance matrix
-
-			# TODO: put this out of the function
-			def f(x,a,b,c,d,e):
-			    return a*np.cos(x-b)+d*np.cos(2*x-e)+c
-
-			def f1(x,a,b,c):
-			    return a*np.cos(x-b)+c
-
-			def f2(x,a,b,c):
-			    return a*np.cos(2*x-b)+c
-
-			with warnings.catch_warnings():
-				warnings.filterwarnings("ignore", category=RuntimeWarning) # ignore the warning "divide by 0 encountered in true_divide" while calculating sigma
-
-				if geom == 'bond':
-
-					values_cluster = np.concatenate([values_geoms[grp_id] for grp_id in grp_ids])
-					avg_cluster, std_cluster = np.mean(values_cluster), np.std(values_cluster)
-					hists_geoms_bi = np.histogram(values_cluster, range=(xmin, xmax), bins=config.bi_nb_bins)[0]
-
-					y_init = -config.kB * ns.temp * np.log(hists_geoms_bi + 1)
-					hist_geoms_modif = hists_geoms_bi**2 * (max(hists_geoms_bi) / max(hists_geoms_bi**2))
-
-					nb_passes = 3
-					alpha = 0.55
-					for _ in range(nb_passes):
-						hist_geoms_modif = ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins/10))
-
-					y = -config.kB * ns.temp * np.log(hist_geoms_modif + 1)
-					x = np.linspace(xmin, xmax, config.bi_nb_bins, endpoint=True)
-					k = config.kB * ns.temp / std_cluster / std_cluster * 100 / 2
-
-					params_guess = [k, avg_cluster*10, min(y)]
-
-					# calculate derivative to use as sigma for fitting
-					y_forward_shift = collections.deque(y)
-					y_forward_shift.rotate(3)
-					deriv = abs(y - y_forward_shift)
-					deriv = collections.deque(deriv)
-					deriv.rotate(-3)
-
-					nb_passes = 5
-					for _ in range(nb_passes):
-						deriv = sma(deriv, int(config.bi_nb_bins/5))
-
-					deriv *= np.sqrt(y/min(y))
-					deriv = 1/deriv
-					sigma = np.where(y < max(y), deriv, np.inf)
-					
-					popt, pcov = curve_fit(gmx_bonds_func_1, x*10, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False) # multiply for amgstrom for BI
-
-					ax[i+1][2].set_title('Boltzmann inversion and fitted function')
-					ax[i+1][2].grid(zorder=0.5)
-					ax[i+1][2].plot(x, y_init, color='black', label='B.I.')
-					ax[i+1][2].plot(x, sigma, color='purple', label='sigma')
-					ax[i+1][2].plot(x, y, color='green', label='B.I. modif')
-					ax[i+1][2].plot(x, gmx_bonds_func_1(x*10, *popt), '--', color='red', label='Fitted')
-
-					# print('Bond', new_geom_type, 'force cte:', popt[0]*100)
-					initial_guess = [avg_cluster, min(popt[0]*100, max_fct_geom)] # average instead of fitted point
-
-				elif geom == 'angle':
-
-					values_cluster_rad = np.concatenate([values_geoms_rad[grp_id] for grp_id in grp_ids])
-					avg_cluster_rad, std_cluster_rad = np.mean(values_cluster_rad), np.std(values_cluster_rad)
-					avg_cluster_deg = np.mean(np.concatenate([values_geoms[grp_id] for grp_id in grp_ids]))
-					hists_geoms_bi = np.histogram(values_cluster_rad, range=(np.deg2rad(xmin), np.deg2rad(xmax)), bins=config.bi_nb_bins)[0]
-
-					y = -config.kB * ns.temp * np.log(hists_geoms_bi + 1)
-					# y = -config.kB * ns.temp * np.log(np.where(hists_geoms_bi < 0.1, 0, hists_geoms_bi) + 1)
-					x_deg = np.linspace(xmin, xmax, config.bi_nb_bins, endpoint=True)
-					x_rad = np.linspace(np.deg2rad(xmin), np.deg2rad(xmax), config.bi_nb_bins, endpoint=True)
-					k = config.kB * ns.temp / std_cluster_rad / std_cluster_rad / 2
-
-					params_guess = [k, avg_cluster_rad, min(y)]
-					# sigma = np.where(y < max(y), 1-(-y/(max(y)-min(y)))+0.1, np.inf) # this sigma  is definitely better when angles have bimodal distributions
-					sigma = np.where(y < max(y), 0.1, np.inf)
-
-					popt, pcov = curve_fit(gmx_angles_func_2, x_rad, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
-
-					ax[i+1][2].set_title('Boltzmann inversion and fitted function')
-					ax[i+1][2].grid(zorder=0.5)
-					ax[i+1][2].plot(x_deg, y, color='black', label='B.I.')
-					ax[i+1][2].plot(x_deg, gmx_angles_func_2(x_rad, *popt), '--', color='red', label='Fitted')
-
-					if popt[0] < 0: # correct fitting issue that can happen for stiff angles at values close to 180
-						popt[0] = max_fct_geom * 0.8
-					elif xmax == 180 - ns.bw_angles/2:
-						popt[0] += 20
-					# print('Angle', new_geom_type, 'force cte:', popt[0])
-					initial_guess = [avg_cluster_deg, min(popt[0], max_fct_geom)] # average instead of fitted point
-
-				elif geom == 'dihedral':
-
-					xmin, xmax = -180, 180
-
-					values_cluster_rad = np.concatenate([values_geoms_rad[grp_id] for grp_id in grp_ids])
-					avg_cluster_rad, std_cluster_rad = np.mean(values_cluster_rad), np.std(values_cluster_rad)
-					# avg_cluster_deg = np.mean(np.concatenate([values_geoms[grp_id] for grp_id in grp_ids]))
-					hists_geoms_bi = np.histogram(values_cluster_rad, range=(np.deg2rad(xmin), np.deg2rad(xmax)), bins=2*config.bi_nb_bins)[0]
-
-					y = -config.kB * ns.temp * np.log(hists_geoms_bi + 1)
-					# y = -config.kB * ns.temp * np.log(np.where(hists_geoms_bi < 0.1, 0, hists_geoms_bi) + 1)
-					x_deg = np.linspace(xmin, xmax, 2*config.bi_nb_bins, endpoint=True)
-					x_rad = np.linspace(np.deg2rad(xmin), np.deg2rad(xmax), 2*config.bi_nb_bins, endpoint=True)
-					k = config.kB * ns.temp / std_cluster_rad / std_cluster_rad
-
-					params_guess_1 = [max(y)-min(y), 0, min(y), max(y)-min(y), avg_cluster_rad+np.pi/2]
-					params_guess_2 = [max(y)-min(y), avg_cluster_rad, min(y)]
-					params_guess_3 = [k, avg_cluster_rad, min(y)]
-					# params_guess_2 = [max(y)-min(y), 0, min(y)]
-					# sigma = np.where(y < max(y), 1-(-y/(max(y)-min(y)))+0.1, np.inf)
-					# sigma = np.where(y < max(y), -1/y, np.inf)
-					sigma = np.where(y < max(y), 0.1, np.inf)
-
-					multiplicity = 1 # TODO: try different multiplicities and keep only the best fit
-
-					popt, pcov = curve_fit(f, x_rad, y, p0=params_guess_1, sigma=sigma, maxfev=99999, absolute_sigma=False)
-					# popt1, pcov1 = curve_fit(f1, x_rad, y, p0=params_guess_2, sigma=sigma, maxfev=99999, absolute_sigma=False)
-					# popt2, pcov2 = curve_fit(f2, x_rad, y, p0=params_guess_2, sigma=sigma, maxfev=99999, absolute_sigma=False)
-					popt3, pcov3 = curve_fit(gmx_dihedrals_func_1(mult=multiplicity), x_rad, y, p0=params_guess_2, sigma=sigma, maxfev=99999, absolute_sigma=False)
-					popt4, pcov4 = curve_fit(gmx_dihedrals_func_1(mult=2), x_rad, y, p0=params_guess_2, sigma=sigma, maxfev=99999, absolute_sigma=False)
-					popt5, pcov5 = curve_fit(gmx_dihedrals_func_2, x_rad, y, p0=params_guess_3, sigma=sigma, maxfev=99999, absolute_sigma=False)
-
-					ax[i+1][2].set_title('Boltzmann inversion and fitted function')
-					ax[i+1][2].grid(zorder=0.5)
-					ax[i+1][2].plot(x_deg, y, color='black', label='B.I.')
-					ax[i+1][2].plot(x_deg, f(x_rad, *popt), '--', color='red', label='Fitted f')
-					# ax[i+1][2].plot(x_deg, f1(x_rad, *popt1), ls='--', label='Fitted f1')
-					# ax[i+1][2].plot(x_deg, f2(x_rad, *popt2), ls='--', label='Fitted f2')
-					ax[i+1][2].plot(x_deg, gmx_dihedrals_func_1(mult=multiplicity)(x_rad, *popt3), ls='--', label='Auto-multi 1')
-					ax[i+1][2].plot(x_deg, gmx_dihedrals_func_1(mult=2)(x_rad, *popt4), ls='--', label='Auto-multi 2')
-					ax[i+1][2].plot(x_deg, gmx_dihedrals_func_2(x_rad, *popt5), ls='--', label='Func 2 like angles')
-					# ax[i+1][2].plot(x_deg, 1+gmx_dihedrals_func_1(mult=1)(x_rad, *test), ls='--', label='Auto-multi rev fct', color='purple')
-
-					# print('Dihedral', new_geom_type, 'force cte:', popt3[0], '(multiplicity:', str(1)+') -- Value:', np.rad2deg(popt3[1]))
-					# print('Dihedral', new_geom_type, 'force cte:', popt4[0], '(multiplicity:', str(2)+') -- Value:', np.rad2deg(popt3[1]))
-					# print('Dihedral', new_geom_type, 'force cte:', popt5[0], 'func 2 like angles')
-					# print()
-					initial_guess = [np.rad2deg(popt3[1]), popt3[0], multiplicity] # TODO: also use min(init, max_fct_geom) for dihedrals here
-
-			# scaling and legends common to all geom plotting
-			# ax[i+1][2].set_xlim(left=xmin, right=xmax)
-			# ax[i+1][2].set_ylim(top=1+(1-ax[i+1][2].get_ylim()[0])*0.05)
-			ax[i+1][2].set_ylim(bottom=-30, top=10)
-			ax[i+1][2].legend(loc='best')
-			ax[i+1][2].set_xlabel(quantif+' ('+unit+')')
-			ax[i+1][2].set_ylabel('Potential')
-
-			# store the content we need to put in the output CG model ITP
-			if geom == 'bond':
-				funct = 1
-				out_itp[geom].append({'geom_type': new_geom_type, 'beads': [all_cg_geoms[geom_id] for geom_id in grp_ids], 'plt_id': [geom[0].upper()+str(elem_ids[j]+1) for j in range(len(elem_ids))], 'funct': funct, 'value': initial_guess[0], 'fct': initial_guess[1]})
-			elif geom == 'angle':
-				funct = 2
-				out_itp[geom].append({'geom_type': new_geom_type, 'beads': [all_cg_geoms[geom_id] for geom_id in grp_ids], 'plt_id': [geom[0].upper()+str(elem_ids[j]+1) for j in range(len(elem_ids))], 'funct': funct, 'value': initial_guess[0], 'fct': initial_guess[1]})
-			elif geom == 'dihedral':
-				funct = 1 # TODO: define function from BI
-				out_itp[geom].append({'geom_type': new_geom_type, 'beads': [all_cg_geoms[geom_id] for geom_id in grp_ids], 'plt_id': [geom[0].upper()+str(elem_ids[j]+1) for j in range(len(elem_ids))], 'funct': funct, 'value': initial_guess[0], 'fct': initial_guess[1], 'mult': initial_guess[2]})
-
-			# print('CLUSTER:', new_geom_type, '-- grp_ids:', grp_ids, '-- geoms:', [[bead_id+1 for bead_id in all_cg_geoms[geom_id]] for geom_id in grp_ids], '-- GUESS:', initial_guess)
-			# print(geom.capitalize(), 'beads type:', cg_geom_types, '-- Initial guess:', initial_guess)
-
-		if dist_thres_geom == default_dist_thres_geom:
-			split_info = ' -- Used a single cluster, distribution clustering (conn+distrib based) is DISABLED (cutoff '+str(dist_thres_geom)+' '+unit+')'
-		else:
-			if nb_clusters > 1:
-				split_info = ' -- Found '+str(nb_clusters)+' clusters using additional distributions distances cutoff '+str(dist_thres_geom)+' '+unit+' (conn+distrib based)'
-			else:
-				split_info = ' -- Single cluster found using additional distributions distances cutoff '+str(dist_thres_geom)+' '+unit+' (conn+distrib based)'
-
-		plt.tight_layout(rect=[0, 0, 1, 0.93]) # TODO: title position is unperfect because the number of clusters can vary
-		plt.suptitle('Distributions clustering based on pairwise EMD distances between distributions\n'+geom.upper()+'S GRP '+str(cg_geom_types)+' (connectivity based)'+split_info)
-		plot_filename = exec_folder+'/'+geom.capitalize()+'_grps_type_'+str(cg_geom_types)+'.png'
-		plt.savefig(plot_filename)
-		plt.close()
-
-	return nb_geoms_grp_filtered
-
-
-# get domains for force constants
-# def get_domains_fct(ns):
-
-# 	ns.domains_fct = {}
-# 	ns.domains_fct['bond'] = [config.default_min_fct_bonds, ns.default_max_fct_bonds_opti]
-	# ns.domains_fct['angle_f1'] = [config.default_min_fct_angles, ns.default_max_fct_angles_opti_f1]
-	# ns.domains_fct['angle_f2'] = [config.default_min_fct_angles, ns.default_max_fct_angles_opti_f2]
-	# ns.domains_fct['dihedral'] = [-config.default_max_fct_dihedrals_opti, config.default_max_fct_dihedrals_opti] # it can be negative of positive, this is handled just after in process
-	
-	# return
+# def compare_atom_content(ns, all_cg_geoms, cg_graph, aa_graph, cg_node_matcher_2, cg_edge_matcher, aa_node_matcher):
+
+# 	same_types_conn_filtered_cg_geoms = dict()
+# 	geoms_types = {'cg_lvl': {}, 'aa_lvl': {}}
+# 	nb_geoms_types = 0
+
+# 	for geom_id in range(len(all_cg_geoms)):
+
+# 		geom = all_cg_geoms[geom_id]
+# 		new_geom_type = cg_graph.subgraph(geom).copy() # CG subgraph of the geom beads as a first filter -- copy since we might remove edges for dihedrals
+# 		if len(geom) == 4: # for dihedrals remove the additional edge within cycles of 4 beads -- dihedrals with rotatable within cycles of 3 beads shall already be discarded from previous steps
+# 			try:
+# 				new_geom_type.remove_edge(geom[0], geom[3])
+# 			except nx.NetworkXError:
+# 				pass # if there was no edge between opposite beads of the dihedral
+# 		cg_geom_with_neighbors = set([conn_bead_id for bead_id in geom for conn_bead_id in ns.all_beads[bead_id]['conn']]) # extend cg graph to n+1 neighbors so atomistic branching will be taken into account + handle case that include the very central bead of a graph/molecule -- this is necessary to handle cyclic cores correctly, especially
+# 		aa_sg_view_new_geom = aa_graph.subgraph([atom_id for bead_id in cg_geom_with_neighbors for atom_id in ns.all_beads[bead_id]['atoms_id']]) # atomistic subgraph of the beads content, specifically for handling/splitting geoms with edges inside atomistic cycles (benzenes, etc.) or case that include the very central bead of a graph/molecule
+# 		# aa_sg_view_new_geom = aa_graph.subgraph([atom_id for bead_id in geom for atom_id in ns.all_beads[bead_id]['atoms_id']]) # atomistic subgraph of the beads content, specifically for handling/splitting geoms with edges inside atomistic cycles (benzenes, etc.) or case that include the very central bead of a graph/molecule
+# 		found_geom_type = False
+
+# 		for known_geom_type in geoms_types['cg_lvl']:
+
+# 			GM = nx.algorithms.isomorphism.GraphMatcher(known_geom_type, new_geom_type, node_match=cg_node_matcher_2, edge_match=cg_edge_matcher)
+# 			if GM.is_isomorphic():
+
+# 				aa_sg_view_known_geom = geoms_types['aa_lvl'][geoms_types['cg_lvl'][known_geom_type]]
+# 				if nx.algorithms.isomorphism.is_isomorphic(aa_sg_view_new_geom, aa_sg_view_known_geom, node_match=aa_node_matcher):
+
+# 					found_geom_type = True
+# 					ref_geom_ids_order = all_cg_geoms[same_types_conn_filtered_cg_geoms[geoms_types['cg_lvl'][known_geom_type]][0]]
+# 					all_cg_geoms[geom_id] = tuple([GM.mapping[bead_id] for bead_id in ref_geom_ids_order]) # get ordering right for identical elements within the reference list of objects
+# 					same_types_conn_filtered_cg_geoms[geoms_types['cg_lvl'][known_geom_type]].append(geom_id)
+# 					break
+
+# 		if not found_geom_type:
+# 			nb_geoms_types += 1
+# 			geoms_types['cg_lvl'][new_geom_type] = nb_geoms_types
+# 			geoms_types['aa_lvl'][nb_geoms_types] = aa_sg_view_new_geom
+# 			same_types_conn_filtered_cg_geoms[nb_geoms_types] = [geom_id]
+
+# 	return same_types_conn_filtered_cg_geoms
 
 
 # set dimensions of the search space according to the type of optimization (= geom type(s) to optimize)
@@ -2649,6 +2297,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000, energy_write_nb_frames_ratio=0.1):
 
 	# TODO: this gives an incorrect number of frames in some cases
+	# TODO: this whole function is really shit, but atm the MDP is user provided so we cannot use placeholders + not sure what kind of mistakes can be made in MDP files that are provided
 
 	# read input
 	with open(mdp_filename, 'r') as fp:
