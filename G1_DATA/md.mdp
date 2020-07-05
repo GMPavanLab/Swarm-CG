@@ -1,0 +1,45 @@
+integrator               = md
+dt                       = 0.02
+nsteps                   = 15000
+comm-mode                = Linear
+nstcomm                  = 100
+comm-grps                = 
+
+nstxout                  = 0
+nstvout                  = 0
+nstfout                  = 0
+nstlog                   = 5000
+nstcalcenergy            = 1000
+nstenergy                = 50000
+nstxout-compressed       = 500
+compressed-x-precision   = 1000
+
+cutoff-scheme            = Verlet
+nstlist                  = 20
+ns_type                  = grid
+pbc                      = xyz 
+rlist                    = 1.1
+verlet-buffer-tolerance  = 0.005
+
+coulombtype              = reaction-field 
+rcoulomb                 = 1.1
+epsilon_r                = 15
+epsilon_rf               = 0
+vdw_type                 = cutoff
+vdw-modifier             = Potential-shift-verlet
+rvdw                     = 1.1
+
+tcoupl                   = v-rescale
+tc-grps                  = system
+tau-t                    = 1.0
+ref-t                    = 300  
+Pcoupl                   = berendsen
+Pcoupltype               = isotropic
+tau-p                    = 4.0
+compressibility          = 5e-4
+ref-p                    = 1.0
+
+constraints              = none 
+constraint_algorithm     = Lincs
+
+
