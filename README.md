@@ -8,11 +8,11 @@ Swarm-CG is designed for optimizing the bonded terms of a coarse-grained (CG) mo
 
 ### Publication
 
-> Swarm-CG: Automatic Parametrization of Bonded Terms in Coarse-Grained Models of Simple to Complex Molecules via Fuzzy Self-Tuning Particle Swarm Optimization, Empereur-Mot C., Pesce L., Bochiocchio D., Perego C., Pavan G.M., ChemRxiv 2020
+> Empereur-mot, C.; Pesce, L.; Bochicchio, D.; Perego, C.; Pavan, G.M. (2020) Swarm-CG: Automatic Parametrization of Bonded Terms in Coarse-Grained Models of Simple to Complex Molecules via Fuzzy Self-Tuning Particle Swarm Optimization. [ChemRxiv. Preprint](https://doi.org/10.26434/chemrxiv.12613427.v1)
 
 ### Installation & Usage
 
-Swarm-CG was tested using Python 3.6.8 and Gromacs 2018.
+Swarm-CG was tested using Python 3.6.8 and Gromacs 2018.6.
 
 	# pick one
 	pip install swarm-cg
@@ -43,7 +43,7 @@ Which will use all default filenames of the software and is *exactly identical* 
 
 	scg_optimize -aa_tpr G1_DATA/aa_topol.tpr -aa_traj G1_DATA/aa_traj.xtc -cg_map G1_DATA/cg_map.ndx -cg_itp G1_DATA/cg_model.itp -cg_gro G1_DATA/start_conf.gro -cg_top G1_DATA/system.top -cg_mdp_mini G1_DATA/mini.mdp -cg_mdp_equi G1_DATA/equi.mdp -cg_mdp_md G1_DATA/md.mdp -gmx gmx_2018.6_p
 
-We recommend to first prepare files in a directory to be fed to Swarm-CG using argument __-in_dir__.
+We recommend to first prepare files in a directory to be fed to Swarm-CG using argument `-in_dir`.
 
 The input is composed of:
 
@@ -55,17 +55,17 @@ The input is composed of:
 
 At all times during execution, the best parametrized model is accessible in the optimization output folder at `out_dir/optimized_CG_model/cg_model.itp`. The bonded parameters obtained via the Boltzmann inversion implemented in Swarm-CG with groups averaging (see paper sections 2.1 and 6.1) are also available at `out_dir/boltzmann_inv_CG_model/cg_model.itp`.
 
-The AA trajectory is mapped on-the-fly (if atoms are mapped to multiple CG beads, atom masses are split accordingly). The AA trajectory must contain box information for PBC handling, otherwise it is assumed the molecule is "unwrapped" already. Only the MDP file provided via __-cg_mdp_md__ will be modified to adjust simulation time (nsteps), taking into account the timestep you provided. To minimize the execution time of __scg_optimize__, equilibration should stay short (e.g. 50-500 fs) and so should the optimization cycles 1 and 2 (e.g. 10-20 ns). To maximize the precision of __scg_optimize__, optimization cycle 3 must always use longer simulation times (e.g. 25-100 ns). Execution times should vary between 4h to 24h according to parameters and hardware used.
+The AA trajectory is mapped on-the-fly (if atoms are mapped to multiple CG beads, atom masses are split accordingly). The AA trajectory must contain box information for PBC handling, otherwise it is assumed the molecule is "unwrapped" already. Only the MDP file provided via argument `-cg_mdp_md` will be modified to adjust simulation time (nsteps), taking into account the timestep you provided. To minimize the execution time of __scg_optimize__, equilibration should stay short (e.g. 50-500 fs) and so should the optimization cycles 1 and 2 (e.g. 10-20 ns). To maximize the precision of __scg_optimize__, optimization cycle 3 must always use longer simulation times (e.g. 25-100 ns). Execution times should vary between 4h to 24h according to parameters and hardware used.
 
 For information about execution modes 1 and 2, please see paper sections 2.4 and 4 and the help (-h).
 
 ### 3. Monitor an ongoing CG model optimization
 
-Optimization procedures can be monitored at any point during execution. The module __scg_monitor__ produces a visual summary (see paper Fig. 3) of the progress of an optimization procedure started with module __scg_optimize__. The plot will be produced in the directory provided via argument __-opti_dir__.
+Optimization procedures can be monitored at any point during execution. The module __scg_monitor__ produces a visual summary (see paper Fig. 3) of the progress of an optimization procedure started with module __scg_optimize__. The plot will be produced in the directory provided via argument `-opti_dir`.
 
 	scg_monitor -opti_dir MODEL_OPTI__STARTED_03-07-2020_10h_12m_15s -gmx gmx_2018.6_p
 
-See the help (-h) for a complete description of __scg_monitor__ output. In particular, note that Rg and SASA might be rough estimates in this display and these values must probably be validated using longer simulation times. Using __scg_evaluate__ can be helpful to this end.
+See the help (-h) for a complete description of __scg_monitor__ output. In particular, note that Rg and SASA might be rough estimates in this display, as they are calculated from short simulations used for optimization. These values must probably be validated using longer simulation times. Using __scg_evaluate__ can be helpful to this end.
 
 ### Extended usage (untested)
 
@@ -77,7 +77,7 @@ Please feel free to open an [Issue](https://github.com/GMPavanLab/SwarmCG/issues
 
 ### Credits
 
-Swarm-CG makes extensive use of [FST-PSO](https://doi.org/10.1016/j.swevo.2017.09.001) and [MDAnalysis](https://doi.org/10.1002/jcc.21787). We thank Marco S. Nobile for his invaluable insights.
+Swarm-CG makes extensive use of [FST-PSO](https://doi.org/10.1016/j.swevo.2017.09.001) and [MDAnalysis](https://doi.org/10.1002/jcc.21787). We thank [Marco S. Nobile](http://msnobile.it/personal/) for his valuable insights.
 
 
 
