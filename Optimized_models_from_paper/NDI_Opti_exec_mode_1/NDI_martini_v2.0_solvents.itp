@@ -1,0 +1,412 @@
+;;;;;; GENERAL SOLVENT TOPOLOGIES
+
+;;;;;;;;;;;;
+;;;;;;;;;;;; ALKANES
+;;;;;;;;;;;;
+
+;;;;;; BUTANE
+;
+; same particle type represents ISOPROPANE
+
+[moleculetype]
+; molname 	nrexcl
+  BUT 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	C1 	1 	BUT 	C1 	1 	0 
+
+;;;;;; PROPANE 
+
+[moleculetype]
+; molname 	nrexcl
+  POP 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	C2 	1 	POP 	C 	1 	0 
+
+;;;;;; OCTANE
+
+[moleculetype]
+; molname 	nrexcl
+  OCT 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	C1 	1 	OCT 	C 	1 	0 
+  2 	C1 	1 	OCT 	C 	2 	0 
+
+[bonds]
+; i j 	funct 	length 	force.c.
+  1 2 	1 	0.47 	1250
+
+;;;;;; DODECANE
+;
+; same topology represents DECANE
+
+[moleculetype]
+; molname 	nrexcl
+  DEC 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+ 1 	C1 	1 	DEC 	C 	1 	0 
+ 2 	C1 	1 	DEC 	C 	2 	0 
+ 3 	C1 	1 	DEC 	C 	3 	0 
+
+[bonds]
+; i j 	funct 	length 	force.c.
+  1 2 	1 	0.47 	1250
+  2 3 	1 	0.47 	1250
+
+[angles]
+; i j k 	funct 	angle 	force.c.
+  1 2 3 	2 	180.0  	25.0 
+
+;;;;;; HEXADECANE
+
+[moleculetype]
+; molname 	nrexcl
+  HD 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	C1 	1 	HD 	C 	1 	0 
+  2 	C1 	1 	HD 	C 	2 	0 
+  3 	C1 	1 	HD 	C 	3 	0 
+  4 	C1 	1 	HD 	C 	4 	0 
+
+[bonds]
+; i j 	funct 	length 	force.c.
+  1 2 	1 	0.47 	1250
+  2 3 	1 	0.47 	1250
+  3 4 	1 	0.47 	1250
+
+[angles]
+; i j k 	funct 	angle 	force.c.
+  1 2 3 	2 	180.0 	25.0 
+  2 3 4 	2 	180.0 	25.0 
+
+;;;;;; OCTADECANE
+
+[moleculetype]
+; molname 	nrexcl
+  OD 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	C1 	1 	OD 	C 	1 	0 
+  2 	C1 	1 	OD 	C 	2 	0 
+  3 	C1 	1 	OD 	C 	3 	0 
+  4 	C1 	1 	OD 	C 	4 	0 
+  5 	C1 	1 	OD 	C 	5 	0 
+
+[bonds]
+; i j 	funct 	length 	force.c.
+  1 2 	1 	0.47 	1250
+  2 3 	1 	0.47 	1250
+  3 4 	1 	0.47 	1250
+  4 5 	1 	0.47 	1250
+
+[angles]
+; i j k 	funct 	angle 	force.c.
+  1 2 3 	2 	180.0 	25.0 
+  2 3 4 	2 	180.0 	25.0 
+  3 4 5 	2 	180.0 	25.0 
+
+;;;;;; cis-OCTADECENE (with a cis double bond around position w=9)
+
+[moleculetype]
+; molname 	nrexcl
+  ODE 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1  	C1 	1 	ODE 	C 	1 	0 
+  2  	C1 	1 	ODE 	C 	2 	0 
+  3  	C3 	1 	ODE 	D  	3 	0 
+  4 	C1 	1 	ODE 	C 	4 	0 
+  5 	C1 	1 	ODE 	C 	5 	0 
+
+[bonds]
+; i j 	funct 	length 	force.c.
+  1 2 	1 	0.47 	1250
+  2 3 	1 	0.47 	1250
+  3 4 	1 	0.47 	1250
+  4 5 	1 	0.47 	1250
+
+[angles]
+; i j k 	funct 	angle 	force.c.
+  1 2 3 	2 	180.0 	25.0 
+  2 3 4 	2 	120.0   45.0 
+  3 4 5 	2 	180.0 	25.0 
+
+;;;;;; trans-OCTADECENE (with a trans double bond around position w=6)
+
+[moleculetype]
+; molname 	nrexcl
+  ODT 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1  	C1 	1 	ODT 	C 	1 	0 
+  2  	C3 	1 	ODT 	D 	2 	0 
+  3  	C1 	1 	ODT 	C  	3 	0 
+  4 	C1 	1 	ODT 	C 	4 	0 
+  5 	C1 	1 	ODT 	C 	5 	0 
+
+[bonds]
+; i j 	funct 	length 	force.c.
+  1 2 	1 	0.47 	1250
+  2 3 	1 	0.47 	1250
+  3 4 	1 	0.47 	1250
+  4 5 	1 	0.47 	1250
+
+[angles]
+; i j k 	funct 	angle 	force.c.
+  1 2 3 	2 	180.0 	45.0 
+  2 3 4 	2 	180.0   25.0 
+  3 4 5 	2 	180.0 	25.0 
+
+
+;;;;;; BENZENE
+
+[moleculetype]
+; molname       nrexcl
+  BENZ 		1
+
+[atoms]
+; id    type    resnr   residu  atom    cgnr    charge
+  1 	SC4 	1 	BENZ 	R1 	1 	0 
+  2 	SC4 	1 	BENZ 	R2 	2 	0 
+  3 	SC4 	1 	BENZ 	R3 	3 	0 
+
+[constraints]
+; i j   funct   length
+  1 2 	1 	0.27
+  2 3 	1 	0.27
+  1 3 	1 	0.27
+
+
+;;;;;;  CYCLOHEXANE
+
+[moleculetype]
+; molname       nrexcl
+  CHEX 		1
+
+[atoms]
+; id    type    resnr   residu  atom    cgnr    charge
+  1 	SC1 	1         CHEX 	R1 	1 	0 
+  2 	SC1 	1         CHEX 	R2 	2 	0 
+  3 	SC1 	1         CHEX 	R3 	3 	0 
+
+[bonds]
+; i j   funct   length  force.c.
+  1 2 	1 	0.3 	5000
+  2 3 	1 	0.3 	5000
+  1 3 	1 	0.3 	5000
+
+
+;;;;;;;;;;;;
+;;;;;;;;;;;; ALCOHOLS
+;;;;;;;;;;;;
+
+;;;;;; BUTANOL 
+
+[moleculetype]
+; molname 	nrexcl
+  BOL 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	Nda 	1 	BOL 	COH 	1 	0 
+
+;;;;;; PROPANOL
+
+[moleculetype]
+; molname 	nrexcl
+  POL 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	P1 	1 	POL 	COH 	1 	0 
+
+;;;;;; ETHANOL
+
+[moleculetype]
+; molname 	nrexcl
+  EOL 		1
+                                                                                                     
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	P2 	1 	EOL 	COH 	1 	0
+                                                                                                     
+;;;;;; OCTANOL
+
+[moleculetype]
+; molname 	nrexcl
+  OCO 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	P1 	1 	OCO 	PC 	1 	0 
+  2 	C1 	1 	OCO 	C 	2 	0 
+
+[bonds]
+; i j 	funct 	length 	force.c.
+  1 2 	1 	0.47 	1250
+
+;;;;;;;;;;;;
+;;;;;;;;;;;; OTHER ORGANIC SOLVENTS 
+;;;;;;;;;;;;
+
+;;;;;; CHLOROPROPANE 
+
+[moleculetype]
+; molname 	nrexcl
+  PRX 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	C3 	1 	PRX 	CX 	1 	0 
+
+;;;;;; CHLOROFORM 
+
+[moleculetype]
+; molname 	nrexcl
+  CLF 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	C4 	1 	CLF 	CX 	1 	0 
+
+;;;;;; METHYLETHYLSULFIDE 
+
+[moleculetype]
+; molname 	nrexcl
+  MES 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	C5 	1 	MES 	CS 	1 	0 
+
+;;;;;; ETHER 
+
+[moleculetype]
+; molname 	nrexcl
+  ETH 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	N0 	1 	ETH 	CO 	1 	0 
+
+;;;;;; PROPANON (ACETON)
+
+[moleculetype]
+; molname 	nrexcl
+  PON 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	Na 	1 	PON 	CO 	1 	0 
+
+;;;;;; PROPYLAMINE 
+
+[moleculetype]
+; molname 	nrexcl
+  PAM 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	Nd 	1 	PAM 	CN 	1 	0 
+
+;;;;;; ACETIC ACID
+
+[moleculetype]
+; molname 	nrexcl
+  ACH 		1 
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	P3 	1 	ACH 	OOH 	1 	0
+
+;;;;;; ACETAMIDE 
+
+[moleculetype]
+; molname 	nrexcl
+  ACE 		1
+
+[atoms]
+; id 	type 	resnr 	residu 	atom 	cgnr 	charge
+  1 	P5 	1 	ACE 	NCO 	1 	0 
+
+;;;;;; GLYCERINE TRIOLEATE
+;
+; provided by Timu Vuorela
+; 
+; please cite: 
+; T. Vuorela, A. Catte, P.S. Niemela, A. Hall, M.T. Hyvonen, S.J. Marrink, M. Karttunen, I. Vattulainen
+; Role of lipids in spheroidal high density lipoproteins
+; In preparation, 2010.
+;
+
+[ moleculetype ]
+; molname       nrexcl
+TO               1
+
+[ atoms ]
+;id type resnr residu atom cgnr   charge
+ 1   C1   1     TO     GLY    1      0
+ 2   Na   1     TO     ES1    2      0
+ 3   Na   1     TO     ES2    3      0
+ 4   Na   1     TO     ES3    4      0
+ 5   C1   1     TO     C1A    5      0
+ 6   C3   1     TO     D2A    6      0
+ 7   C1   1     TO     C3A    7      0
+ 8   C1   1     TO     C4A    8      0
+ 9   C1   1     TO     C1B    9      0
+ 10  C3   1     TO     D2B    10     0
+ 11  C1   1     TO     C3B    11     0
+ 12  C1   1     TO     C4B    12     0
+ 13  C1   1     TO     C1C    13     0
+ 14  C3   1     TO     D2C    14     0
+ 15  C1   1     TO     C3C    15     0
+ 16  C1   1     TO     C4C    16     0
+
+[bonds]
+;  i     j   funct   length  force.c.
+   1     2    1       0.47     1250
+   1     3    1       0.47     1250
+   1     4    1       0.47     1250
+   2     5    1       0.47     1250
+   5     6    1       0.47     1250
+   6     7    1       0.47     1250
+   7     8    1       0.47     1250
+   3     9    1       0.47     1250
+   9     10   1       0.47     1250
+   10    11   1       0.47     1250
+   11    12   1       0.47     1250
+   4     13   1       0.47     1250
+   13    14   1       0.47     1250
+   14    15   1       0.47     1250
+   15    16   1       0.47     1250
+
+[angles]
+;  i     j    k     funct   angle  force.c.
+   2     1    4       2    60.000  25.0
+   2     1    3       2   130.000  25.0
+   3     1    4       2   130.000  25.0
+   1     2    5       2   180.000  25.0
+   2     5    6       2   180.000  25.0
+   5     6    7       2   120.000  45.0
+   6     7    8       2   180.000  25.0
+   1     3    9       2   180.000  25.0
+   3     9   10       2   180.000  25.0
+   9    10   11       2   120.000  45.0
+  10    11   12       2   180.000  25.0
+   1     4   13       2   180.000  25.0
+   4    13   14       2   180.000  25.0
+  13    14   15       2   120.000  45.0
+  14    15   16       2   180.000  25.0
+

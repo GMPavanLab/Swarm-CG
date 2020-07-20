@@ -1,0 +1,164 @@
+; The BONDED TERMS of this CG model were optimized (execution mode 1) using Swarm-CG:
+;
+; Empereur-mot, C.; Pesce, L.; Bochicchio, D.; Perego, C.; Pavan, G. M.
+; Swarm-CG: Automatic Parametrization of Bonded Terms in CG Models of Simple to Complex Molecules via FST-PSO
+; ChemRxiv 2020. https://doi.org/10.26434/chemrxiv.12613427.
+;
+; This CG model was initially created in the context of this paper:
+;
+; Bochicchio, D.; Pavan, G. M.
+; From Cooperative Self-Assembly to Water-Soluble Supramolecular Polymers Using Coarse-Grained Simulations.
+; ACS Nano 2017, 11 (1), 1000–1011. https://doi.org/10.1021/acsnano.6b07628.
+
+
+[ moleculetype ]
+; molname        nrexcl
+BTA              1
+
+
+[ atoms ]
+; id type resnr residue   atom  cgnr    charge     mass
+
+1     SC5     1    BENZ     B1  1      0.00000 
+2     SC5     1    BENZ     B2  2      0.00000 
+3     SC5     1    BENZ     B3  3      0.00000 
+4      P3     2    PEPT     P4  4      0.00000 
+5      P3     2    PEPT     P5  5      0.00000 
+6      P3     2    PEPT     P6  6      0.00000 
+7     SC1     3    ALKA     C7  7      0.00000 
+8     SC1     3    ALKA     C8  8      0.00000 
+9     SC1     3    ALKA     C9  9      0.00000 
+10    SC1     3    ALKA    C10  10     0.00000 
+11    SC1     3    ALKA    C11  11     0.00000 
+12    SC1     3    ALKA    C12  12     0.00000 
+13    SC1     3    ALKA    C13  13     0.00000 
+14    SC1     3    ALKA    C14  14     0.00000 
+15    SC1     3    ALKA    C15  15     0.00000 
+16    SC1     3    ALKA    C16  16     0.00000 
+17    SC1     3    ALKA    C17  17     0.00000 
+18    SC1     3    ALKA    C18  18     0.00000 
+19    SP0     4     PEG    O19  19     0.00000 
+20    SP0     4     PEG    O20  20     0.00000 
+21    SP0     4     PEG    O21  21     0.00000 
+22    SP0     4     PEG    O22  22     0.00000 
+23    SP0     4     PEG    O23  23     0.00000 
+24    SP0     4     PEG    O24  24     0.00000 
+25    SP0     4     PEG    O25  25     0.00000 
+26    SP0     4     PEG    O26  26     0.00000 
+27    SP0     4     PEG    O27  27     0.00000 
+28    SP0     4     PEG    O28  28     0.00000 
+29    SP0     4     PEG    O29  29     0.00000 
+30    SP0     4     PEG    O30  30     0.00000 
+31    SPh     4     PEG    N31  31     0.00000 
+32    SPh     4     PEG    N32  32     0.00000 
+33    SPh     4     PEG    N33  33     0.00000 
+
+
+[ bonds ]
+;   i     j   funct   length   force.c.
+
+; bond group 1
+    1     2       1    0.273 16530.14           ; 1
+    1     3       1    0.273 16530.14           ; 1
+    2     3       1    0.273 16530.14           ; 1
+
+; bond group 2
+    1     4       1    0.272 19466.67           ; 2
+    2     5       1    0.272 19466.67           ; 2
+    3     6       1    0.272 19466.67           ; 2
+
+; bond group 3
+    4     7       1    0.313 6718.30            ; 3
+    5     8       1    0.313 6718.30            ; 3
+    6     9       1    0.313 6718.30            ; 3
+
+; bond group 4
+    7    10       1    0.357 4594.30            ; 4
+    8    11       1    0.357 4594.30            ; 4
+    9    12       1    0.357 4594.30            ; 4
+   10    13       1    0.357 4594.30            ; 4
+   11    14       1    0.357 4594.30            ; 4
+   12    15       1    0.357 4594.30            ; 4
+
+; bond group 5
+   13    16       1    0.308 10895.32           ; 5
+   14    17       1    0.308 10895.32           ; 5
+   15    18       1    0.308 10895.32           ; 5
+
+; bond group 6
+   16    19       1    0.289 11972.94           ; 6
+   17    20       1    0.289 11972.94           ; 6
+   18    21       1    0.289 11972.94           ; 6
+
+; bond group 7
+   19    22       1    0.329 12072.21           ; 7
+   20    23       1    0.329 12072.21           ; 7
+   21    24       1    0.329 12072.21           ; 7
+   22    25       1    0.329 12072.21           ; 7
+   23    26       1    0.329 12072.21           ; 7
+   24    27       1    0.329 12072.21           ; 7
+   25    28       1    0.329 12072.21           ; 7
+   26    29       1    0.329 12072.21           ; 7
+   27    30       1    0.329 12072.21           ; 7
+
+; bond group 8
+   28    31       1    0.279 16386.93           ; 8
+   29    32       1    0.279 16386.93           ; 8
+   30    33       1    0.279 16386.93           ; 8
+
+
+[ angles ]
+;   i     j     k   funct     angle   force.c.
+
+; angle group 1
+    1     2     5       2    159.32 1684.28           ; 1
+    1     3     6       2    159.32 1684.28           ; 1
+    2     1     4       2    159.32 1684.28           ; 1
+    2     3     6       2    159.32 1684.28           ; 1
+    3     1     4       2    159.32 1684.28           ; 1
+    3     2     5       2    159.32 1684.28           ; 1
+
+; angle group 2
+    1     4     7       2    133.40  185.47           ; 2
+    2     5     8       2    133.40  185.47           ; 2
+    3     6     9       2    133.40  185.47           ; 2
+
+; angle group 3
+    4     7    10       2    117.81    0.97           ; 3
+    5     8    11       2    117.81    0.97           ; 3
+    6     9    12       2    117.81    0.97           ; 3
+
+; angle group 4
+    7    10    13       2    143.78   36.11           ; 4
+    8    11    14       2    143.78   36.11           ; 4
+    9    12    15       2    143.78   36.11           ; 4
+
+; angle group 5
+   10    13    16       2    151.63   62.05           ; 5
+   11    14    17       2    151.63   62.05           ; 5
+   12    15    18       2    151.63   62.05           ; 5
+
+; angle group 6
+   13    16    19       2    155.18   32.92           ; 6
+   14    17    20       2    155.18   32.92           ; 6
+   15    18    21       2    155.18   32.92           ; 6
+
+; angle group 7
+   16    19    22       2    132.60   65.89           ; 7
+   17    20    23       2    132.60   65.89           ; 7
+   18    21    24       2    132.60   65.89           ; 7
+
+; angle group 8
+   19    22    25       2    125.04   78.18           ; 8
+   20    23    26       2    125.04   78.18           ; 8
+   21    24    27       2    125.04   78.18           ; 8
+   22    25    28       2    125.04   78.18           ; 8
+   23    26    29       2    125.04   78.18           ; 8
+   24    27    30       2    125.04   78.18           ; 8
+
+; angle group 9
+   25    28    31       2    128.73   91.70           ; 9
+   26    29    32       2    128.73   91.70           ; 9
+   27    30    33       2    128.73   91.70           ; 9
+
+
