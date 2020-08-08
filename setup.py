@@ -5,7 +5,7 @@ with open('README.md') as readme_file:
 
 setup(
     name='swarm-cg',
-    version='v1.0.3',
+    version='v1.0.5',
     description='Tools for automatic parametrization of bonded terms in coarse-grained molecular models, with respect to an all-atom trajectory',
 	author='Charly Empereur-mot',
 	author_email='charly.empereur@gmail.com',
@@ -13,7 +13,7 @@ setup(
 	url = 'https://github.com/GMPavanLab/Swarm-CG',
     long_description=README,
     long_description_content_type="text/markdown",
-    keywords = ['gromacs', 'coarse-grain', 'molecular model', 'optimization'],
+    keywords = ['gromacs', 'coarse-grain', 'molecular model', 'optimization', 'force field'],
     packages=find_packages(include=['swarmcg', 'swarmcg.*']),
     install_requires=[
         'numpy>=1.16.4',

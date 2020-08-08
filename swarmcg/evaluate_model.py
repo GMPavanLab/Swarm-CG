@@ -1,6 +1,8 @@
-#!/usr/bin/env python3
+import warnings
 
-import os, re, sys, warnings
+# some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
+warnings.filterwarnings("ignore")
+import os, re, sys
 from shlex import quote as cmd_quote
 import matplotlib
 matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
@@ -12,9 +14,9 @@ import numpy as np
 import scipy.stats
 from pyemd import emd
 import MDAnalysis as mda
-
 from . import config
-from . import swarmCG as scg 
+from . import swarmCG as scg
+warnings.resetwarnings()
 
 
 def main():

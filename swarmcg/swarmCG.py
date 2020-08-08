@@ -1,6 +1,10 @@
-import numpy as np
 from pyemd import emd
 import sys, re, random, os, shutil, subprocess, signal, time, contextlib, warnings, textwrap
+
+# matplotlib new version has some problems with incorrectly uninstalled files at version upgrade and display a lot of warnings
+# also some numpy version have this ufunc warning at import
+warnings.filterwarnings("ignore")
+import numpy as np
 import matplotlib
 matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 import matplotlib.pyplot as plt
@@ -14,8 +18,8 @@ from itertools import compress
 import MDAnalysis as mda
 import collections
 from datetime import datetime
-
 from . import config
+warnings.resetwarnings()
 
 # TODO: When provided trajectory file does NOT contain PBC infos (box position and size for each frame, which are present in XTC format for example), we want to stil accept the provided trajectory format (if accepted by MDAnalysis) but we automatically disable the handling of PBC by the code
 
@@ -31,7 +35,7 @@ def header_package(module_line):
              ███████╗██║ █╗ ██║███████║██████╔╝██╔████╔██║█████╗██║     ██║  ███╗
              ╚════██║██║███╗██║██╔══██║██╔══██╗██║╚██╔╝██║╚════╝██║     ██║   ██║
              ███████║╚███╔███╔╝██║  ██║██║  ██║██║ ╚═╝ ██║      ╚██████╗╚██████╔╝
-             ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝   v'''+config.module_version+'''
+             ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝   v '''+config.module_version+'''
             '''+module_line+'''
 '''+config.sep_close+'''
 |               Swarm-CG is distributed under the terms of the MIT License.                   |
@@ -42,7 +46,7 @@ def header_package(module_line):
 |                 If you found Swarm-CG useful in your research, please cite:                 |
 |              Swarm-CG: Automatic parametrization of bonded terms in CG models               |
 |                        of simple to complex molecules via FST-PSO                           |
-|        Empereur-mot C., Pesce L., Bochicchio D., Perego C., Pavan G. JCTC 2020 ASAP         |
+|        Empereur-mot C., Pesce L., Bochicchio D., Perego C., Pavan G.M. ChemRxiv 2020        |
 |                                                                                             |
 |                               Swarm-CG relies on FST-PSO:                                   |
 |          Fuzzy Self-Tuning PSO: A settings-free algorithm for global optimization           |
@@ -488,19 +492,22 @@ def read_ndx_atoms2beads(ns):
 		ns.atoms_occ_total = collections.Counter()
 		ns.all_beads = dict() # atoms id mapped to each bead
 		bead_id = 0
+		current_section = 'Beginning of file'
 
-		for ndx_line in ndx_lines:
+		for i in range(len(ndx_lines)):
+			ndx_line = ndx_lines[i]
 			if ndx_line != '':
 
 				if bool(re.search('\[.*\]', ndx_line)):
 					ns.all_beads[bead_id] = {'atoms_id': []}
 					lines_read = 0 # error handling, ensure only 1 line is read for each NDX file section/bead
+					current_section = ndx_line
 
 				else:
 					try:
 						lines_read += 1
 						if lines_read > 1:
-							sys.exit(config.header_error+'Some sections of the CG beads mapping file have multiple lines, please correct the mapping')
+							sys.exit(config.header_error+'A section of the CG beads mapping (NDX) file has multiple lines, while Swarm-CG accepts only one line per section\nPlease use a single line for IDs under section '+current_section+' near line '+str(i+1))
 						bead_atoms_id = [int(atom_id)-1 for atom_id in ndx_line.split()] # retrieve indexing from 0 for atoms IDs for MDAnalysis
 						ns.all_beads[bead_id]['atoms_id'].extend(bead_atoms_id) # all atoms included in current bead
 
@@ -509,9 +516,9 @@ def read_ndx_atoms2beads(ns):
 						bead_id += 1
 
 					except NameError:
-						sys.exit(config.header_error+'The CG beads mapping file does NOT seem to contain CG beads sections, please verify the input mapping')
+						sys.exit(config.header_error+'The CG beads mapping (NDX) file does NOT seem to contain CG beads sections, please verify the input mapping\nThe expected format is Gromacs NDX')
 					except ValueError: # non-integer atom ID provided
-						sys.exit(config.header_error+'Incorrect reading of the sections\' content in the CG beads mapping file, please verify the input mapping')
+						sys.exit(config.header_error+'Incorrect reading of the sections content in the CG beads mapping (NDX) file\nFound non-integer values for some IDs at line '+str(i+1)+' under section '+current_section)
 
 	return
 
@@ -542,10 +549,13 @@ def get_beads_MDA_atomgroups(ns):
 
 	ns.mda_beads_atom_grps, ns.mda_weights_atom_grps = dict(), dict()
 	for bead_id in ns.atom_w:
-		# print('Created bead_id', bead_id, 'using atoms', [atom_id for atom_id in ns.atom_w[bead_id]])
-		ns.mda_beads_atom_grps[bead_id] = mda.AtomGroup([atom_id for atom_id in ns.atom_w[bead_id]], ns.aa_universe)
-		ns.mda_weights_atom_grps[bead_id] = np.array([ns.atom_w[bead_id][atom_id]*ns.aa_universe.atoms[atom_id].mass for atom_id in ns.atom_w[bead_id]])
-		# ns.mda_weights_atom_grps[bead_id] = np.array([ns.atom_w[bead_id][atom_id]*ns.all_atoms[atom_id]['atom_mass'] for atom_id in ns.atom_w[bead_id]])
+		try:
+			# print('Created bead_id', bead_id, 'using atoms', [atom_id for atom_id in ns.atom_w[bead_id]])
+			ns.mda_beads_atom_grps[bead_id] = mda.AtomGroup([atom_id for atom_id in ns.atom_w[bead_id]], ns.aa_universe)
+			ns.mda_weights_atom_grps[bead_id] = np.array([ns.atom_w[bead_id][atom_id]*ns.aa_universe.atoms[atom_id].mass for atom_id in ns.atom_w[bead_id]])
+			# ns.mda_weights_atom_grps[bead_id] = np.array([ns.atom_w[bead_id][atom_id]*ns.all_atoms[atom_id]['atom_mass'] for atom_id in ns.atom_w[bead_id]])
+		except IndexError as e:
+			sys.exit(config.header_error+'An ID present in your mapping (NDX) file could not be found in the AA trajectory, please check your mapping (NDX) file\nSee the error below to understand which ID (here 0-indexed) could not be found:\n  '+str(e))
 
 	return
 
@@ -625,8 +635,9 @@ def read_xvg_col(xvg_file, col):
 
 # execute gmx cmd and return only exit code
 def exec_gmx(gmx_cmd):
-	gmx_process = subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	gmx_out = gmx_process.communicate()[1].decode()
+	with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
+		gmx_out = gmx_process.communicate()[1].decode()
+		gmx_process.kill()
 	# print_stdout_forced('Return code:', gmx_process.returncode)
 	if gmx_process.returncode != 0:
 		print_stdout_forced('NON-ZERO EXIT CODE FOR COMMAND:', gmx_cmd, '\n\nCOMMAND OUTPUT:\n\n', gmx_out, '\n\n')
@@ -1211,7 +1222,9 @@ def get_initial_guess_list(ns, nb_particles):
 def read_aa_traj(ns):
 	
 	print('Reading All Atom (AA) trajectory', flush=True)
-	ns.aa_universe = mda.Universe(ns.aa_tpr_filename, ns.aa_traj_filename, in_memory=True, refresh_offsets=True, guess_bonds=False) # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default
+	with warnings.catch_warnings():
+		warnings.filterwarnings("ignore", category=ImportWarning) # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
+		ns.aa_universe = mda.Universe(ns.aa_tpr_filename, ns.aa_traj_filename, in_memory=True, refresh_offsets=True, guess_bonds=False) # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default
 	print('  Found', len(ns.aa_universe.trajectory), 'frames in AA trajectory file', flush=True)
 	# if len(ns.aa_universe.trajectory) > 20000:
 	# 	print(config.header_warning+'Your atomistic trajectory contains many frames, which increases computation time\nReasonably reducing the number of frames of your input AA trajectory won\'t affect results quality\n2k to 10k frames is usually enough, as long as behaviour and flexibility of your molecule are correctly described by your atomistic trajectory')
@@ -2499,31 +2512,34 @@ def eval_function(parameters_set, ns):
 
 	# grompp -- minimization
 	gmx_cmd = ns.gmx_path+' grompp -c '+ns.gro_input_basename+' -p '+ns.top_input_basename+' -f '+ns.mdp_minimization_basename+' -o mini -maxwarn '+str(ns.mini_maxwarn)
-	gmx_process = subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	gmx_out = gmx_process.communicate()[1].decode()
+	with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
+		gmx_out = gmx_process.communicate()[1].decode()
+		gmx_process.kill()
 
 	if gmx_process.returncode == 0:
 		# mdrun -- minimization
 		gmx_cmd = gmx_args(ns.gmx_path+' mdrun -deffnm mini', ns.nb_threads, ns.gpu_id, ns.gmx_args_str)
-		gmx_process = subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) # create a process group for the minimization run
+		with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process: # create a process group for the minimization run
 
-		# check if minimization run is stuck because of instabilities
-		cycles_check = 0
-		last_log_file_size = 0
-		while gmx_process.poll() is None: # while process is alive
-			time.sleep(ns.process_alive_time_sleep)
-			cycles_check += 1
+			# check if minimization run is stuck because of instabilities
+			cycles_check = 0
+			last_log_file_size = 0
+			while gmx_process.poll() is None: # while process is alive
+				time.sleep(ns.process_alive_time_sleep)
+				cycles_check += 1
 
-			if cycles_check % ns.process_alive_nb_cycles_dead == 0: # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
-				if os.path.isfile(current_eval_dir+'/mini.log'):
-					log_file_size = os.path.getsize(current_eval_dir+'/mini.log') # get size of .log file in bytes, as a mean of detecting the minimization run is stuck
-				else:
-					log_file_size = last_log_file_size # minimization is stuck if the process was not able to create log file at start
-				if log_file_size == last_log_file_size: # minimization is stuck if the process is not writing to log file anymore
-					os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL) # kill all processes of process group
-					mini_killed = True
-				else:
-					last_log_file_size = log_file_size
+				if cycles_check % ns.process_alive_nb_cycles_dead == 0: # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
+					if os.path.isfile(current_eval_dir+'/mini.log'):
+						log_file_size = os.path.getsize(current_eval_dir+'/mini.log') # get size of .log file in bytes, as a mean of detecting the minimization run is stuck
+					else:
+						log_file_size = last_log_file_size # minimization is stuck if the process was not able to create log file at start
+					if log_file_size == last_log_file_size: # minimization is stuck if the process is not writing to log file anymore
+						os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL) # kill all processes of process group
+						mini_killed = True
+					else:
+						last_log_file_size = log_file_size
+			gmx_process.kill()
+
 	else:
 		sys.exit('\n\n'+config.header_gmx_error+gmx_out+'\n'+config.header_error+'Gmx grompp failed at minimization step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_mini\nYou may also want to look into Opti-CG argument -mini_maxwarn\nIf you think this is a bug, please consider opening an issue on GitHub at '+config.github_url+'\n')
 
@@ -2532,31 +2548,34 @@ def eval_function(parameters_set, ns):
 
 		# grompp -- pre-MD
 		gmx_cmd = ns.gmx_path+' grompp -c mini.gro -p '+ns.top_input_basename+' -f '+ns.mdp_equi_basename+' -o pre-md'
-		gmx_process = subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		gmx_out = gmx_process.communicate()[1].decode()
+		with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
+			gmx_out = gmx_process.communicate()[1].decode()
+			gmx_process.kill()
 
 		if gmx_process.returncode == 0:
 			# mdrun -- pre-MD
 			gmx_cmd = gmx_args(ns.gmx_path+' mdrun -deffnm pre-md', ns.nb_threads, ns.gpu_id, ns.gmx_args_str)
-			gmx_process = subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) # create a process group for the pre-MD run
+			with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process: # create a process group for the pre-MD run
 
-			# check if pre-MD run is stuck because of instabilities
-			cycles_check = 0
-			last_log_file_size = 0
-			while gmx_process.poll() is None: # while process is alive
-				time.sleep(ns.process_alive_time_sleep)
-				cycles_check += 1
+				# check if pre-MD run is stuck because of instabilities
+				cycles_check = 0
+				last_log_file_size = 0
+				while gmx_process.poll() is None: # while process is alive
+					time.sleep(ns.process_alive_time_sleep)
+					cycles_check += 1
 
-				if cycles_check % ns.process_alive_nb_cycles_dead == 0: # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
-					if os.path.isfile(current_eval_dir+'/pre-md.log'):
-						log_file_size = os.path.getsize(current_eval_dir+'/pre-md.log') # get size of .log file in bytes, as a mean of detecting the pre-MD run is stuck
-					else:
-						log_file_size = last_log_file_size # pre-MD is stuck if the process was not able to create log file at start
-					if log_file_size == last_log_file_size: # pre-MD is stuck if the process is not writing to log file anymore
-						os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL) # kill all processes of process group
-						equi_killed = True
-					else:
-						last_log_file_size = log_file_size
+					if cycles_check % ns.process_alive_nb_cycles_dead == 0: # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
+						if os.path.isfile(current_eval_dir+'/pre-md.log'):
+							log_file_size = os.path.getsize(current_eval_dir+'/pre-md.log') # get size of .log file in bytes, as a mean of detecting the pre-MD run is stuck
+						else:
+							log_file_size = last_log_file_size # pre-MD is stuck if the process was not able to create log file at start
+						if log_file_size == last_log_file_size: # pre-MD is stuck if the process is not writing to log file anymore
+							os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL) # kill all processes of process group
+							equi_killed = True
+						else:
+							last_log_file_size = log_file_size
+				gmx_process.kill()
+
 		else:
 			# pass
 			sys.exit('\n\n'+config.header_gmx_error+gmx_out+'\n'+config.header_error+'Gmx grompp failed at the pre-MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_equi\nIf you think this is a bug, please consider opening an issue on GitHub at '+config.github_url+'\n')
@@ -2569,31 +2588,34 @@ def eval_function(parameters_set, ns):
 
 			# grompp -- MD
 			gmx_cmd = ns.gmx_path+' grompp -c pre-md.gro -p '+ns.top_input_basename+' -f '+ns.mdp_md_basename+' -o md'
-			gmx_process = subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-			gmx_out = gmx_process.communicate()[1].decode()
-			
+			with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
+				gmx_out = gmx_process.communicate()[1].decode()
+				gmx_process.kill()
+
 			if gmx_process.returncode == 0:
 				# mdrun -- MD
 				gmx_cmd = gmx_args(ns.gmx_path+' mdrun -deffnm md', ns.nb_threads, ns.gpu_id, ns.gmx_args_str)
-				gmx_process = subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) # create a process group for the MD run
+				with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process: # create a process group for the MD run
 
-				# check if MD run is stuck because of instabilities
-				cycles_check = 0
-				last_log_file_size = 0
-				while gmx_process.poll() is None: # while process is alive
-					time.sleep(ns.process_alive_time_sleep)
-					cycles_check += 1
+					# check if MD run is stuck because of instabilities
+					cycles_check = 0
+					last_log_file_size = 0
+					while gmx_process.poll() is None: # while process is alive
+						time.sleep(ns.process_alive_time_sleep)
+						cycles_check += 1
 
-					if cycles_check % ns.process_alive_nb_cycles_dead == 0: # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
-						if os.path.isfile('md.log'):
-							log_file_size = os.path.getsize('md.log') # get size of .log file in bytes, as a mean of detecting the MD run is stuck
-						else:
-							log_file_size = last_log_file_size # MD run is stuck if the process was not able to create log file at start
-						if log_file_size == last_log_file_size: # MD run is stuck if the process is not writing to log file anymore
-							os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL) # kill all processes of process group
-							md_run_killed = True
-						else:
-							last_log_file_size = log_file_size
+						if cycles_check % ns.process_alive_nb_cycles_dead == 0: # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
+							if os.path.isfile('md.log'):
+								log_file_size = os.path.getsize('md.log') # get size of .log file in bytes, as a mean of detecting the MD run is stuck
+							else:
+								log_file_size = last_log_file_size # MD run is stuck if the process was not able to create log file at start
+							if log_file_size == last_log_file_size: # MD run is stuck if the process is not writing to log file anymore
+								os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL) # kill all processes of process group
+								md_run_killed = True
+							else:
+								last_log_file_size = log_file_size
+					gmx_process.kill()
+
 			else:
 				# pass
 				sys.exit('\n\n'+config.header_gmx_error+gmx_out+'\n'+config.header_error+'Gmx grompp failed at the MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_prod\nIf you think this is a bug, please consider opening an issue on GitHub at '+config.github_url+'\n')

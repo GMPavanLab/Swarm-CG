@@ -1,15 +1,17 @@
-#!/usr/bin/env python3
+import warnings
 
+# some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
+warnings.filterwarnings("ignore")
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 # from pylab import polyfit
-import os, sys, warnings
+import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
-
 from . import config
 from . import swarmCG as scg
+warnings.resetwarnings()
 
 
 def main():

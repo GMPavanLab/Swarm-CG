@@ -8,24 +8,36 @@ Swarm-CG is designed for optimizing the bonded terms of a coarse-grained (CG) mo
 
 ### Publication
 
-> Empereur-mot, C.; Pesce, L.; Bochicchio, D.; Perego, C.; Pavan, G.M. (2020) Swarm-CG: Automatic Parametrization of Bonded Terms in Coarse-Grained Models of Simple to Complex Molecules via Fuzzy Self-Tuning Particle Swarm Optimization. [ChemRxiv. Preprint](https://doi.org/10.26434/chemrxiv.12613427.v1)
+> Empereur-mot, C.; Pesce, L.; Bochicchio, D.; Perego, C.; Pavan, G.M. (2020) Swarm-CG: Automatic Parametrization of Bonded Terms in Coarse-Grained Models of Simple to Complex Molecules via Fuzzy Self-Tuning Particle Swarm Optimization. [ChemRxiv. Preprint](https://doi.org/10.26434/chemrxiv.12613427)
 
 ### Installation & Usage
 
 Swarm-CG was tested using Python 3.6.8 and Gromacs 2018.6.
 
-	# pick one
-	pip install swarm-cg
-	pip3 install swarm-cg
+	pip3 install swarm-cg    # creates the 3 entrypoints/aliases below
+	
+	scg_evaluate -h          # see point 1
+	scg_optimize -h          # see point 2
+	scg_monitor -h           # see point 3
 
-	# commands description
-	scg_evaluate -h
-	scg_optimize -h
-	scg_monitor -h
+To better handle sampling in symmetrical molecules, one can form groups of bonds/angles/dihedrals that Swarm-CG will consider identical, using line returns and/or comments in the topology (ITP) file. AA-mapped distributions will be averaged within groups to create the references used for evaluation (see point 1) or as target of the optimization procedure (see point 2). For optimization, identical parameters will be used for the bonds/angles/dihedrals within each group.
+
+Here is an ITP file extract from the demonstration data of [PAMAM G1](https://github.com/GMPavanLab/Swarm-CG/tree/master/G1_DATA/cg_model.itp):
+
+	[ bonds ]
+	;   i     j   funct   length   force.c.   
+	; bond group 1
+	    1     2       1        0         0           ; B1
+	; bond group 2
+	    1     3       1        0         0           ; B2
+	    1     9       1        0         0           ; B2
+	; bond group 3
+	    3     4       1        0         0           ; B3
+	    9    10       1        0         0           ; B3
 
 ### 1. Evaluate bonded parametrization of a CG model
 
-The module __scg_evaluate__ enables quick evaluation of the fit of bond, angle and dihedral distributions between a CG model trajectory and a reference AA model trajectory of an identical molecule, by producing a single comprehensive figure.
+The module `scg_evaluate` enables quick evaluation of the fit of bond, angle and dihedral distributions between a CG model trajectory and a reference AA model trajectory of an identical molecule, by producing a single comprehensive figure.
 
 	scg_evaluate -aa_tpr G1_DATA/aa_topol.tpr -aa_traj G1_DATA/aa_traj.xtc -cg_map G1_DATA/cg_map.ndx -cg_itp G1_DATA/cg_model.itp -cg_tpr G1_OPTI_mode1_200ns_valid/longer_run.tpr -cg_traj G1_OPTI_mode1_200ns_valid/longer_run.xtc
 
@@ -33,7 +45,7 @@ This is particularly useful to assess the need to run an optimization procedure 
 
 ### 2. Optimize bonded terms of a CG model
 
-The module __scg_optimize__ allows to automatically optimize the bonded parameters of a CG model according to a reference AA trajectory. To this end, several simulations will be run to explore and evaluate the relevance of different sets of bonded parameters, using 3 optimization cycles.
+The module `scg_optimize` allows to automatically optimize the bonded parameters of a CG model according to a reference AA trajectory. To this end, several simulations will be run to explore and evaluate the relevance of different sets of bonded parameters, using 3 optimization cycles.
 
 For example, using demonstration data of [PAMAM G1](https://github.com/GMPavanLab/Swarm-CG/tree/master/G1_DATA):
 
@@ -55,17 +67,17 @@ The input is composed of:
 
 At all times during execution, the best parametrized model is accessible in the optimization output folder at `out_dir/optimized_CG_model/cg_model.itp`. The bonded parameters obtained via the Boltzmann inversion implemented in Swarm-CG with groups averaging (see paper sections 2.1 and 6.1) are also available at `out_dir/boltzmann_inv_CG_model/cg_model.itp`.
 
-The AA trajectory is mapped on-the-fly (if atoms are mapped to multiple CG beads, atom masses are split accordingly). The AA trajectory must contain box information for PBC handling, otherwise it is assumed the molecule is "unwrapped" already. Only the MDP file provided via argument `-cg_mdp_md` will be modified to adjust simulation time (nsteps), taking into account the timestep you provided. To minimize the execution time of __scg_optimize__, equilibration should stay short (e.g. 50-500 fs) and so should the optimization cycles 1 and 2 (e.g. 10-20 ns). To maximize the precision of __scg_optimize__, optimization cycle 3 must always use longer simulation times (e.g. 25-100 ns). Execution times should vary between 4h to 24h according to parameters and hardware used.
+The AA trajectory is mapped on-the-fly (if atoms are mapped to multiple CG beads, atom masses are split accordingly). The AA trajectory must contain box information for PBC handling, otherwise it is assumed the molecule is "unwrapped" already. Only the MDP file provided via argument `-cg_mdp_md` will be modified to adjust simulation time (nsteps), taking into account the timestep you provided. To minimize the execution time of `scg_optimize`, equilibration should stay short (e.g. 50-500 fs) and so should the optimization cycles 1 and 2 (e.g. 10-20 ns). To maximize the precision of `scg_optimize`, optimization cycle 3 must always use longer simulation times (e.g. 25-100 ns). Execution times should vary between 4h to 24h according to parameters and hardware used.
 
-For information about execution modes 1 and 2, please see paper sections 2.4 and 4 and the help (-h).
+For information about execution modes 1 and 2, please see paper sections 2.4 and 4 and command help (-h).
 
 ### 3. Monitor an ongoing CG model optimization
 
-Optimization procedures can be monitored at any point during execution. The module __scg_monitor__ produces a visual summary (see paper Fig. 3) of the progress of an optimization procedure started with module __scg_optimize__. The plot will be produced in the directory provided via argument `-opti_dir`.
+Optimization procedures can be monitored at any point during execution. The module `scg_monitor` produces a visual summary (see paper Fig. 3) of the progress of an optimization procedure started with module `scg_optimize`. The plot will be produced in the directory provided via argument `-opti_dir`.
 
 	scg_monitor -opti_dir MODEL_OPTI__STARTED_03-07-2020_10h_12m_15s -gmx gmx_2018.6_p
 
-See the help (-h) for a complete description of __scg_monitor__ output. In particular, note that Rg and SASA might be rough estimates in this display, as they are calculated from short simulations used for optimization. These values must probably be validated using longer simulation times. Using __scg_evaluate__ can be helpful to this end.
+See the help (-h) for a complete description of `scg_monitor` output. In particular, note that Rg and SASA might be rough estimates in this display, as they are calculated from short simulations used for optimization. These values must probably be validated using longer simulation times. Using `scg_evaluate` can be helpful to this end.
 
 ### Extended usage (untested)
 
@@ -73,7 +85,7 @@ In principle, Swarm-CG workflow is general and can be applied also for tuning bo
 
 Another possible use case would be the tuning of elastic networks in CG models of proteins, although this still requires a well sampled AA or fine CG reference trajectory.
 
-Please feel free to open an [Issue](https://github.com/GMPavanLab/SwarmCG/issues) or email us in case you are interested into extended usages and need help.
+Please feel free to open an [Issue](https://github.com/GMPavanLab/SwarmCG/issues) or email us if you are interested into extended usages and need help.
 
 ### Credits
 

@@ -1,4 +1,8 @@
-import os, sys, re, shutil, subprocess, time, copy, contextlib, warnings
+import warnings
+
+# some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
+warnings.filterwarnings("ignore")
+import os, sys, re, shutil, subprocess, time, copy, contextlib
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
 from fstpso import FuzzyPSO 
@@ -6,9 +10,9 @@ import numpy as np
 from datetime import datetime
 from scipy.optimize import curve_fit
 import MDAnalysis as mda
-
 from . import config
 from . import swarmCG as scg
+warnings.resetwarnings()
 
 
 def main():
@@ -38,7 +42,7 @@ angles and dihedrals distributions of a reference AA model. Different sets of bo
 are explored via swarm optimization (FST-PSO) and iterative CG simulations. Bonded parameters are
 evaluated for the matching they produce between AA and CG distributions via a scoring function
 relying on the Earth Movers' Distance (EMD/Wasserstein). The process is designed to execute in
-2-36h on a standard desktop machine, according to hardware, molecule size and simulations setup. 
+4-24h on a standard desktop machine, according to hardware, molecule size and simulations setup. 
 
 This module has 2 optimization modes:
 
@@ -103,7 +107,6 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   required_args.add_argument('-aa_tpr', dest='aa_tpr_filename', help=config.help_aa_tpr, type=str, default=config.metavar_aa_tpr, metavar='      '+scg.par_wrap(config.metavar_aa_tpr))
   required_args.add_argument('-aa_traj', dest='aa_traj_filename', help=config.help_aa_traj, type=str, default=config.metavar_aa_traj, metavar='      '+scg.par_wrap(config.metavar_aa_traj))
   required_args.add_argument('-cg_map', dest='cg_map_filename', help=config.help_cg_map, type=str, default=config.metavar_cg_map, metavar='        '+scg.par_wrap(config.metavar_cg_map))
-  # required_args.add_argument('-aa_rg_offset', dest='aa_rg_offset', help='(nm)', type=float, default=0.00, metavar='        '+scg.par_wrap('0.00'))
 
   sim_filenames_args = args_parser.add_argument_group(bullet+'CG MODEL OPTIMIZATION')
   sim_filenames_args.add_argument('-cg_itp', dest='cg_itp_filename', help='ITP file of the CG model to optimize', type=str, default=config.metavar_cg_itp, metavar='      '+scg.par_wrap(config.metavar_cg_itp))
@@ -126,6 +129,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   optional_args1.add_argument('-sim_kill_delay', dest='sim_kill_delay', help='Time (s) after which to kill a simulation that has not been\nwriting into its log file, in case a simulation gets stuck', type=int, default=60, metavar='        (60)')
 
   optional_args2 = args_parser.add_argument_group(bullet+'CG MODEL SCALING')
+  optional_args2.add_argument('-aa_rg_offset', dest='aa_rg_offset', help='Radius of gyration offset (nm) to be applied to AA data\naccording to your potential bonds rescaling (for display only)', type=float, default=0.00, metavar='        '+scg.par_wrap('0.00'))
   optional_args2.add_argument('-bonds_scaling', dest='bonds_scaling', help=config.help_bonds_scaling, type=float, default=config.bonds_scaling, metavar='        '+scg.par_wrap(config.bonds_scaling))
   optional_args2.add_argument('-bonds_scaling_str', dest='bonds_scaling_str', help=config.help_bonds_scaling_str, type=str, default=config.bonds_scaling_str, metavar='')
   optional_args2.add_argument('-min_bonds_length', dest='min_bonds_length', help=config.help_min_bonds_length, type=float, default=config.min_bonds_length, metavar='     '+scg.par_wrap(config.min_bonds_length))
@@ -206,7 +210,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
 
   # avoid overwriting an output directory of a previous optimization run
   if os.path.isfile(ns.exec_folder) or os.path.isdir(ns.exec_folder):
-  	sys.exit(config.header_error+'Provided output folder already exists, please delete existing folder manually or provide another folder name.')
+    sys.exit(config.header_error+'Provided output folder already exists, please delete existing folder manually or provide another folder name.')
 
   # check if we can find files at user-provided location(s)
   arg_entries = vars(ns) # dict view of the arguments namespace
@@ -214,36 +218,37 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   args_names = ['aa_tpr', 'aa_traj', 'cg_map', 'cg_itp', 'cg_sim_gro', 'cg_sim_top', 'cg_sim_mdp_mini', 'cg_sim_mdp_equi', 'cg_sim_mdp_md']
 
   for i in range(len(user_provided_filenames)):
-  	arg_entry = user_provided_filenames[i]
-  	if not os.path.isfile(arg_entries[arg_entry]):
-  		data_folder_path = ns.input_folder+'/'+arg_entries[arg_entry]
-  		if ns.input_folder != '.' and os.path.isfile(data_folder_path):
-  			arg_entries[arg_entry] = data_folder_path
-  		else:
-  			alternative_path = '' if ns.input_folder != '' else ', '+data_folder_path
-  			sys.exit(config.header_error+'Cannot find file for argument -'+args_names[i]+' (looked at locations: '+arg_entries[arg_entry]+alternative_path+')')
+    arg_entry = user_provided_filenames[i]
+    if not os.path.isfile(arg_entries[arg_entry]):
+      data_folder_path = ns.input_folder+'/'+arg_entries[arg_entry]
+      if ns.input_folder != '.' and os.path.isfile(data_folder_path):
+        arg_entries[arg_entry] = data_folder_path
+      else:
+        if ns.input_folder == '':
+          data_folder_path = arg_entries[arg_entry]
+        sys.exit(config.header_error+'Cannot find file for argument -'+args_names[i]+' (expected at location: '+data_folder_path+')')
 
   # check that gromacs alias is correct
   with open(os.devnull, 'w') as devnull:
-  	try:
-  		subprocess.call(ns.gmx_path, stdout=devnull, stderr=devnull)
-  	except OSError:
-  		sys.exit(config.header_error+'Cannot find GROMACS using alias \''+ns.gmx_path+'\', please provide the right GROMACS alias or path')
+    try:
+      subprocess.call(ns.gmx_path, stdout=devnull, stderr=devnull)
+    except OSError:
+      sys.exit(config.header_error+'Cannot find GROMACS using alias \''+ns.gmx_path+'\', please provide the right GROMACS alias or path')
 
   # check that ITP filename for the model to optimize is indeed included in the TOP file of the simulation directory
   # then find all TOP includes for copying files for simulations at each iteration
   top_includes_filenames = []
   with open(ns.top_input_filename, 'r') as fp:
-  	all_top_lines = fp.read()
-  	if ns.cg_itp_basename not in all_top_lines:
-  		sys.exit(config.header_error+'The CG ITP model filename you provided is not included in your TOP file')
+    all_top_lines = fp.read()
+    if ns.cg_itp_basename not in all_top_lines:
+      sys.exit(config.header_error+'The CG ITP model filename you provided is not included in your TOP file')
 
-  	top_lines = all_top_lines.split('\n')
-  	top_lines = [top_line.strip().split(';')[0] for top_line in top_lines] # split for comments
-  	for top_line in top_lines:
-  		if top_line.startswith('#include'):
-  			top_include = top_line.split()[1].replace('"', '').replace("'", '') # remove potential single and double quotes
-  			top_includes_filenames.append(top_include)
+    top_lines = all_top_lines.split('\n')
+    top_lines = [top_line.strip().split(';')[0] for top_line in top_lines] # split for comments
+    for top_line in top_lines:
+      if top_line.startswith('#include'):
+        top_include = top_line.split()[1].replace('"', '').replace("'", '') # remove potential single and double quotes
+        top_includes_filenames.append(top_include)
     # TODO: VERIFY THE PRESENCE OF ALLLLLLLLL TOP FILES, NOT ONLY THE CG MODEL'S
 
   # check gmx arguments conflicts
@@ -285,7 +290,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   	# shutil.copy(top_include_dirbase+'/'+top_include, ns.exec_folder+'/'+config.input_sim_files_dirname) # PROBLEM LUCA
     # shutil.copy(ns.input_folder+'/'+top_include_dirbase+'/'+top_include, ns.exec_folder+'/'+config.input_sim_files_dirname) # PROBLEM WITH PIP
 
-    print(ns.input_folder, top_include_dirbase, top_include)
+    # print(ns.input_folder, top_include_dirbase, top_include)
     shutil.copy(ns.input_folder+'/'+top_include, ns.exec_folder+'/'+config.input_sim_files_dirname)
 
   # modify the TOP file to adapt includes paths
@@ -440,7 +445,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   # output png with all the reference distributions, so the user can check
   ns.atom_only = True
   ns.plot_filename = ns.exec_folder+'/'+config.ref_distrib_plots
-  with contextlib.redirect_stdout(open(os.devnull, 'w')):
+  with contextlib.redirect_stdout(open(os.devnull, 'w')) as devnull:
     scg.compare_models(ns, manual_mode=False)
   print()
   print('Plotted reference AA-mapped distributions (used as target during optimization) at location:\n ', ns.exec_folder+'/'+config.ref_distrib_plots)
