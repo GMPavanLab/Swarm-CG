@@ -19,39 +19,39 @@ BTA              1
 [ atoms ]
 ; id type resnr residue   atom  cgnr    charge     mass
 
-1     SC5     1    BENZ     B1  1      0.00000 
-2     SC5     1    BENZ     B2  2      0.00000 
-3     SC5     1    BENZ     B3  3      0.00000 
-4      P3     2    PEPT     P4  4      0.00000 
-5      P3     2    PEPT     P5  5      0.00000 
-6      P3     2    PEPT     P6  6      0.00000 
-7     SC1     3    ALKA     C7  7      0.00000 
-8     SC1     3    ALKA     C8  8      0.00000 
-9     SC1     3    ALKA     C9  9      0.00000 
-10    SC1     3    ALKA    C10  10     0.00000 
-11    SC1     3    ALKA    C11  11     0.00000 
-12    SC1     3    ALKA    C12  12     0.00000 
-13    SC1     3    ALKA    C13  13     0.00000 
-14    SC1     3    ALKA    C14  14     0.00000 
-15    SC1     3    ALKA    C15  15     0.00000 
-16    SC1     3    ALKA    C16  16     0.00000 
-17    SC1     3    ALKA    C17  17     0.00000 
-18    SC1     3    ALKA    C18  18     0.00000 
-19    SP0     4     PEG    O19  19     0.00000 
-20    SP0     4     PEG    O20  20     0.00000 
-21    SP0     4     PEG    O21  21     0.00000 
-22    SP0     4     PEG    O22  22     0.00000 
-23    SP0     4     PEG    O23  23     0.00000 
-24    SP0     4     PEG    O24  24     0.00000 
-25    SP0     4     PEG    O25  25     0.00000 
-26    SP0     4     PEG    O26  26     0.00000 
-27    SP0     4     PEG    O27  27     0.00000 
-28    SP0     4     PEG    O28  28     0.00000 
-29    SP0     4     PEG    O29  29     0.00000 
-30    SP0     4     PEG    O30  30     0.00000 
-31    SPh     4     PEG    N31  31     0.00000 
-32    SPh     4     PEG    N32  32     0.00000 
-33    SPh     4     PEG    N33  33     0.00000 
+1     SC5     1     BTA     B1  1      0.00000 
+2     SC5     1     BTA     B2  2      0.00000 
+3     SC5     1     BTA     B3  3      0.00000 
+4      P3     2     BTA     P4  4      0.00000 
+5      P3     2     BTA     P5  5      0.00000 
+6      P3     2     BTA     P6  6      0.00000 
+7     SC1     3     BTA     C7  7      0.00000 
+8     SC1     3     BTA     C8  8      0.00000 
+9     SC1     3     BTA     C9  9      0.00000 
+10    SC1     3     BTA    C10  10     0.00000 
+11    SC1     3     BTA    C11  11     0.00000 
+12    SC1     3     BTA    C12  12     0.00000 
+13    SC1     3     BTA    C13  13     0.00000 
+14    SC1     3     BTA    C14  14     0.00000 
+15    SC1     3     BTA    C15  15     0.00000 
+16    SC1     3     BTA    C16  16     0.00000 
+17    SC1     3     BTA    C17  17     0.00000 
+18    SC1     3     BTA    C18  18     0.00000 
+19    SP0     4     BTA    O19  19     0.00000 
+20    SP0     4     BTA    O20  20     0.00000 
+21    SP0     4     BTA    O21  21     0.00000 
+22    SP0     4     BTA    O22  22     0.00000 
+23    SP0     4     BTA    O23  23     0.00000 
+24    SP0     4     BTA    O24  24     0.00000 
+25    SP0     4     BTA    O25  25     0.00000 
+26    SP0     4     BTA    O26  26     0.00000 
+27    SP0     4     BTA    O27  27     0.00000 
+28    SP0     4     BTA    O28  28     0.00000 
+29    SP0     4     BTA    O29  29     0.00000 
+30    SP0     4     BTA    O30  30     0.00000 
+31    SPh     4     BTA    N31  31     0.00000 
+32    SPh     4     BTA    N32  32     0.00000 
+33    SPh     4     BTA    N33  33     0.00000 
 
 
 [ bonds ]

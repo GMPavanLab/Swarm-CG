@@ -2777,13 +2777,13 @@ def eval_function(parameters_set, ns):
 		all_dist_pairwise += '\n'
 	else:
 		print_stdout_forced('  Total mismatch score:', round(fit_score_total, 3), '(Bonds/Constraints:', fit_score_constraints_bonds, '-- Angles:', fit_score_angles, '-- Dihedrals:', str(fit_score_dihedrals)+')')
+		if new_best_fit:
+			print_stdout_forced('  --> Selected as new best bonded parametrization')
 		# print_stdout_forced('  Opti context mismatch score:', round(eval_score, 3))
 		print_stdout_forced('  Rg CG: ', ' '+str(round(ns.gyr_cg, 2)), 'nm   (Error abs.', str(round(abs(1-ns.gyr_cg/ns.gyr_aa_mapped)*100, 1))+'% -- Reference Rg AA-mapped:', str(ns.gyr_aa_mapped)+' nm)')
 		print_stdout_forced('  SASA CG:', ns.sasa_cg, 'nm2   (Error abs.', str(round(abs(1-ns.sasa_cg/ns.sasa_aa_mapped)*100, 1))+'% -- Reference SASA AA-mapped:', str(ns.sasa_aa_mapped)+' nm2)')
 		# if ns.opti_cycle['nb_geoms']['dihedral'] == 0:
 		# 	print_stdout_forced('  Dihedrals currently ignored')
-		if new_best_fit:
-			print_stdout_forced('  Selected as new best bonded parametrization')
 
 	current_total_time = round((datetime.now().timestamp() - ns.start_opti_ts) / (60 * 60), 2)
 	current_eval_time = datetime.now().timestamp() - start_eval_ts
