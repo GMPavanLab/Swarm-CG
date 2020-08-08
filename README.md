@@ -6,7 +6,7 @@ Swarm-CG is designed for automatically optimizing the bonded terms of a coarse-g
 2. Optimizing bonded terms of a CG model
 3. Monitoring an optimization procedure
 
-![Swarm-CG](https://github.com/GMPavanLab/Swarm-CG/tree/master/images/TOC_Swarm-CG_paper.png)
+![Swarm-CG](/images/TOC_Swarm-CG_paper.png)
 
 ### Publication
 
