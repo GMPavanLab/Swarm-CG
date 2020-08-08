@@ -1,5 +1,5 @@
 # general stuff
-module_version = '1.0.5'
+module_version = '1.0.6'
 github_url = 'http://github.com/GMPavanLab/SwarmCG'
 gmx_path = 'gmx'
 

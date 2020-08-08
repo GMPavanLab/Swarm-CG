@@ -5,7 +5,7 @@ with open('README.md') as readme_file:
 
 setup(
     name='swarm-cg',
-    version='v1.0.5',
+    version='v1.0.6',
     description='Tools for automatic parametrization of bonded terms in coarse-grained molecular models, with respect to an all-atom trajectory',
 	author='Charly Empereur-mot',
 	author_email='charly.empereur@gmail.com',
