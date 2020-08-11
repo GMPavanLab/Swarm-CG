@@ -840,7 +840,7 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 
 		if 'constraint' in print_sections and 'constraint' in itp_obj and len(itp_obj['constraint']) > 0:
 			fp.write('\n\n[ constraints ]\n')
-			fp.write(';   i     j   funct   length        plot.ref.\n')
+			fp.write(';   i     j   funct   length\n')
 
 			for j in range(len(itp_obj['constraint'])):
 				
@@ -853,7 +853,7 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 
 		if 'bond' in print_sections and 'bond' in itp_obj and len(itp_obj['bond']) > 0:
 			fp.write('\n\n[ bonds ]\n')
-			fp.write(';   i     j   funct   length   force.c.            plot.ref.\n')
+			fp.write(';   i     j   funct   length   force.c.\n')
 
 			for j in range(len(itp_obj['bond'])):
 				
@@ -862,11 +862,11 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 				grp_val, grp_fct = itp_obj['bond'][j]['value'], itp_obj['bond'][j]['fct']
 
 				for i in range(len(itp_obj['bond'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f} {2:7.2f}           ; {3} {4}\n'.format(itp_obj['bond'][j]['funct'], grp_val, grp_fct, bond_type, itp_obj['bond'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['bond'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}  {2:7.2f}           ; {3} {4}\n'.format(itp_obj['bond'][j]['funct'], grp_val, grp_fct, bond_type, itp_obj['bond'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['bond'][j]['beads'][i]]))
 
 		if 'angle' in print_sections and 'angle' in itp_obj and len(itp_obj['angle']) > 0:
 			fp.write('\n\n[ angles ]\n')
-			fp.write(';   i     j     k   funct     angle   force.c.            plot.ref.\n')
+			fp.write(';   i     j     k   funct     angle   force.c.\n')
 
 			for j in range(len(itp_obj['angle'])):
 				
@@ -875,11 +875,11 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 				grp_val, grp_fct = itp_obj['angle'][j]['value'], itp_obj['angle'][j]['fct']
 
 				for i in range(len(itp_obj['angle'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {0:>7} {1:9.2f} {2:7.2f}           ; {3} {4}\n'.format(itp_obj['angle'][j]['funct'], grp_val, grp_fct, angle_type, itp_obj['angle'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['angle'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {0:>7} {1:9.2f}   {2:7.2f}           ; {3} {4}\n'.format(itp_obj['angle'][j]['funct'], grp_val, grp_fct, angle_type, itp_obj['angle'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['angle'][j]['beads'][i]]))
 
 		if 'dihedral' in print_sections and 'dihedral' in itp_obj and len(itp_obj['dihedral']) > 0:
 			fp.write('\n\n[ dihedrals ]\n')
-			fp.write(';   i     j     k     l   funct     dihedral   force.c.   mult.    plot.ref.\n')
+			fp.write(';   i     j     k     l   funct     dihedral   force.c.   mult.\n')
 
 			for j in range(len(itp_obj['dihedral'])):
 				
@@ -1345,7 +1345,10 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 	# TODO: automatic exclusion rules ??
 	# exclusions storage format: ns.cg_itp['exclusion'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])
 
-	bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds # retrieve 1-sum densities
+	if grp_type.startswith('constraint'):
+		bond_hist = np.histogram(bond_values, ns.bins_constraints, density=True)[0]*ns.bw_constraints # retrieve 1-sum densities
+	elif grp_type.startswith('bond'):
+		bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds # retrieve 1-sum densities
 
 	return bond_avg_final, bond_hist, bond_values
 
