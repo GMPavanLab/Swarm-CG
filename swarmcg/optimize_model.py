@@ -113,7 +113,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   sim_filenames_args.add_argument('-cg_gro', dest='gro_input_filename', help='Starting GRO file used for iterative simulation\nWill be minimized and relaxed before each MD run', type=str, default='start_conf.gro', metavar='    (start_conf.gro)')
   sim_filenames_args.add_argument('-cg_top', dest='top_input_filename', help='TOP file used for iterative simulation', type=str, default='system.top', metavar='        (system.top)')
   sim_filenames_args.add_argument('-cg_mdp_mini', dest='mdp_minimization_filename', help='MDP file used for minimization runs', type=str, default='mini.mdp', metavar='     (mini.mdp)')
-  sim_filenames_args.add_argument('-cg_mdp_equi', dest='mdp_equi_filename', help='MDP file used for pre-MD runs', type=str, default='equi.mdp', metavar='     (equi.mdp)')
+  sim_filenames_args.add_argument('-cg_mdp_equi', dest='mdp_equi_filename', help='MDP file used for equilibration runs', type=str, default='equi.mdp', metavar='     (equi.mdp)')
   sim_filenames_args.add_argument('-cg_mdp_md', dest='mdp_md_filename', help='MDP file used for the MD runs analyzed for optimization', type=str, default='md.mdp', metavar='         (md.mdp)')
 
   optional_args4 = args_parser.add_argument_group(opt_args_header+'\n\n'+bullet+'FILES HANDLING')

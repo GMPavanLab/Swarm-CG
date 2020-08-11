@@ -701,44 +701,45 @@ def compute_SASA(ns, traj_type):
 			if return_code != 0:
 				non_zero_return_code = True
 
-		# NOTE: currently if CG TOP file does NOT end with section [ molecules ] it will most probably crash everything
+		# # NOTE: currently if CG TOP file does NOT end with section [ molecules ] it will most probably crash everything
 
-		# create new CG TOP file that contains only the molecule of interest
-		if not non_zero_return_code:
-			ns.modified_top_input_filename = '../'+config.input_sim_files_dirname+'/auto_modified_system_for_sasa.top'
-			# we keep only the first non-commented occurence in section [ molecules ]
-			with open('../../'+ns.top_input_filename, 'r') as fp:
-				top_lines = fp.read().split('\n')
-			with open(ns.modified_top_input_filename, 'w') as fp:
-				uncommented_occ = 0
-				readmol = False
-				for top_line in top_lines:
-					# print_stdout_forced('CURRENT LINE:', top_line)
-					if re.match('\[.*molecules.*\]', top_line):
-						readmol = True
-						# print_stdout_forced('READMOL TRUE')
-					if readmol:
-						top_line.strip()
-						if not top_line.startswith(';'):
-							uncommented_occ += 1
-							# print_stdout_forced('occ counter:', uncommented_occ)
-					if uncommented_occ <= 2:
-						fp.write(top_line+'\n')
-						# print_stdout_forced('WRITE NORMAL')
-					else:
-						fp.write('; '+top_line+'\n')
-						# print_stdout_forced('WRITE COMMENTED')
+		# # create new CG TOP file that contains only the molecule of interest
+		# if not non_zero_return_code:
+		# 	ns.modified_top_input_filename = '../'+config.input_sim_files_dirname+'/auto_modified_system_for_sasa.top'
+		# 	# we keep only the first non-commented occurence in section [ molecules ]
+		# 	with open('../'+config.input_sim_files_dirname+'/'+ns.top_input_basename, 'r') as fp:
+		# 		top_lines = fp.read().split('\n')
+		# 	with open(ns.modified_top_input_filename, 'w') as fp:
+		# 		uncommented_occ = 0
+		# 		readmol = False
+		# 		for top_line in top_lines:
+		# 			# print_stdout_forced('CURRENT LINE:', top_line)
+		# 			if re.match('\[.*molecules.*\]', top_line):
+		# 				readmol = True
+		# 				# print_stdout_forced('READMOL TRUE')
+		# 			if readmol:
+		# 				top_line.strip()
+		# 				if not top_line.startswith(';'):
+		# 					uncommented_occ += 1
+		# 					# print_stdout_forced('occ counter:', uncommented_occ)
+		# 			if uncommented_occ <= 2:
+		# 				fp.write(top_line+'\n')
+		# 				# print_stdout_forced('WRITE NORMAL')
+		# 			else:
+		# 				fp.write('; '+top_line+'\n')
+		# 				# print_stdout_forced('WRITE COMMENTED')
 
-		# create mapped TPR
-		if not non_zero_return_code:
-			gmx_cmd = ns.gmx_path+' grompp -c '+ns.aa_mapped_frame_whole_filename+' -p '+ns.modified_top_input_filename+' -f ../../'+ns.mdp_md_filename+' -o '+ns.aa_mapped_tpr_sasa_filename+' -maxwarn 1'
-			return_code = exec_gmx(gmx_cmd)
-			if return_code != 0:
-				non_zero_return_code = True
+		# # create mapped TPR
+		# if not non_zero_return_code:
+		# 	gmx_cmd = ns.gmx_path+' grompp -c '+ns.aa_mapped_frame_whole_filename+' -p '+ns.modified_top_input_filename+' -f ../../'+ns.mdp_md_filename+' -o '+ns.aa_mapped_tpr_sasa_filename+' -maxwarn 1'
+		# 	return_code = exec_gmx(gmx_cmd)
+		# 	if return_code != 0:
+		# 		non_zero_return_code = True
 
 		# finally get sasa
 		if not non_zero_return_code:
-			gmx_cmd = ns.gmx_path+' sasa -s '+ns.aa_mapped_tpr_sasa_filename+' -f '+ns.aa_mapped_traj_whole_filename+' -n '+ns.cg_ndx_filename+' -surface 0 -o '+ns.aa_mapped_sasa_filename+' -probe '+str(ns.probe_radius) # surface to choose the index group, 2 is the molecule even when there are ions (0 and 1 are System and Others)
+			# gmx_cmd = ns.gmx_path+' sasa -s '+ns.aa_mapped_tpr_sasa_filename+' -f '+ns.aa_mapped_traj_whole_filename+' -n '+ns.cg_ndx_filename+' -surface 0 -o '+ns.aa_mapped_sasa_filename+' -probe '+str(ns.probe_radius) # surface to choose the index group, 2 is the molecule even when there are ions (0 and 1 are System and Others)
+			gmx_cmd = ns.gmx_path+' sasa -s md.tpr -f '+ns.aa_mapped_traj_whole_filename+' -n '+ns.cg_ndx_filename+' -surface 0 -o '+ns.aa_mapped_sasa_filename+' -probe '+str(ns.probe_radius) # surface to choose the index group, 2 is the molecule even when there are ions (0 and 1 are System and Others) # SWITCHED TO USING THE MD TPR AND ASSUMING THE MOLECULE IS THE FIRST ONE IN TPR
 			return_code = exec_gmx(gmx_cmd)
 			if return_code != 0:
 				non_zero_return_code = True
@@ -1347,7 +1348,7 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 
 	if grp_type.startswith('constraint'):
 		bond_hist = np.histogram(bond_values, ns.bins_constraints, density=True)[0]*ns.bw_constraints # retrieve 1-sum densities
-	elif grp_type.startswith('bond'):
+	if grp_type.startswith('bond'):
 		bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds # retrieve 1-sum densities
 
 	return bond_avg_final, bond_hist, bond_values
@@ -1397,7 +1398,7 @@ def get_AA_dihedrals_distrib(ns, beads_ids):
 
 
 # calculate bonds distribution from CG trajectory
-def get_CG_bonds_distrib(ns, beads_ids):
+def get_CG_bonds_distrib(ns, beads_ids, grp_type):
 
 	bond_values = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
@@ -1408,7 +1409,10 @@ def get_CG_bonds_distrib(ns, beads_ids):
 			frame_nb += 1
 
 	bond_avg = round(np.mean(bond_values), 3)
-	bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds # retrieve 1-sum densities
+	if grp_type == 'constraint':
+		bond_hist = np.histogram(bond_values, ns.bins_constraints, density=True)[0]*ns.bw_constraints # retrieve 1-sum densities
+	if grp_type == 'bond':
+		bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds # retrieve 1-sum densities
 
 	return bond_avg, bond_hist, bond_values
 
@@ -1792,12 +1796,12 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 		if not ns.atom_only:
 			try:
-				constraint_avg, constraint_hist, _ = get_CG_bonds_distrib(ns, beads_ids=ns.cg_itp['constraint'][grp_constraint]['beads'])
+				constraint_avg, constraint_hist, _ = get_CG_bonds_distrib(ns, beads_ids=ns.cg_itp['constraint'][grp_constraint]['beads'], grp_type='constraint')
 				constraints[grp_constraint]['CG']['avg'] = constraint_avg
 				constraints[grp_constraint]['CG']['hist'] = constraint_hist
 
 				for i in range(1, len(constraint_hist)-1):
-					if constraint_hist[i-1] > 0 or constraint_hist[i] > 0 or constraint_hist[i+1] > 0:
+					if constraint_hist[i-1] > 0 or constraint_hist[i] > 0 or constraint_hist[i+1] > 0: # TODO: find real min/max correctly, currently this code is garbage (here or nearby) and not robust to changes in bandwidth, in particular for small bandwidths
 						constraints[grp_constraint]['CG']['x'].append(np.mean(ns.bins_constraints[i:i+2]))
 						constraints[grp_constraint]['CG']['y'].append(constraint_hist[i])
 
@@ -1832,7 +1836,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		bonds[grp_bond] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
 		if manual_mode:
-			bond_avg, bond_hist, bond_values = get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bonds group', grp_nb=grp_bond)
+			bond_avg, bond_hist, _ = get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bonds group', grp_nb=grp_bond)
 			bonds[grp_bond]['AA']['avg'] = bond_avg
 			bonds[grp_bond]['AA']['hist'] = bond_hist
 		else: # use atomistic reference that was loaded by the optimization routines
@@ -1846,7 +1850,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 		if not ns.atom_only:
 			try:
-				bond_avg, bond_hist, _ = get_CG_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'])
+				bond_avg, bond_hist, _ = get_CG_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bond')
 				bonds[grp_bond]['CG']['avg'] = bond_avg
 				bonds[grp_bond]['CG']['hist'] = bond_hist
 
@@ -1886,7 +1890,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		angles[grp_angle] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
 		if manual_mode:
-			angle_avg, angle_hist, angle_values_deg, angle_values_rad = get_AA_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
+			angle_avg, angle_hist, _, _ = get_AA_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
 			angles[grp_angle]['AA']['avg'] = angle_avg
 			angles[grp_angle]['AA']['hist'] = angle_hist
 		else: # use atomistic reference that was loaded by the optimization routines
@@ -1899,7 +1903,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				angles[grp_angle]['AA']['y'].append(angles[grp_angle]['AA']['hist'][i])
 
 		if not ns.atom_only:
-			angle_avg, angle_hist, angle_values_deg, angle_values_rad = get_CG_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
+			angle_avg, angle_hist, _, _ = get_CG_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
 			angles[grp_angle]['CG']['avg'] = angle_avg
 			angles[grp_angle]['CG']['hist'] = angle_hist
 
@@ -1937,7 +1941,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		dihedrals[grp_dihedral] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
 		if manual_mode:
-			dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad = get_AA_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
+			dihedral_avg, dihedral_hist, _, _ = get_AA_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
 			dihedrals[grp_dihedral]['AA']['avg'] = dihedral_avg
 			dihedrals[grp_dihedral]['AA']['hist'] = dihedral_hist
 		else: # use atomistic reference that was loaded by the optimization routines
@@ -2021,7 +2025,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 				if config.use_hists:
 					ax[nrow][i].step(constraints[grp_constraint]['AA']['x'], constraints[grp_constraint]['AA']['y'], label='AA-mapped', color=config.atom_color, where='mid', alpha=config.line_alpha)
-					ax[nrow][i].fill_between(constraints[grp_constraint]['AA']['x'], constraints[grp_constraint]['AA']['y'], color=config.atom_color, alpha=config.fill_alpha)
+					ax[nrow][i].fill_between(constraints[grp_constraint]['AA']['x'], constraints[grp_constraint]['AA']['y'], color=config.atom_color, step='mid', alpha=config.fill_alpha)
 				else:
 					ax[nrow][i].plot(constraints[grp_constraint]['AA']['x'], constraints[grp_constraint]['AA']['y'], label='AA-mapped', color=config.atom_color, alpha=config.line_alpha)
 					ax[nrow][i].fill_between(constraints[grp_constraint]['AA']['x'], constraints[grp_constraint]['AA']['y'], color=config.atom_color, alpha=config.fill_alpha)
@@ -2549,18 +2553,18 @@ def eval_function(parameters_set, ns):
 	# if minimization finished properly, we just check for the .gro file printed in the end
 	if os.path.isfile('mini.gro'):
 
-		# grompp -- pre-MD
-		gmx_cmd = ns.gmx_path+' grompp -c mini.gro -p '+ns.top_input_basename+' -f '+ns.mdp_equi_basename+' -o pre-md'
+		# grompp -- EQUI
+		gmx_cmd = ns.gmx_path+' grompp -c mini.gro -p '+ns.top_input_basename+' -f '+ns.mdp_equi_basename+' -o equi'
 		with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
 			gmx_out = gmx_process.communicate()[1].decode()
 			gmx_process.kill()
 
 		if gmx_process.returncode == 0:
-			# mdrun -- pre-MD
-			gmx_cmd = gmx_args(ns.gmx_path+' mdrun -deffnm pre-md', ns.nb_threads, ns.gpu_id, ns.gmx_args_str)
-			with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process: # create a process group for the pre-MD run
+			# mdrun -- EQUI
+			gmx_cmd = gmx_args(ns.gmx_path+' mdrun -deffnm equi', ns.nb_threads, ns.gpu_id, ns.gmx_args_str)
+			with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process: # create a process group for the EQUI run
 
-				# check if pre-MD run is stuck because of instabilities
+				# check if EQUI run is stuck because of instabilities
 				cycles_check = 0
 				last_log_file_size = 0
 				while gmx_process.poll() is None: # while process is alive
@@ -2568,11 +2572,11 @@ def eval_function(parameters_set, ns):
 					cycles_check += 1
 
 					if cycles_check % ns.process_alive_nb_cycles_dead == 0: # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
-						if os.path.isfile(current_eval_dir+'/pre-md.log'):
-							log_file_size = os.path.getsize(current_eval_dir+'/pre-md.log') # get size of .log file in bytes, as a mean of detecting the pre-MD run is stuck
+						if os.path.isfile(current_eval_dir+'/equi.log'):
+							log_file_size = os.path.getsize(current_eval_dir+'/equi.log') # get size of .log file in bytes, as a mean of detecting the EQUI run is stuck
 						else:
-							log_file_size = last_log_file_size # pre-MD is stuck if the process was not able to create log file at start
-						if log_file_size == last_log_file_size: # pre-MD is stuck if the process is not writing to log file anymore
+							log_file_size = last_log_file_size # EQUI is stuck if the process was not able to create log file at start
+						if log_file_size == last_log_file_size: # EQUI is stuck if the process is not writing to log file anymore
 							os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL) # kill all processes of process group
 							equi_killed = True
 						else:
@@ -2581,16 +2585,16 @@ def eval_function(parameters_set, ns):
 
 		else:
 			# pass
-			sys.exit('\n\n'+config.header_gmx_error+gmx_out+'\n'+config.header_error+'Gmx grompp failed at the pre-MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_equi\nIf you think this is a bug, please consider opening an issue on GitHub at '+config.github_url+'\n')
+			sys.exit('\n\n'+config.header_gmx_error+gmx_out+'\n'+config.header_error+'Gmx grompp failed at equilibration step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_equi\nIf you think this is a bug, please consider opening an issue on GitHub at '+config.github_url+'\n')
 
-		# if pre-MD finished properly, we just check for the .gro file printed in the end
-		if os.path.isfile('pre-md.gro'):
+		# if EQUI finished properly, we just check for the .gro file printed in the end
+		if os.path.isfile('equi.gro'):
 
 			# adapt duration of the simulation
 			modify_mdp(mdp_filename=ns.mdp_md_basename, sim_time=ns.prod_sim_time) # TODO: check that everything still make sense
 
 			# grompp -- MD
-			gmx_cmd = ns.gmx_path+' grompp -c pre-md.gro -p '+ns.top_input_basename+' -f '+ns.mdp_md_basename+' -o md'
+			gmx_cmd = ns.gmx_path+' grompp -c equi.gro -p '+ns.top_input_basename+' -f '+ns.mdp_md_basename+' -o md'
 			with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
 				gmx_out = gmx_process.communicate()[1].decode()
 				gmx_process.kill()
@@ -2710,9 +2714,9 @@ def eval_function(parameters_set, ns):
 
 			else:
 				if md_run_killed:
-					print_stdout_forced('  MD run failed (stuck simulation was killed)')
+					print_stdout_forced('  MD run failed (unstable simulation was killed, with unstable = NOT writing in log file for '+str(ns.sim_kill_delay)+' sec)')
 				else:
-					print_stdout_forced('  MD run failed (simulation crashed)')
+					print_stdout_forced('  MD run failed (simulation process terminated with error)')
 				eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
 				ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
 				# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, None)
@@ -2721,9 +2725,9 @@ def eval_function(parameters_set, ns):
 
 		else:
 			if equi_killed:
-				print_stdout_forced('  Pre-MD run failed (stuck simulation was killed)')
+				print_stdout_forced('  Equilibration run failed (unstable simulation was killed, with unstable = NOT writing in log file for '+str(ns.sim_kill_delay)+' sec)')
 			else:
-				print_stdout_forced('  Pre-MD run failed (simulation crashed)')
+				print_stdout_forced('  Equilibration run failed (simulation process terminated with error)')
 			eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
 			ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
 			# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, None)
@@ -2731,9 +2735,9 @@ def eval_function(parameters_set, ns):
 			ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
 	else:
 		if mini_killed:
-			print_stdout_forced('  Minimization run failed (stuck simulation was killed)')
+			print_stdout_forced('  Minimization run failed (unstable simulation was killed, with unstable = NOT writing in log file for '+str(ns.sim_kill_delay)+' sec)')
 		else:
-			print_stdout_forced('  Minimization run failed (simulation crashed)')
+			print_stdout_forced('  Minimization run failed (simulation process terminated with error)')
 		eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
 		ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
 		# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, None)
@@ -2746,8 +2750,8 @@ def eval_function(parameters_set, ns):
 	# store log files
 	if os.path.isfile(current_eval_dir+'/md.log'):
 		shutil.copy(current_eval_dir+'/md.log', config.log_files_all_evals_dirname+'/MD_sim_eval_step_'+str(ns.nb_eval)+'.log') # copy prod log file
-	elif os.path.isfile(current_eval_dir+'/pre-md.log'):
-		shutil.copy(current_eval_dir+'/pre-md.log', config.log_files_all_evals_dirname+'/pre-MD_sim_eval_step_'+str(ns.nb_eval)+'.log') # copy equi log file
+	elif os.path.isfile(current_eval_dir+'/equi.log'):
+		shutil.copy(current_eval_dir+'/equi.log', config.log_files_all_evals_dirname+'/equi_sim_eval_step_'+str(ns.nb_eval)+'.log') # copy equi log file
 	elif os.path.isfile(current_eval_dir+'/mini.log'):
 		shutil.copy(current_eval_dir+'/mini.log', config.log_files_all_evals_dirname+'/mini_sim_eval_step_'+str(ns.nb_eval)+'.log') # copy mini log file
 

@@ -6,7 +6,7 @@ Swarm-CG is designed for automatically optimizing the bonded terms of a coarse-g
 2. Optimizing bonded terms of a CG model
 3. Monitoring an optimization procedure
 
-![Swarm-CG](/images/TOC_Swarm-CG_paper.png)
+![Swarm-CG](https://github.com/GMPavanLab/Swarm-CG/tree/master/images/TOC_Swarm-CG_paper.png)
 
 ### Publication
 
@@ -24,7 +24,7 @@ Swarm-CG was tested using Python 3.6.8 and Gromacs 2018.6.
 
 To better handle sampling in symmetrical molecules you can form groups of bonds/angles/dihedrals that Swarm-CG will consider identical, using line returns and/or comments in the topology (ITP) file. AA-mapped distributions will be averaged within groups to create the references used for evaluation (see point 1) or as target of the optimization procedure (see point 2). For optimization, identical parameters will be used for the bonds/angles/dihedrals within each group.
 
-Here is an ITP file extract from the demonstration data of [PAMAM G1](https://github.com/GMPavanLab/Swarm-CG/tree/master/PAMAM_G1_DATA/cg_model.itp):
+Here is an ITP file extract from the demonstration data of [PAMAM G1](https://github.com/GMPavanLab/Swarm-CG/tree/master/G1_DATA/cg_model.itp):
 
 	[ bonds ]
 	;   i     j   funct   length   force.c.   
@@ -41,15 +41,19 @@ Here is an ITP file extract from the demonstration data of [PAMAM G1](https://gi
 
 The module `scg_evaluate` enables quick evaluation of the fit of bond, angle and dihedral distributions between a CG model trajectory and a reference AA model trajectory of an identical molecule, by producing a single comprehensive figure.
 
-	scg_evaluate -aa_tpr G1_DATA/aa_topol.tpr -aa_traj G1_DATA/aa_traj.xtc -cg_map G1_DATA/cg_map.ndx -cg_itp G1_DATA/cg_model.itp -cg_tpr G1_OPTI_mode1_200ns_valid/longer_run.tpr -cg_traj G1_OPTI_mode1_200ns_valid/longer_run.xtc
+	scg_evaluate -aa_tpr G1_DATA/aa_topol.tpr -aa_traj G1_DATA/aa_traj.xtc -cg_map G1_DATA/cg_map.ndx -cg_itp G1_DATA/cg_model.itp -cg_tpr your_cg.tpr -cg_traj your_cg.xtc
 
-This is particularly useful to assess the need to run an optimization procedure (assuming one already has a CG model). It is also suited to the assessment of geometrical changes triggered by a modification of CG beads types (defining non-bonded parameters) or after manually editing bonded parameters while working on a model. This command also provides publication-quality figures to support the parametrization of your models (also in vectorized formats). Radius of gyration (Rg) and solvent accessible surface area (SASA) are also calculated. 
+It can also be used for inspecting AA-mapped distributions exclusively.
+
+	scg_evaluate -aa_tpr G1_DATA/aa_topol.tpr -aa_traj G1_DATA/aa_traj.xtc -cg_map G1_DATA/cg_map.ndx -cg_itp G1_DATA/cg_model.itp
+
+This module is particularly useful to assess the need to run an optimization procedure (assuming one already has a CG model). It is also suited to the assessment of geometrical changes triggered by a modification of CG beads types (defining non-bonded parameters) or after manually editing bonded parameters while working on a model. This command also provides publication-quality figures to support the parametrization of your models (also in vectorized formats). Radius of gyration (Rg) and solvent accessible surface area (SASA) are also calculated. 
 
 ### 2. Optimize bonded terms of a CG model
 
 The module `scg_optimize` allows to automatically optimize the bonded parameters of a CG model according to a reference AA trajectory. To this end, several simulations will be run to explore and evaluate the relevance of different sets of bonded parameters, using 3 optimization cycles.
 
-For example, using demonstration data of [PAMAM G1](https://github.com/GMPavanLab/Swarm-CG/tree/master/PAMAM_G1_DATA):
+For example, using demonstration data of [PAMAM G1](https://github.com/GMPavanLab/Swarm-CG/tree/master/G1_DATA):
 
 	scg_optimize -in_dir G1_DATA/ -gmx gmx_2018.6_p
 
