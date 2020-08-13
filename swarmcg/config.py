@@ -1,5 +1,5 @@
 # general stuff
-module_version = '1.0.8'
+module_version = '1.1.0'
 github_url = 'http://github.com/GMPavanLab/SwarmCG'
 gmx_path = 'gmx'
 
@@ -16,7 +16,7 @@ kB = 0.008314462
 sim_temperature = 300 # Kelvin
 bi_nb_bins = 50 # nb of bins to use for Boltzmann Inversion, will be doubled for dihedrals distributions binning during BI -- this has huge impact on the results of the BI and this value shall STAY AT 50 ! actually I did not try to modify much but this feels like dangerous atm
 bonds_max_range = 5 # nm -- used to define grid for EMD calculations so increasing this only slightly increases computation time, however small bw for bonds has real impact
-bw_constraints = 0.01 # nm
+bw_constraints = 0.005 # nm
 bw_bonds = 0.02 # nm
 bw_angles = 5 # degrees
 bw_dihedrals = 5 # degrees
@@ -63,10 +63,9 @@ fct_guess_min_flat_diff_dihedrals_with_mult = 0.20 # flat minimum force constant
 handled_constraints_functions = [1]
 handled_bonds_functions = [1]
 handled_angles_functions = [1, 2]
-# handled_angles_functions = [2]
-handled_dihedrals_functions = [1, 2, 4, 9]
-# handled_dihedrals_functions = [1, 4, 9]
-dihedral_func_with_mult = [1, 4, 9] # these functions use 3 parameters, the last one being multiplicity (if it's omitted gromacs will use 1 by default, we reproduce this behavior)
+handled_dihedrals_functions = [1, 2, 4]
+dihedral_func_with_mult = [1, 4] # these functions use 3 parameters, the last one being multiplicity (if it's omitted gromacs will use 1 by default, we reproduce this behavior)
+# TODO: handle dihedral function 9 correctly so that different potentials can be stacked for the same beads -- this is the primary purpose of function 9 !! 
 
 # plots display parameters
 use_hists = False # hists are not implemented in a way that they will be displayed with left and right borders, as it is already the case for bonds

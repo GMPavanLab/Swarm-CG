@@ -267,13 +267,13 @@ def verify_handled_functions(geom, func_obj, line_obj):
 		sys.exit(config.header_error+'Error while reading CG ITP file at line '+str(line_obj)+', please check this file')
 	
 	if geom == 'constraint' and func not in config.handled_constraints_functions:
-		sys.exit(config.header_error+'Error while reading constraint function in CG ITP file at line '+str(line_obj)+'\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these constraint potential functions: '+", ".join(map(str, config.handled_constraints_functions)))
+		sys.exit(config.header_error+'Error while reading constraint function in CG ITP file at line '+str(line_obj)+'\nThis potential function is not implemented in Swarm-CG at the moment\nPlease use one of these constraint potential functions: '+", ".join(map(str, config.handled_constraints_functions)))
 	elif geom == 'bond' and func not in config.handled_bonds_functions:
-		sys.exit(config.header_error+'Error while reading bond function in CG ITP file at line '+str(line_obj)+'\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these bond potential functions: '+", ".join(map(str, config.handled_bonds_functions)))
+		sys.exit(config.header_error+'Error while reading bond function in CG ITP file at line '+str(line_obj)+'\nThis potential function is not implemented in Swarm-CG at the moment\nPlease use one of these bond potential functions: '+", ".join(map(str, config.handled_bonds_functions)))
 	elif geom == 'angle' and func not in config.handled_angles_functions:
-		sys.exit(config.header_error+'Error while reading angle function in CG ITP file at line '+str(line_obj)+'\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these angle potential functions: '+", ".join(map(str, config.handled_angles_functions)))
+		sys.exit(config.header_error+'Error while reading angle function in CG ITP file at line '+str(line_obj)+'\nThis potential function is not implemented in Swarm-CG at the moment\nPlease use one of these angle potential functions: '+", ".join(map(str, config.handled_angles_functions)))
 	elif geom == 'dihedral' and func not in config.handled_dihedrals_functions:
-		sys.exit(config.header_error+'Error while reading dihedral function in CG ITP file at line '+str(line_obj)+'\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these dihedral potential functions: '+", ".join(map(str, config.handled_dihedrals_functions)))
+		sys.exit(config.header_error+'Error while reading dihedral function in CG ITP file at line '+str(line_obj)+'\nThis potential function is not implemented in Swarm-CG at the moment\nPlease use one of these dihedral potential functions: '+", ".join(map(str, config.handled_dihedrals_functions)))
 
 	return func
 
@@ -2397,7 +2397,7 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 	if sim_time != None:
 		if dt_line != -1 and nsteps_line != -1:
 			nsteps = int(sim_time*1000 / dt)
-			mdp_lines_in[nsteps_line] = sp_nsteps_line[0]+'= '+str(nsteps)+'    ; automatically modified by Opti-CG'
+			mdp_lines_in[nsteps_line] = sp_nsteps_line[0]+'= '+str(nsteps)+'    ; automatically modified by Swarm-CG'
 		else:
 			sys.exit(config.header_error+'The provided MD MDP file does not contain one of these entries: dt, nsteps')
 
@@ -2405,50 +2405,50 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 	# (which we use to check for simulations that are stuck/bugged)
 	if nstlog_line != -1:
 		nstlog = log_write_freq
-		mdp_lines_in[nstlog_line] = sp_nstlog_line[0]+'= '+str(nstlog)+'    ; automatically modified by Opti-CG'
+		mdp_lines_in[nstlog_line] = sp_nstlog_line[0]+'= '+str(nstlog)+'    ; automatically modified by Swarm-CG'
 	else:
 		sys.exit(config.header_error+'The provided MD MDP file does not contain one of these entries: nstlog')
 
 	# force NOT writting coordinates data, as this can only slow the simulation and we don't need it
 	if nstxout_line != -1:
 		nstxout = nsteps
-		mdp_lines_in[nstxout_line] = sp_nstxout_line[0]+'= '+str(nstxout)+'    ; automatically modified by Opti-CG'
+		mdp_lines_in[nstxout_line] = sp_nstxout_line[0]+'= '+str(nstxout)+'    ; automatically modified by Swarm-CG'
 	else:
-		mdp_lines_in += '\nnstxout = '+str(nstxout)+'    ; automatically added by Opti-CG'
+		mdp_lines_in += '\nnstxout = '+str(nstxout)+'    ; automatically added by Swarm-CG'
 
 	# force NOT writting velocities data, as this can only slow the simulation and we don't need it
 	if nstvout_line != -1:
 		nstvout = nsteps
-		mdp_lines_in[nstvout_line] = sp_nstvout_line[0]+'= '+str(nstvout)+'    ; automatically modified by Opti-CG'
+		mdp_lines_in[nstvout_line] = sp_nstvout_line[0]+'= '+str(nstvout)+'    ; automatically modified by Swarm-CG'
 	else:
-		mdp_lines_in += '\nnstvout = '+str(nstvout)+'    ; automatically added by Opti-CG'
+		mdp_lines_in += '\nnstvout = '+str(nstvout)+'    ; automatically added by Swarm-CG'
 
 	# force NOT writting forces data, as this can only slow the simulation and we don't need it
 	if nstfout_line != -1:
 		nstfout = nsteps
-		mdp_lines_in[nstfout_line] = sp_nstfout_line[0]+'= '+str(nstfout)+'    ; automatically modified by Opti-CG'
+		mdp_lines_in[nstfout_line] = sp_nstfout_line[0]+'= '+str(nstfout)+'    ; automatically modified by Swarm-CG'
 	else:
-		mdp_lines_in += '\nnstfout = '+str(nstfout)+'    ; automatically added by Opti-CG'
+		mdp_lines_in += '\nnstfout = '+str(nstfout)+'    ; automatically added by Swarm-CG'
 
 	# force calculating and writing frames at given frequency, to not slow down the simulation too much but still allow for energy analysis
 	nstcalcenergy = int(nsteps / nb_frames / energy_write_nb_frames_ratio)
 	nstenergy = nstcalcenergy
 	if nstcalcenergy_line != -1:
-		mdp_lines_in[nstcalcenergy_line] = sp_nstcalcenergy_line[0]+'= '+str(nstcalcenergy)+'    ; automatically modified by Opti-CG'
+		mdp_lines_in[nstcalcenergy_line] = sp_nstcalcenergy_line[0]+'= '+str(nstcalcenergy)+'    ; automatically modified by Swarm-CG'
 	else:
-		mdp_lines_in += '\nnstcalcenergy = '+str(nstcalcenergy)+'    ; automatically added by Opti-CG'
+		mdp_lines_in += '\nnstcalcenergy = '+str(nstcalcenergy)+'    ; automatically added by Swarm-CG'
 	if nstenergy_line != -1:
-		mdp_lines_in[nstenergy_line] = sp_nstenergy_line[0]+'= '+str(nstenergy)+'    ; automatically modified by Opti-CG'
+		mdp_lines_in[nstenergy_line] = sp_nstenergy_line[0]+'= '+str(nstenergy)+'    ; automatically modified by Swarm-CG'
 	else:
-		mdp_lines_in += '\nnstenergy = '+str(nstenergy)+'    ; automatically added by Opti-CG'
+		mdp_lines_in += '\nnstenergy = '+str(nstenergy)+'    ; automatically added by Swarm-CG'
 
 	# force writting compressed frames at given frequency, so that we obtain the desired number of frames for each CG simulation/evaluation step
 	nstxout_compressed = int(nsteps / nb_frames)
 	if nstxout_compressed_line != -1:
-		mdp_lines_in[nstxout_compressed_line] = sp_nstxout_compressed_line[0]+'= '+str(nstxout_compressed)+'    ; automatically modified by Opti-CG'
+		mdp_lines_in[nstxout_compressed_line] = sp_nstxout_compressed_line[0]+'= '+str(nstxout_compressed)+'    ; automatically modified by Swarm-CG'
 	else:
 		# sys.exit(config.header_error+'The provided MD MDP file does not contain one of these entries: nstxout-compressed')
-		mdp_lines_in += '\nnstxout-compressed = '+str(nstxout_compressed)+'    ; automatically added by Opti-CG'
+		mdp_lines_in += '\nnstxout-compressed = '+str(nstxout_compressed)+'    ; automatically added by Swarm-CG'
 
 	# write output
 	with open(mdp_filename, 'w') as fp:
@@ -2548,7 +2548,7 @@ def eval_function(parameters_set, ns):
 			gmx_process.kill()
 
 	else:
-		sys.exit('\n\n'+config.header_gmx_error+gmx_out+'\n'+config.header_error+'Gmx grompp failed at minimization step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_mini\nYou may also want to look into Opti-CG argument -mini_maxwarn\nIf you think this is a bug, please consider opening an issue on GitHub at '+config.github_url+'\n')
+		sys.exit('\n\n'+config.header_gmx_error+gmx_out+'\n'+config.header_error+'Gmx grompp failed at minimization step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_mini\nYou may also want to look into argument -mini_maxwarn\nIf you think this is a bug, please consider opening an issue on GitHub at '+config.github_url+'\n')
 
 	# if minimization finished properly, we just check for the .gro file printed in the end
 	if os.path.isfile('mini.gro'):

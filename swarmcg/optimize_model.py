@@ -322,7 +322,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
 
   # touch results files to be appended to later
   with open(ns.exec_folder+'/'+config.opti_perf_recap_file, 'w') as fp:
-  	# TODO: print that file has been generated with Opti-CG etc -- do this for basically all files
+  	# TODO: print that file has been generated with Swarm-CG etc -- do this for basically all files
   	# TODO: add some info on the opti cycles ??
   	fp.write('# nb constraints: '+str(ns.nb_constraints)+'\n')
   	fp.write('# nb bonds: '+str(ns.nb_bonds)+'\n')
