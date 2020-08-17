@@ -101,7 +101,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   bullet = ' '
 
   optional_args0 = args_parser.add_argument_group(req_args_header+'\n\n'+bullet+'EXECUTION MODE')
-  optional_args0.add_argument('-exec_mode', dest='exec_mode', help='MODE 1: Tune both bonds lengths, angles/dihedrals values\n        and their force constants\nMODE 2: Like MODE 1 but angles/dihedrals values in the prelim.\n        CG model ITP are conserved during optimization', type=int, default=1, metavar='              (1)')
+  optional_args0.add_argument('-exec_mode', dest='exec_mode', help='MODE 1: Tune both bonds lengths, angles/dihedrals values\n        and their force constants\nMODE 2: Like MODE 1 but angles/dihedrals values in the prelim.\n        CG model ITP are conserved during optimization\nMODE 3: Like MODE 1 but only dihedrals values in the prelim.\n        CG model ITP are conserved during optimization', type=int, default=1, metavar='              (1)')
 
   required_args = args_parser.add_argument_group(bullet+'REFERENCE AA MODEL')
   required_args.add_argument('-aa_tpr', dest='aa_tpr_filename', help=config.help_aa_tpr, type=str, default=config.metavar_aa_tpr, metavar='      '+scg.par_wrap(config.metavar_aa_tpr))
@@ -414,7 +414,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   for grp_angle in range(ns.nb_angles):
 
     angle_avg, angle_hist, angle_values_deg, angle_values_rad = scg.get_AA_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
-    if ns.exec_mode == 1:
+    if ns.exec_mode == 1 or ns.exec_mode == 3:
       ns.cg_itp['angle'][grp_angle]['value'] = angle_avg
     ns.cg_itp['angle'][grp_angle]['avg'] = angle_avg
     ns.cg_itp['angle'][grp_angle]['hist'] = angle_hist
@@ -445,8 +445,9 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   # output png with all the reference distributions, so the user can check
   ns.atom_only = True
   ns.plot_filename = ns.exec_folder+'/'+config.ref_distrib_plots
-  with contextlib.redirect_stdout(open(os.devnull, 'w')) as devnull:
-    scg.compare_models(ns, manual_mode=False)
+  with open(os.devnull, 'w') as devnull:
+    with contextlib.redirect_stdout(devnull):
+      scg.compare_models(ns, manual_mode=False)
   print()
   print('Plotted reference AA-mapped distributions (used as target during optimization) at location:\n ', ns.exec_folder+'/'+config.ref_distrib_plots)
   ns.atom_only = False
@@ -510,11 +511,11 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   sim_cycles = [0, 1, 2] # simulations types
 
   # for tests
-  # sim_types = {0: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
-  #        1: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
-  #        2: {'sim_duration': ns.sim_duration_long, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.20}}
-  # opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
-  # sim_cycles = [0, 1, 2] # simulations types
+  sim_types = {0: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
+         1: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
+         2: {'sim_duration': ns.sim_duration_long, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.20}}
+  opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
+  sim_cycles = [0, 1, 2] # simulations types
 
   # NOTE: currently, due to an issue in FST-PSO, number of swarm iterations performed is +2 when compared to the numbers we feed
 
@@ -606,6 +607,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
     # BI is performed:
     # -- exec_mode 1: all values and force constants
     # -- exec_mode 2: values are not touched for angles and dihedrals, but all force constants are estimated
+    # -- exec_mode 3: values are not touched for dihedrals, but all force constants are estimated
     scg.perform_BI(ns) # performed on object ns.out_itp
 
     # build vector for search space boundaries + create variations around the BI initial guesses
@@ -618,16 +620,17 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
       , 3)
     # nb_particles = int(10 + 2*np.sqrt(len(search_space_boundaries))) # formula used by FST-PSO to choose nb of particles, which defines the number of initial guesses we can use
     nb_particles = int(round(2 + np.sqrt(len(search_space_boundaries)))) # adapted to have less particles and fitted to our problems, which has good initial guesses and error driven initialization
-    # nb_particles = 2 # for tests
+    nb_particles = 2 # for tests
     initial_guess_list = scg.get_initial_guess_list(ns, nb_particles)
 
   	# actual optimization
-    with contextlib.redirect_stdout(open(os.devnull, 'w')):
-      FP = FuzzyPSO()
-      FP.set_search_space(search_space_boundaries)
-      FP.set_swarm_size(nb_particles)
-      FP.set_fitness(fitness=scg.eval_function, arguments=ns, skip_test=True)
-      result = FP.solve_with_fstpso(max_iter=ns.max_swarm_iter, initial_guess_list=initial_guess_list, max_iter_without_new_global_best=ns.max_swarm_iter_without_new_global_best)
+    with open(os.devnull, 'w') as devnull:
+      with contextlib.redirect_stdout(devnull):
+        FP = FuzzyPSO()
+        FP.set_search_space(search_space_boundaries)
+        FP.set_swarm_size(nb_particles)
+        FP.set_fitness(fitness=scg.eval_function, arguments=ns, skip_test=True)
+        result = FP.solve_with_fstpso(max_iter=ns.max_swarm_iter, initial_guess_list=initial_guess_list, max_iter_without_new_global_best=ns.max_swarm_iter_without_new_global_best)
 
     # update ITP object with the best solution using geoms considered at this given optimization step
     scg.update_cg_itp_obj(ns, parameters_set=result[0].X, update_type=2)
@@ -644,7 +647,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   ns.total_model_eval_time = round(ns.total_model_eval_time / (60 * 60), 2)
   print()
   print(config.sep_close)
-  print('  FINISHED PROPERLY')
+  print('|  FINISHED PROPERLY                                                                          |')
   print(config.sep_close)
   print()
   print('Total nb of evaluation steps:', ns.nb_eval)

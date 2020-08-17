@@ -50,7 +50,7 @@ def header_package(module_line):
 |                                                                                             |
 |                               Swarm-CG relies on FST-PSO:                                   |
 |          Fuzzy Self-Tuning PSO: A settings-free algorithm for global optimization           |
-|  Nobile M.S., Cazzaniga P., Besozzi D., Colombo R., Mauri G., Pasia G. SWARM EVO COMP 2018  |
+|  Nobile M.S., Cazzaniga P., Besozzi D., Colombo R., Mauri G., Pasia G. Swarm Evo Comp 2018  |
 '''+config.sep_close+'\n'
 
 
@@ -804,7 +804,7 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 		itp_obj['bond'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+ns.opti_cycle['nb_geoms']['bond']+i], 3) # bond - force constant
 
 	for i in range(ns.opti_cycle['nb_geoms']['angle']):
-		if ns.exec_mode == 1:
+		if ns.exec_mode == 1 or ns.exec_mode == 3:
 			itp_obj['angle'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+i], 2) # angle - value
 			itp_obj['angle'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+ns.opti_cycle['nb_geoms']['angle']+i], 2) # angle - force constant
 		else:
@@ -814,6 +814,8 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 		if ns.exec_mode == 1:
 			itp_obj['dihedral'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+i], 2) # dihedral - value
 			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+ns.opti_cycle['nb_geoms']['dihedral']+i], 2) # dihedral - force constant
+		elif ns.exec_mode == 3:
+			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+i], 2) # dihedral - force constant
 		else:
 		 	itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+ns.opti_cycle['nb_geoms']['angle']+i], 2) # dihedral - force constant
 
@@ -985,7 +987,7 @@ def get_search_space_boundaries(ns):
 		search_space_boundaries.extend([[config.default_min_fct_bonds, ns.default_max_fct_bonds_opti]]*ns.opti_cycle['nb_geoms']['bond'])
 
 	if ns.opti_cycle['nb_geoms']['angle'] > 0:
-		if ns.exec_mode == 1:
+		if ns.exec_mode == 1 or ns.exec_mode == 3:
 			search_space_boundaries.extend(ns.domains_val['angle']) # angles values
 
 		for grp_angle in range(ns.opti_cycle['nb_geoms']['angle']): # angles force constants
@@ -1031,7 +1033,7 @@ def get_initial_guess_list(ns, nb_particles):
 		fct_bonds.append(min(max(ns.out_itp['bond'][i]['fct'], config.default_min_fct_bonds), ns.default_max_fct_bonds_opti)) # bonds force constants
 	input_guess.extend(fct_bonds)
 
-	if ns.exec_mode == 1:
+	if ns.exec_mode == 1 or ns.exec_mode == 3:
 		input_guess.extend([ns.out_itp['angle'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['angle'])]) # angles values
 	fct_angles = []
 	for i in range(ns.opti_cycle['nb_geoms']['angle']):
@@ -1084,7 +1086,7 @@ def get_initial_guess_list(ns, nb_particles):
 				input_guess.append(ns.out_itp['bond'][i]['fct'])
 
 		# angles values
-		if ns.exec_mode == 1:
+		if ns.exec_mode == 1 or ns.exec_mode == 3:
 			for i in range(ns.opti_cycle['nb_geoms']['angle']):
 				if ns.all_best_emd_dist_geoms['angles'][i] != config.sim_crash_EMD_indep_score:
 					input_guess.append(ns.all_best_params_dist_geoms['angles'][i]['params'][0])
@@ -1151,7 +1153,7 @@ def get_initial_guess_list(ns, nb_particles):
 			init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# angles values
-		if ns.exec_mode == 1:
+		if ns.exec_mode == 1 or ns.exec_mode == 3:
 			for j in range(ns.opti_cycle['nb_geoms']['angle']):
 				try:
 					emd_err_fact = max(1, ns.all_emd_dist_geoms['angles'][j]/2)
@@ -2785,7 +2787,7 @@ def eval_function(parameters_set, ns):
 	else:
 		print_stdout_forced('  Total mismatch score:', round(fit_score_total, 3), '(Bonds/Constraints:', fit_score_constraints_bonds, '-- Angles:', fit_score_angles, '-- Dihedrals:', str(fit_score_dihedrals)+')')
 		if new_best_fit:
-			print_stdout_forced('  --> Selected as new best bonded parametrization')
+			print_stdout_forced('    --> Selected as new best bonded parametrization')
 		# print_stdout_forced('  Opti context mismatch score:', round(eval_score, 3))
 		print_stdout_forced('  Rg CG: ', ' '+str(round(ns.gyr_cg, 2)), 'nm   (Error abs.', str(round(abs(1-ns.gyr_cg/ns.gyr_aa_mapped)*100, 1))+'% -- Reference Rg AA-mapped:', str(ns.gyr_aa_mapped)+' nm)')
 		print_stdout_forced('  SASA CG:', ns.sasa_cg, 'nm2   (Error abs.', str(round(abs(1-ns.sasa_cg/ns.sasa_aa_mapped)*100, 1))+'% -- Reference SASA AA-mapped:', str(ns.sasa_aa_mapped)+' nm2)')
