@@ -75,13 +75,13 @@ At all times during execution, the best parametrized model is accessible in the 
 
 The AA trajectory is mapped on-the-fly (if atoms are mapped to multiple CG beads, atom masses are split accordingly). The AA trajectory must contain box information for PBC handling, otherwise it is assumed the molecule is "unwrapped" already. Only the MDP file provided via arg `-cg_mdp_md` will be modified to adjust `nsteps` according to arguments `-cg_time_short` and `cg_time_long`, taking into account the timestep `ts` you provided. To minimize the execution time of `scg_optimize`, equilibration should stay short (e.g. 50-500 fs) and so should the optimization cycles 1 and 2 (via arg `-cg_time_short` e.g. 10-20 ns). To maximize the precision of `scg_optimize`, optimization cycle 3 must always use longer simulation times (via arg `-cg_time_long` e.g. 25-100 ns). Execution times should vary between 4h to 24h according to parameters and hardware used.
 
-For information about execution modes 1 and 2, please see paper sections 2.4 and 4 and command help (-h).
+For information about the different execution modes, please see paper sections 2.4 and 4 and command help (-h).
 
 ### 3. Monitor an ongoing CG model optimization
 
 Optimization procedures can be monitored at any point during execution. The module `scg_monitor` produces a visual summary (see paper Fig. 3) of the progress of an optimization procedure started with module `scg_optimize`. The plot will be produced in the directory provided via arg `-opti_dir`.
 
-	scg_monitor -opti_dir MODEL_OPTI__STARTED_03-07-2020_10h_12m_15s -gmx gmx_2018.6_p
+	scg_monitor -opti_dir MODEL_OPTI__STARTED_03-07-2020_10h_12m_15s
 
 See the help (-h) for a complete description of `scg_monitor` output. In particular, note that Rg and SASA might be rough estimates in this display, as they are calculated from short simulations used for optimization. These values must probably be validated using longer simulation times. Using `scg_evaluate` can be helpful to this end.
 
