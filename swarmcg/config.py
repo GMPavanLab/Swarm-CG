@@ -1,5 +1,5 @@
 # general stuff
-module_version = '1.1.1'
+module_version = '1.1.2'
 github_url = 'http://github.com/GMPavanLab/SwarmCG'
 gmx_path = 'gmx'
 
@@ -16,10 +16,10 @@ kB = 0.008314462
 sim_temperature = 300 # Kelvin
 bi_nb_bins = 50 # nb of bins to use for Boltzmann Inversion, will be doubled for dihedrals distributions binning during BI -- this has huge impact on the results of the BI and this value shall STAY AT 50 ! actually I did not try to modify much but this feels like dangerous atm
 bonds_max_range = 5 # nm -- used to define grid for EMD calculations so increasing this only slightly increases computation time, however small bw for bonds has real impact
-bw_constraints = 0.005 # nm
-bw_bonds = 0.02 # nm
-bw_angles = 5 # degrees
-bw_dihedrals = 5 # degrees
+bw_constraints = 0.002 # nm
+bw_bonds = 0.01 # nm
+bw_angles = 2.5 # degrees
+bw_dihedrals = 2.5 # degrees
 default_min_fct_bonds = 0
 default_max_fct_bonds_bi = 17000
 default_max_fct_bonds_opti = 18000

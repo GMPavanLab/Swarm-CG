@@ -511,11 +511,11 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   sim_cycles = [0, 1, 2] # simulations types
 
   # for tests
-  sim_types = {0: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
-         1: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
-         2: {'sim_duration': ns.sim_duration_long, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.20}}
-  opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
-  sim_cycles = [0, 1, 2] # simulations types
+  # sim_types = {0: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
+  #        1: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
+  #        2: {'sim_duration': ns.sim_duration_long, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.20}}
+  # opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
+  # sim_cycles = [0, 1, 2] # simulations types
 
   # NOTE: currently, due to an issue in FST-PSO, number of swarm iterations performed is +2 when compared to the numbers we feed
 
@@ -620,7 +620,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
       , 3)
     # nb_particles = int(10 + 2*np.sqrt(len(search_space_boundaries))) # formula used by FST-PSO to choose nb of particles, which defines the number of initial guesses we can use
     nb_particles = int(round(2 + np.sqrt(len(search_space_boundaries)))) # adapted to have less particles and fitted to our problems, which has good initial guesses and error driven initialization
-    nb_particles = 2 # for tests
+    # nb_particles = 2 # for tests
     initial_guess_list = scg.get_initial_guess_list(ns, nb_particles)
 
   	# actual optimization
