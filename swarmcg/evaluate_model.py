@@ -1,22 +1,17 @@
-import warnings
-
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
+import warnings
 warnings.filterwarnings("ignore")
-import os, re, sys
-from shlex import quote as cmd_quote
-import matplotlib
-matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
-import matplotlib.pyplot as plt
+import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
-# import argcomplete # arguments completion currently disabled because it's one more library to install
-from random import randint
-import numpy as np
-import scipy.stats
-from pyemd import emd
-import MDAnalysis as mda
+from shlex import quote as cmd_quote
+
+import matplotlib
+
 from . import config
 from . import swarmCG as scg
+
 warnings.resetwarnings()
+matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 
 
 def main():

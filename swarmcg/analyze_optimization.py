@@ -1,16 +1,18 @@
-import warnings
-
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
+import warnings
 warnings.filterwarnings("ignore")
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
-import numpy as np
-# from pylab import polyfit
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
+
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+import numpy as np
+
 from . import config
 from . import swarmCG as scg
+from shared.utils import forward_fill
+
 warnings.resetwarnings()
 
 
@@ -96,7 +98,7 @@ extended conformations).
 	try:
 		used_dihedrals = iter_indep_scores[:,0]
 		for i in range(1, iter_indep_scores.shape[1]):
-			scg.forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
+			forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
 	except IndexError:
 		sys.exit(config.header_error+'The optimization recap file seems empty, please wait for your optimization process to start or check for errors during execution')
 
@@ -283,22 +285,22 @@ extended conformations).
 	# display indicator when simulation(s) crashed for any reason -- check for None gyr_cg to identify a simulation as crashed
 	crashes_ids = np.where(all_gyr_cg == None)[0]+1
 
-	scg.forward_fill(all_eval_scores, None)
-	scg.forward_fill(all_fit_score_total, None)
-	scg.forward_fill(all_fit_score_constraints_bonds, None)
-	scg.forward_fill(all_fit_score_angles, None)
-	scg.forward_fill(all_fit_score_dihedrals, None)
-	scg.forward_fill(all_gyr_aa_mapped, None)
-	scg.forward_fill(all_gyr_aa_mapped_std, None)
+	forward_fill(all_eval_scores, None)
+	forward_fill(all_fit_score_total, None)
+	forward_fill(all_fit_score_constraints_bonds, None)
+	forward_fill(all_fit_score_angles, None)
+	forward_fill(all_fit_score_dihedrals, None)
+	forward_fill(all_gyr_aa_mapped, None)
+	forward_fill(all_gyr_aa_mapped_std, None)
 	# all_gyr_cg = np.where(all_gyr_cg == None, 0, all_gyr_cg)
-	scg.forward_fill(all_gyr_cg, None)
-	scg.forward_fill(all_gyr_cg_std, None)
-	scg.forward_fill(all_sasa_aa_mapped, None)
-	scg.forward_fill(all_sasa_aa_mapped_std, None)
+	forward_fill(all_gyr_cg, None)
+	forward_fill(all_gyr_cg_std, None)
+	forward_fill(all_sasa_aa_mapped, None)
+	forward_fill(all_sasa_aa_mapped_std, None)
 	# all_sasa_cg = np.where(all_sasa_cg == None, 0, all_sasa_cg)
-	# scg.forward_fill(all_sasa_cg, 0)
-	scg.forward_fill(all_sasa_cg, None)
-	scg.forward_fill(all_sasa_cg_std, None)
+	# forward_fill(all_sasa_cg, 0)
+	forward_fill(all_sasa_cg, None)
+	forward_fill(all_sasa_cg_std, None)
 
 	for i in range(len(all_gyr_aa_mapped)):
 		all_gyr_aa_mapped[i] += all_gyr_aa_mapped_offset
