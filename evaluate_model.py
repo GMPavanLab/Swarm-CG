@@ -1,19 +1,13 @@
 #!/usr/bin/env python3
 
-import os, re, sys
+import os, sys
 from shlex import quote as cmd_quote
 import matplotlib
 matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
-import matplotlib.pyplot as plt
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
-# import argcomplete # arguments completion currently disabled because it's one more library to install
-from random import randint
-import numpy as np
-import scipy.stats
-from pyemd import emd
-import MDAnalysis as mda
 
-import config
+from shared import config
+from shared import exceptions
 from opti_CG import header_package, set_MDA_backend, create_bins_and_dist_matrices, compare_models, par_wrap
 
 # TODO: make it possible to feed a delta for Rg in case the model has scaling ?
@@ -54,21 +48,29 @@ formed using empty line(s) and/or comment(s) in the ITP file, similarly to this:
     4     8    11        2      120    50''', formatter_class=lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52), add_help=False, usage=SUPPRESS)
 
 required_args = args_parser.add_argument_group(' \n[REQUIRED ARGUMENTS] Models Files')
-required_args.add_argument('-aa_tpr', dest='aa_tpr_filename', help=config.help_aa_tpr, type=str, default=config.metavar_aa_tpr, metavar=par_wrap(config.metavar_aa_tpr))
-required_args.add_argument('-aa_traj', dest='aa_traj_filename', help=config.help_aa_traj, type=str, default=config.metavar_aa_traj, metavar=par_wrap(config.metavar_aa_traj))
-required_args.add_argument('-cg_map', dest='cg_map_filename', help=config.help_cg_map, type=str, default=config.metavar_cg_map, metavar=par_wrap(config.metavar_cg_map))
-required_args.add_argument('-cg_itp', dest='cg_itp_filename', help='ITP file of the CG model to evaluate', type=str, default=config.metavar_cg_itp, metavar=par_wrap(config.metavar_cg_itp))
-required_args.add_argument('-cg_tpr', dest='cg_tpr_filename', help='TPR file of your CG simulation (omit for inspection of AA-mapped distributions exclusively)', type=str, default=config.metavar_cg_tpr, metavar=par_wrap(config.metavar_cg_tpr))
-required_args.add_argument('-cg_traj', dest='cg_traj_filename', help='XTC file of your CG trajectory (omit for inspection of AA-mapped distributions exclusively)', type=str, default=config.metavar_cg_traj, metavar=par_wrap(config.metavar_cg_traj))
+required_args.add_argument('-aa_tpr', dest='aa_tpr_filename', help=config.help_aa_tpr, type=str, default=config.metavar_aa_tpr, metavar=par_wrap(
+	config.metavar_aa_tpr))
+required_args.add_argument('-aa_traj', dest='aa_traj_filename', help=config.help_aa_traj, type=str, default=config.metavar_aa_traj, metavar=par_wrap(
+	config.metavar_aa_traj))
+required_args.add_argument('-cg_map', dest='cg_map_filename', help=config.help_cg_map, type=str, default=config.metavar_cg_map, metavar=par_wrap(
+	config.metavar_cg_map))
+required_args.add_argument('-cg_itp', dest='cg_itp_filename', help='ITP file of the CG model to evaluate', type=str, default=config.metavar_cg_itp, metavar=par_wrap(
+	config.metavar_cg_itp))
+required_args.add_argument('-cg_tpr', dest='cg_tpr_filename', help='TPR file of your CG simulation (omit for inspection of AA-mapped distributions exclusively)', type=str, default=config.metavar_cg_tpr, metavar=par_wrap(
+	config.metavar_cg_tpr))
+required_args.add_argument('-cg_traj', dest='cg_traj_filename', help='XTC file of your CG trajectory (omit for inspection of AA-mapped distributions exclusively)', type=str, default=config.metavar_cg_traj, metavar=par_wrap(
+	config.metavar_cg_traj))
 # required_args.add_argument('-figmolname', dest='figmolname', help='TODO REMOVE', type=str, required=True) # TODO: remove, this was just for figures
 
 optional_args = args_parser.add_argument_group('[OPTIONAL ARGUMENTS] Scaling Parameters')
 optional_args.add_argument('-h', '--help', action='help', help='Show this help message and exit')
 optional_args.add_argument('-v', '--verbose', dest='verbose', help=config.help_verbose, action='store_true', default=False)
 # optional_args.add_argument('-nb_threads', dest='nb_threads', help='number of threads to use', type=int, default=1, metavar='1') # TODO: does NOT work properly -- modif MDAnalysis code with OpenMP num_threads(n) in the pragma
-optional_args.add_argument('-bonds_scaling', dest='bonds_scaling', help=config.help_bonds_scaling, type=float, default=config.bonds_scaling, metavar=par_wrap(config.bonds_scaling))
+optional_args.add_argument('-bonds_scaling', dest='bonds_scaling', help=config.help_bonds_scaling, type=float, default=config.bonds_scaling, metavar=par_wrap(
+	config.bonds_scaling))
 optional_args.add_argument('-bonds_scaling_str', dest='bonds_scaling_str', help=config.help_bonds_scaling_str, type=str, default=config.bonds_scaling_str, metavar='')
-optional_args.add_argument('-min_bonds_length', dest='min_bonds_length', help=config.help_min_bonds_length, type=float, default=config.min_bonds_length, metavar='    '+par_wrap(config.min_bonds_length))
+optional_args.add_argument('-min_bonds_length', dest='min_bonds_length', help=config.help_min_bonds_length, type=float, default=config.min_bonds_length, metavar='    ' + par_wrap(
+	config.min_bonds_length))
 optional_args.add_argument('-bonds2angles_scoring_factor', dest='bonds2angles_scoring_factor', help=config.help_bonds2angles_scoring_factor, type=float, default=config.bonds2angles_scoring_factor, metavar=config.bonds2angles_scoring_factor)
 optional_args.add_argument('-o', dest='plot_filename', help='Filename for the output plot (extension/format must be one of: eps, pdf, pgf, png, ps, raw, rgba, svg, svgz, otherwise png format and extension will be used)', type=str, default='distributions.png', metavar='distributions.png')
 # ONLY FOR PAPER FIGURES
@@ -105,19 +107,44 @@ ns.aa_rg_offset = 0
 set_MDA_backend(ns)
 
 # TODO: add missing checks -- if some are missing
-# TODO: factorize all checks and put them in global lib
+# TODO: these should all go into exceptions.py
 if not os.path.isfile(ns.aa_tpr_filename):
-	sys.exit(config.header_error+'Cannot find coordinate file of the atomistic simulation\n(GRO, PDB, or other trajectory formats supported by MDAnalysis)')
+	msg = """{}
+	Cannot find coordinate file of the atomistic simulation
+	(GRO, PDB, or other trajectory formats supported by MDAnalysis)
+	""".format(exceptions.header_error)
+	sys.exit(msg)
+
 if not os.path.isfile(ns.aa_traj_filename):
-	sys.exit(config.header_error+'Cannot find trajectory file of the atomistic simulation\n(XTC, TRR, or other trajectory formats supported by MDAnalysis)')
+	msg = """Cannot find trajectory file of the atomistic simulation
+	(XTC, TRR, or other trajectory formats supported by MDAnalysis)
+	""".format(exceptions.header_error)
+	sys.exit(msg)
+
 if not os.path.isfile(ns.cg_map_filename):
-	sys.exit(config.header_error+'Cannot find CG beads mapping file (NDX-like file format)')
+	msg = """{} 
+	Cannot find CG beads mapping file (NDX-like file format)
+	""".format(exceptions.header_error)
+	sys.exit(msg)
+
 if not os.path.isfile(ns.cg_itp_filename):
-	sys.exit(config.header_error+'Cannot find ITP file of the CG model')
+	msg = """{}
+	Cannot find ITP file of the CG model
+	""".format(exceptions.header_error)
+	sys.exit(msg)
 
 # check bonds scaling arguments conflicts
-if (ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length) or (ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
-	sys.exit(config.header_error+'Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length can be provided\nPlease check your parameters')
+# TODO: big no-no for this type of codition statements
+if ((ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length)
+		or (ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str)
+		or (ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str)):
+	msg = """{}
+	Only one of arguments -bonds_scaling, -bonds_scaling_str
+	and -min_bonds_length can be provided.
+	Please check your parameters
+	""".format(exceptions.header_error)
+	sys.exit(msg)
+
 # if ns.bonds_scaling < 1:
 # 	sys.exit(config.header_error+'Bonds scaling factor is inferior to 1, please check your parameters')
 

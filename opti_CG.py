@@ -1,21 +1,18 @@
 import numpy as np
 from pyemd import emd
-import sys, re, random, os, shutil, subprocess, signal, time, contextlib, warnings, textwrap
+import sys, re, random, os, shutil, subprocess, signal, time, contextlib, warnings
 import matplotlib
+
 matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import cdist
-from scipy.cluster.hierarchy import linkage, fcluster
-from scipy.spatial.distance import squareform
 from scipy.optimize import curve_fit
-from scipy.signal import lfiltic, lfilter
-from itertools import compress
-import networkx as nx
 import MDAnalysis as mda
 import collections
 from datetime import datetime
 
-import config
+from shared import exceptions
+from shared.utils import sma, ewma
 
 # TODO: When provided trajectory file does NOT contain PBC infos (box position and size for each frame, which are present in XTC format for example), we want to stil accept the provided trajectory format (if accepted by MDAnalysis) but we automatically disable the handling of PBC by the code
 
@@ -31,9 +28,9 @@ def header_package(module_line):
              ███████╗██║ █╗ ██║███████║██████╔╝██╔████╔██║█████╗██║     ██║  ███╗
              ╚════██║██║███╗██║██╔══██║██╔══██╗██║╚██╔╝██║╚════╝██║     ██║   ██║
              ███████║╚███╔███╔╝██║  ██║██║  ██║██║ ╚═╝ ██║      ╚██████╗╚██████╔╝
-             ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝   v'''+config.module_version+'''
-            '''+module_line+'''
-'''+config.sep_close+'''
+             ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝   v''' + config.module_version + '''
+            ''' + module_line +'''
+''' + config.sep_close + '''
 |             Opti-CG is distributed under the terms of the GNU GPL License v3.0              |
 |                       as published by the Free Software Foundation                          |
 |                                                                                             |
@@ -47,51 +44,8 @@ def header_package(module_line):
 |  Nobile M.S., Cazzaniga P., Besozzi D., Colombo R., Mauri G., Pasia G. SWARM EVO COMP 2018  |
 |                                                                                             |
 |                    Feedback, questions and bug reports are welcome at:                      |
-|                               '''+config.github_url+'''                                     |
-'''+config.sep_close+'\n'
-
-
-def forward_fill(arr, cond_value):
-
-	# out = np.empty(len(arr))
-	valid_val = None
-	for i in range(len(arr)):
-		if arr[i] != cond_value:
-			# out[i] = arr[i]
-			valid_val = arr[i]
-		else:
-			j = i
-			while valid_val == None and j < len(arr):
-				j += 1
-				try:
-					if arr[j] != cond_value:
-						valid_val = arr[j]
-						break
-				except IndexError:
-					sys.exit(config.header_error+'Unexpected read of the optimization results, please check that your simulations have not all been crashing')
-			if valid_val != None:
-				# out[i] = valid_val
-				arr[i] = valid_val
-			else:
-				sys.exit('All simulations crashed, nothing to display\nPlease check the setup and settings of your optimization run')
-	# return out
-	return
-
-
-# simple moving average
-def sma(interval, window_size):
-	window = np.ones(int(window_size))/float(window_size)
-	return np.convolve(interval, window, 'same')
-
-
-# exponential moving average
-def ewma(a, alpha, windowSize):
-	wghts = (1-alpha)**np.arange(windowSize)
-	wghts /= wghts.sum()
-	out = np.full(len(a), np.nan)
-	# out[windowSize-1:] = np.convolve(a, wghts, 'valid')
-	out = np.convolve(a, wghts, 'same')
-	return out
+|                               ''' + config.github_url + '''                                     |
+''' + config.sep_close + '\n'
 
 
 # cast object as string, enclose by parentheses and return a string -- for arguments display in help
@@ -142,9 +96,9 @@ def draw_float(low, high, dg_rnd):
 # 					nb_atoms_sections += 1
 
 # 		if nb_bonds_sections != 1:
-# 			sys.exit(config.header_error+'Incorrect number of [bonds] sections in atomistic ITP file ('+str(nb_bonds_sections)+' sections)')
+# 			sys.exit(exceptions.header_error+'Incorrect number of [bonds] sections in atomistic ITP file ('+str(nb_bonds_sections)+' sections)')
 # 		if nb_atoms_sections != 1:
-# 			sys.exit(config.header_error+'Incorrect number of [atoms] sections in atomistic ITP file ('+str(nb_atoms_sections)+' sections)')
+# 			sys.exit(exceptions.header_error+'Incorrect number of [atoms] sections in atomistic ITP file ('+str(nb_atoms_sections)+' sections)')
 
 # 		r_atoms, r_bonds = False, False
 
@@ -261,16 +215,20 @@ def verify_handled_functions(geom, func_obj, line_obj):
 	try:
 		func = int(func_obj)
 	except (ValueError, IndexError):
-		sys.exit(config.header_error+'Error while reading CG ITP file at line '+str(line_obj)+', please check this file')
+		sys.exit(exceptions.header_error + 'Error while reading CG ITP file at line ' + str(line_obj) + ', please check this file')
 	
 	if geom == 'constraint' and func not in config.handled_constraints_functions:
-		sys.exit(config.header_error+'Error while reading constraint function in CG ITP file at line '+str(line_obj)+'\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these constraint potential functions: '+", ".join(map(str, config.handled_constraints_functions)))
+		sys.exit(
+			exceptions.header_error + 'Error while reading constraint function in CG ITP file at line ' + str(line_obj) + '\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these constraint potential functions: ' + ", ".join(map(str, config.handled_constraints_functions)))
 	elif geom == 'bond' and func not in config.handled_bonds_functions:
-		sys.exit(config.header_error+'Error while reading bond function in CG ITP file at line '+str(line_obj)+'\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these bond potential functions: '+", ".join(map(str, config.handled_bonds_functions)))
+		sys.exit(
+			exceptions.header_error + 'Error while reading bond function in CG ITP file at line ' + str(line_obj) + '\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these bond potential functions: ' + ", ".join(map(str, config.handled_bonds_functions)))
 	elif geom == 'angle' and func not in config.handled_angles_functions:
-		sys.exit(config.header_error+'Error while reading angle function in CG ITP file at line '+str(line_obj)+'\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these angle potential functions: '+", ".join(map(str, config.handled_angles_functions)))
+		sys.exit(
+			exceptions.header_error + 'Error while reading angle function in CG ITP file at line ' + str(line_obj) + '\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these angle potential functions: ' + ", ".join(map(str, config.handled_angles_functions)))
 	elif geom == 'dihedral' and func not in config.handled_dihedrals_functions:
-		sys.exit(config.header_error+'Error while reading dihedral function in CG ITP file at line '+str(line_obj)+'\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these dihedral potential functions: '+", ".join(map(str, config.handled_dihedrals_functions)))
+		sys.exit(
+			exceptions.header_error + 'Error while reading dihedral function in CG ITP file at line ' + str(line_obj) + '\nThis function is not implemented for use with Opti-CG at the moment\nPlease use one of these dihedral potential functions: ' + ", ".join(map(str, config.handled_dihedrals_functions)))
 
 	return func
 
@@ -334,7 +292,8 @@ def read_cg_itp_file(ns, itp_lines):
 					try:
 						ns.cg_itp['constraint'][ns.nb_constraints]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
-						sys.exit(config.header_error+'Incorrect reading of the CG ITP file within [constraints] section, please check this file')
+						sys.exit(
+							exceptions.header_error + 'Incorrect reading of the CG ITP file within [constraints] section, please check this file')
 					func = verify_handled_functions('constraint', sp_itp_line[2], i+1)
 					ns.cg_itp['constraint'][ns.nb_constraints]['funct'].append(func)
 					ns.cg_itp['constraint'][ns.nb_constraints]['value'].append(float(sp_itp_line[3]))
@@ -357,7 +316,8 @@ def read_cg_itp_file(ns, itp_lines):
 					try:
 						ns.cg_itp['bond'][ns.nb_bonds]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
-						sys.exit(config.header_error+'Incorrect reading of the CG ITP file within [bonds] section, please check this file')
+						sys.exit(
+							exceptions.header_error + 'Incorrect reading of the CG ITP file within [bonds] section, please check this file')
 					func = verify_handled_functions('bond', sp_itp_line[2], i+1)
 					ns.cg_itp['bond'][ns.nb_bonds]['funct'].append(func)
 					ns.cg_itp['bond'][ns.nb_bonds]['value'].append(float(sp_itp_line[3]))
@@ -381,7 +341,8 @@ def read_cg_itp_file(ns, itp_lines):
 					try:
 						ns.cg_itp['angle'][ns.nb_angles]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:3]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
-						sys.exit(config.header_error+'Incorrect reading of the CG ITP file within [angles] section, please check this file')
+						sys.exit(
+							config.header_error + 'Incorrect reading of the CG ITP file within [angles] section, please check this file')
 					func = verify_handled_functions('angle', sp_itp_line[3], i+1)
 					ns.cg_itp['angle'][ns.nb_angles]['funct'].append(func)
 					ns.cg_itp['angle'][ns.nb_angles]['value'].append(float(sp_itp_line[4]))
@@ -405,7 +366,8 @@ def read_cg_itp_file(ns, itp_lines):
 					try:
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:4]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
-						sys.exit(config.header_error+'Incorrect reading of the CG ITP file within [dihedrals] section, please check this file')
+						sys.exit(
+							config.header_error + 'Incorrect reading of the CG ITP file within [dihedrals] section, please check this file')
 					func = verify_handled_functions('dihedral', sp_itp_line[4], i+1)
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['funct'].append(func)
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['value'].append(float(sp_itp_line[5])) # issue happens here for functions that are not handled
@@ -440,7 +402,8 @@ def read_cg_itp_file(ns, itp_lines):
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					sys.exit(config.header_error+'In the provided CG ITP file '+geom+' have been grouped, but '+geom+' group '+str(grp_geom+1)+' holds '+geom+' lines that have different parameters\nParameters should be identical within a '+geom+' group, only CG beads IDs should differ\nPlease correct the CG ITP file and separate groups using a blank or commented line')
+					sys.exit(
+						config.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within a ' + geom + ' group, only CG beads IDs should differ\nPlease correct the CG ITP file and separate groups using a blank or commented line')
 
 	for geom in ['bond', 'angle']: # bonds and angles only
 		for grp_geom in range(len(ns.cg_itp[geom])):
@@ -449,7 +412,8 @@ def read_cg_itp_file(ns, itp_lines):
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					sys.exit(config.header_error+'In the provided CG ITP file '+geom+' have been grouped, but '+geom+' group '+str(grp_geom+1)+' holds '+geom+' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a '+geom+' group\nPlease correct the CG ITP file and separate groups using a blank or commented line')
+					sys.exit(
+						config.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group\nPlease correct the CG ITP file and separate groups using a blank or commented line')
 
 	for geom in ['dihedral']: # dihedrals only
 		for grp_geom in range(len(ns.cg_itp[geom])):
@@ -458,13 +422,15 @@ def read_cg_itp_file(ns, itp_lines):
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					sys.exit(config.header_error+'In the provided CG ITP file '+geom+' have been grouped, but '+geom+' group '+str(grp_geom+1)+' holds '+geom+' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a '+geom+' group\nPlease correct the CG ITP file and separate groups using a blank or commented line')
+					sys.exit(
+						config.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group\nPlease correct the CG ITP file and separate groups using a blank or commented line')
 			for var in ['mult']:
 				var_set = set(ns.cg_itp[geom][grp_geom][var])
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					sys.exit(config.header_error+'In the provided CG ITP file '+geom+' have been grouped, but '+geom+' group '+str(grp_geom+1)+' holds '+geom+' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a '+geom+' group')
+					sys.exit(
+						config.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group')
 	
 	ns.nb_constraints += 1
 	ns.nb_bonds += 1
@@ -501,7 +467,8 @@ def read_ndx_atoms2beads(ns):
 					try:
 						lines_read += 1
 						if lines_read > 1:
-							sys.exit(config.header_error+'Some sections of the CG beads mapping file have multiple lines, please correct the mapping')
+							sys.exit(
+								config.header_error + 'Some sections of the CG beads mapping file have multiple lines, please correct the mapping')
 						bead_atoms_id = [int(atom_id)-1 for atom_id in ndx_line.split()] # retrieve indexing from 0 for atoms IDs for MDAnalysis
 						ns.all_beads[bead_id]['atoms_id'].extend(bead_atoms_id) # all atoms included in current bead
 
@@ -510,9 +477,11 @@ def read_ndx_atoms2beads(ns):
 						bead_id += 1
 
 					except NameError:
-						sys.exit(config.header_error+'The CG beads mapping file does NOT seem to contain CG beads sections, please verify the input mapping')
+						sys.exit(
+							config.header_error + 'The CG beads mapping file does NOT seem to contain CG beads sections, please verify the input mapping')
 					except ValueError: # non-integer atom ID provided
-						sys.exit(config.header_error+'Incorrect reading of the sections\' content in the CG beads mapping file, please verify the input mapping')
+						sys.exit(
+							config.header_error + 'Incorrect reading of the sections\' content in the CG beads mapping file, please verify the input mapping')
 
 	return
 
@@ -646,7 +615,7 @@ def compute_SASA(ns, traj_type):
 		nb_beads = len(ns.all_beads)
 
 		# generate an index.ndx file with the number of beads, so we can call SASA on this group even if there are residues in the molecule
-		ns.cg_ndx_filename = '../'+config.input_sim_files_dirname+'/cg_index.ndx'
+		ns.cg_ndx_filename = '../' + config.input_sim_files_dirname + '/cg_index.ndx'
 		with open(ns.cg_ndx_filename, 'w') as fp:
 			beads_id_str = ''
 			for i in range(nb_beads):
@@ -655,12 +624,12 @@ def compute_SASA(ns, traj_type):
 
 		# TODO. all these paths need to be fixed to allow for SASA calculation within evaluate_model.py -- but ideally we would use a library instead of external calls to gmx sasa !
 
-		ns.aa_traj_whole_filename = '../'+config.input_sim_files_dirname+'/aa_traj_whole.xtc'
-		ns.aa_frame_whole_filename = '../'+config.input_sim_files_dirname+'/aa_frame_whole.gro'
-		ns.aa_mapped_traj_whole_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_traj_whole.xtc'
-		ns.aa_mapped_frame_whole_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_frame_whole.gro'
-		ns.aa_mapped_sasa_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_sasa.xvg'
-		ns.aa_mapped_tpr_sasa_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_tpr_sasa.tpr'
+		ns.aa_traj_whole_filename = '../' + config.input_sim_files_dirname + '/aa_traj_whole.xtc'
+		ns.aa_frame_whole_filename = '../' + config.input_sim_files_dirname + '/aa_frame_whole.gro'
+		ns.aa_mapped_traj_whole_filename = '../' + config.input_sim_files_dirname + '/aa_mapped_traj_whole.xtc'
+		ns.aa_mapped_frame_whole_filename = '../' + config.input_sim_files_dirname + '/aa_mapped_frame_whole.gro'
+		ns.aa_mapped_sasa_filename = '../' + config.input_sim_files_dirname + '/aa_mapped_sasa.xvg'
+		ns.aa_mapped_tpr_sasa_filename = '../' + config.input_sim_files_dirname + '/aa_mapped_tpr_sasa.tpr'
 
 		non_zero_return_code = False
 
@@ -695,7 +664,7 @@ def compute_SASA(ns, traj_type):
 
 		# create new CG TOP file that contains only the molecule of interest
 		if not non_zero_return_code:
-			ns.modified_top_input_filename = '../'+config.input_sim_files_dirname+'/auto_modified_system_for_sasa.top'
+			ns.modified_top_input_filename = '../' + config.input_sim_files_dirname + '/auto_modified_system_for_sasa.top'
 			# we keep only the first non-commented occurence in section [ molecules ]
 			with open('../../'+ns.top_input_filename, 'r') as fp:
 				top_lines = fp.read().split('\n')
@@ -783,7 +752,8 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 	elif update_type == 2: # cycles optimized
 		itp_obj = ns.opti_itp
 	else:
-		sys.exit(config.header_error+'Code error in function update_cg_itp_obj, please consider opening an issue on GitHub at '+config.github_url)
+		sys.exit(
+			config.header_error + 'Code error in function update_cg_itp_obj, please consider opening an issue on GitHub at ' + config.github_url)
 
 	for i in range(ns.opti_cycle['nb_geoms']['constraint']):
 		itp_obj['constraint'][i]['value'] = round(parameters_set[i], 3) # constraint - distance
@@ -971,7 +941,7 @@ def get_search_space_boundaries(ns):
 		search_space_boundaries.extend(ns.domains_val['constraint']) # constraints distances
 	if ns.opti_cycle['nb_geoms']['bond'] > 0:
 		search_space_boundaries.extend(ns.domains_val['bond']) # bonds distances and force constants
-		search_space_boundaries.extend([[config.default_min_fct_bonds, ns.default_max_fct_bonds_opti]]*ns.opti_cycle['nb_geoms']['bond'])
+		search_space_boundaries.extend([[config.default_min_fct_bonds, ns.default_max_fct_bonds_opti]] * ns.opti_cycle['nb_geoms']['bond'])
 
 	if ns.opti_cycle['nb_geoms']['angle'] > 0:
 		if ns.exec_mode == 1:
@@ -1115,8 +1085,8 @@ def get_initial_guess_list(ns, nb_particles):
 				emd_err_fact = max(1, ns.all_emd_dist_geoms['constraints'][j]/2)
 			except:
 				emd_err_fact = 1
-			draw_low = max(ns.out_itp['constraint'][j]['value']-config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['constraint'][j][0])
-			draw_high = min(ns.out_itp['constraint'][j]['value']+config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['constraint'][j][1])
+			draw_low = max(ns.out_itp['constraint'][j]['value'] - config.bond_dist_guess_variation * ns.val_guess_fact * emd_err_fact, ns.domains_val['constraint'][j][0])
+			draw_high = min(ns.out_itp['constraint'][j]['value'] + config.bond_dist_guess_variation * ns.val_guess_fact * emd_err_fact, ns.domains_val['constraint'][j][1])
 			init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# bonds lengths
@@ -1125,8 +1095,8 @@ def get_initial_guess_list(ns, nb_particles):
 				emd_err_fact = max(1, ns.all_emd_dist_geoms['bonds'][j]/2)
 			except:
 				emd_err_fact = 1
-			draw_low = max(ns.out_itp['bond'][j]['value']-config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['bond'][j][0])
-			draw_high = min(ns.out_itp['bond'][j]['value']+config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['bond'][j][1])
+			draw_low = max(ns.out_itp['bond'][j]['value'] - config.bond_dist_guess_variation * ns.val_guess_fact * emd_err_fact, ns.domains_val['bond'][j][0])
+			draw_high = min(ns.out_itp['bond'][j]['value'] + config.bond_dist_guess_variation * ns.val_guess_fact * emd_err_fact, ns.domains_val['bond'][j][1])
 			init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# bonds force constants
@@ -1135,8 +1105,8 @@ def get_initial_guess_list(ns, nb_particles):
 				emd_err_fact = max(1, ns.all_emd_dist_geoms['bonds'][j]/2)
 			except:
 				emd_err_fact = 1
-			draw_low = max(min(ns.out_itp['bond'][j]['fct']*(1-ns.fct_guess_fact*emd_err_fact), ns.out_itp['bond'][j]['fct']-config.fct_guess_min_flat_diff_bonds), config.default_min_fct_bonds)
-			draw_high = min(max(ns.out_itp['bond'][j]['fct']*(1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['bond'][j]['fct']+config.fct_guess_min_flat_diff_bonds), ns.default_max_fct_bonds_opti)
+			draw_low = max(min(ns.out_itp['bond'][j]['fct'] * (1-ns.fct_guess_fact*emd_err_fact), ns.out_itp['bond'][j]['fct'] - config.fct_guess_min_flat_diff_bonds), config.default_min_fct_bonds)
+			draw_high = min(max(ns.out_itp['bond'][j]['fct'] * (1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['bond'][j]['fct'] + config.fct_guess_min_flat_diff_bonds), ns.default_max_fct_bonds_opti)
 			init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# angles values
@@ -1146,8 +1116,8 @@ def get_initial_guess_list(ns, nb_particles):
 					emd_err_fact = max(1, ns.all_emd_dist_geoms['angles'][j]/2)
 				except:
 					emd_err_fact = 1
-				draw_low = max(ns.out_itp['angle'][j]['value']-config.angle_value_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['angle'][j][0])
-				draw_high = min(ns.out_itp['angle'][j]['value']+config.angle_value_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['angle'][j][1])
+				draw_low = max(ns.out_itp['angle'][j]['value'] - config.angle_value_guess_variation * ns.val_guess_fact * emd_err_fact, ns.domains_val['angle'][j][0])
+				draw_high = min(ns.out_itp['angle'][j]['value'] + config.angle_value_guess_variation * ns.val_guess_fact * emd_err_fact, ns.domains_val['angle'][j][1])
 				init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# angles force constants
@@ -1156,11 +1126,11 @@ def get_initial_guess_list(ns, nb_particles):
 				emd_err_fact = max(1, ns.all_emd_dist_geoms['angles'][j]/2)
 			except:
 				emd_err_fact = 1
-			draw_low = max(min(ns.out_itp['angle'][j]['fct']*(1-ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']-config.fct_guess_min_flat_diff_angles), config.default_min_fct_angles)
+			draw_low = max(min(ns.out_itp['angle'][j]['fct'] * (1-ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct'] - config.fct_guess_min_flat_diff_angles), config.default_min_fct_angles)
 			if ns.cg_itp['angle'][j]['funct'] == 1:
-				draw_high = min(max(ns.out_itp['angle'][j]['fct']*(1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']+config.fct_guess_min_flat_diff_angles), ns.default_max_fct_angles_opti_f1)
+				draw_high = min(max(ns.out_itp['angle'][j]['fct'] * (1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct'] + config.fct_guess_min_flat_diff_angles), ns.default_max_fct_angles_opti_f1)
 			elif ns.cg_itp['angle'][j]['funct'] == 2:
-				draw_high = min(max(ns.out_itp['angle'][j]['fct']*(1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']+config.fct_guess_min_flat_diff_angles), ns.default_max_fct_angles_opti_f2)
+				draw_high = min(max(ns.out_itp['angle'][j]['fct'] * (1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct'] + config.fct_guess_min_flat_diff_angles), ns.default_max_fct_angles_opti_f2)
 			else:
 				sys.exit('Code error during force constants range definition for angles during particles initialization')
 			init_guess.append(draw_float(draw_low, draw_high, 3))
@@ -1172,8 +1142,8 @@ def get_initial_guess_list(ns, nb_particles):
 					emd_err_fact = max(1, ns.all_emd_dist_geoms['dihedrals'][j]/5)
 				except:
 					emd_err_fact = 1
-				draw_low = max(ns.out_itp['dihedral'][j]['value']-config.dihedral_value_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['dihedral'][j][0])
-				draw_high = min(ns.out_itp['dihedral'][j]['value']+config.dihedral_value_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['dihedral'][j][1])
+				draw_low = max(ns.out_itp['dihedral'][j]['value'] - config.dihedral_value_guess_variation * ns.val_guess_fact * emd_err_fact, ns.domains_val['dihedral'][j][0])
+				draw_high = min(ns.out_itp['dihedral'][j]['value'] + config.dihedral_value_guess_variation * ns.val_guess_fact * emd_err_fact, ns.domains_val['dihedral'][j][1])
 				init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# dihedrals force constants
@@ -1196,11 +1166,11 @@ def get_initial_guess_list(ns, nb_particles):
 
 			# make sure the minimal variation range is enforced + stay within defined boundaries
 			if ns.cg_itp['dihedral'][j]['funct'] == 2:
-				draw_low = max(min(draw_low, ns.out_itp['dihedral'][j]['fct']-config.fct_guess_min_flat_diff_dihedrals_without_mult), config.default_min_fct_dihedrals_func_without_mult)
-				draw_high = min(max(draw_high, ns.out_itp['dihedral'][j]['fct']+config.fct_guess_min_flat_diff_dihedrals_without_mult), ns.default_max_fct_dihedrals_opti_func_without_mult)
+				draw_low = max(min(draw_low, ns.out_itp['dihedral'][j]['fct'] - config.fct_guess_min_flat_diff_dihedrals_without_mult), config.default_min_fct_dihedrals_func_without_mult)
+				draw_high = min(max(draw_high, ns.out_itp['dihedral'][j]['fct'] + config.fct_guess_min_flat_diff_dihedrals_without_mult), ns.default_max_fct_dihedrals_opti_func_without_mult)
 			else:
-				draw_low = max(min(draw_low, ns.out_itp['dihedral'][j]['fct']-config.fct_guess_min_flat_diff_dihedrals_with_mult), -ns.default_abs_range_fct_dihedrals_opti_func_with_mult)
-				draw_high = min(max(draw_high, ns.out_itp['dihedral'][j]['fct']+config.fct_guess_min_flat_diff_dihedrals_with_mult), ns.default_abs_range_fct_dihedrals_opti_func_with_mult)
+				draw_low = max(min(draw_low, ns.out_itp['dihedral'][j]['fct'] - config.fct_guess_min_flat_diff_dihedrals_with_mult), -ns.default_abs_range_fct_dihedrals_opti_func_with_mult)
+				draw_high = min(max(draw_high, ns.out_itp['dihedral'][j]['fct'] + config.fct_guess_min_flat_diff_dihedrals_with_mult), ns.default_abs_range_fct_dihedrals_opti_func_with_mult)
 			init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		initial_guess_list.append(init_guess) # register new particle, built during this loop
@@ -1502,7 +1472,7 @@ def perform_BI(ns):
 				nb_passes = 3
 				alpha = 0.55
 				for _ in range(nb_passes):
-					hist_geoms_modif = ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins/10))
+					hist_geoms_modif = ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins / 10))
 
 				y = -config.kB * ns.temp * np.log(hist_geoms_modif + 1)
 				x = np.linspace(bi_xrange[0], bi_xrange[1], config.bi_nb_bins, endpoint=True)
@@ -1519,7 +1489,7 @@ def perform_BI(ns):
 
 				nb_passes = 5
 				for _ in range(nb_passes):
-					deriv = sma(deriv, int(config.bi_nb_bins/5))
+					deriv = sma(deriv, int(config.bi_nb_bins / 5))
 
 				deriv *= np.sqrt(y/min(y))
 				deriv = 1/deriv
@@ -1528,7 +1498,7 @@ def perform_BI(ns):
 				popt, pcov = curve_fit(gmx_bonds_func_1, x*10, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False) # multiply for amgstrom for BI
 
 				# here we just update the force constant, bond length is already set to the average of distribution
-				ns.out_itp['bond'][grp_bond]['fct'] = min(max(popt[0]*100, config.default_min_fct_bonds), config.default_max_fct_bonds_bi) # stay within specified range for force constants
+				ns.out_itp['bond'][grp_bond]['fct'] = min(max(popt[0] * 100, config.default_min_fct_bonds), config.default_max_fct_bonds_bi) # stay within specified range for force constants
 				if ns.verbose:
 					print('  Bond group', grp_bond+1, 'estimated force constant:', round(ns.out_itp['bond'][grp_bond]['fct'], 2))
 
@@ -1569,7 +1539,8 @@ def perform_BI(ns):
 						popt[0] = 30
 
 				else:
-					sys.exit(config.header_error+'Code error, we should never arrive here because functions have been checked during CG ITP file reading')
+					sys.exit(
+						config.header_error + 'Code error, we should never arrive here because functions have been checked during CG ITP file reading')
 
 				# here we just update the force constant, angle value is already set to the average of distribution
 				ns.out_itp['angle'][grp_angle]['fct'] = min(max(popt[0], config.default_min_fct_angles), config.default_max_fct_angles_bi) # stay within specified range for force constants
@@ -1588,7 +1559,7 @@ def perform_BI(ns):
 
 				hists_geoms_bi, std_rad_grp_dihedral, avg_rad_grp_dihedral, bi_xrange = ns.data_BI['dihedral'][grp_dihedral]
 				y = -config.kB * ns.temp * np.log(hists_geoms_bi + 1)
-				x = np.linspace(np.deg2rad(bi_xrange[0]), np.deg2rad(bi_xrange[1]), 2*config.bi_nb_bins, endpoint=True)
+				x = np.linspace(np.deg2rad(bi_xrange[0]), np.deg2rad(bi_xrange[1]), 2 * config.bi_nb_bins, endpoint=True)
 				k = config.kB * ns.temp / std_rad_grp_dihedral / std_rad_grp_dihedral
 				
 				sigma = np.where(y < max(y), 0.1, np.inf)
@@ -1607,7 +1578,8 @@ def perform_BI(ns):
 					popt[0] = abs(popt[0]) # just to be safe, in case the fit yielded negative fct values but this is very unlikely since we provide good starting parameters for the fit
 
 				else:
-					sys.exit(config.header_error+'Code error, we should never arrive here because functions have been checked during CG ITP file reading')
+					sys.exit(
+						config.header_error + 'Code error, we should never arrive here because functions have been checked during CG ITP file reading')
 
 				if ns.exec_mode == 1:
 					ns.out_itp['dihedral'][grp_dihedral]['value'] = np.rad2deg(popt[1])
@@ -1635,7 +1607,8 @@ def process_scaling_str(ns):
 	if ns.bonds_scaling_str != config.bonds_scaling_str:
 	  sp_str = ns.bonds_scaling_str.split()
 	  if len(sp_str) % 2 != 0:
-	    sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nPlease check your parameters, or help for an example')
+	    sys.exit(
+			config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
 	  ns.bonds_scaling_specific = dict()
 	  i = 0
 	  try:
@@ -1643,25 +1616,32 @@ def process_scaling_str(ns):
 	      geom_id = sp_str[i][1:]
 	      if sp_str[i][0].upper() == 'C':
 	        if int(geom_id) > ns.nb_constraints:
-	          sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA constraint group id exceeds the number of constraints groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
+	          sys.exit(
+				  config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id exceeds the number of constraints groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
 	        if not 'C'+geom_id in ns.bonds_scaling_specific:
 	          if float(sp_str[i+1]) < 0:
-	            sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
+	            sys.exit(
+					config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
 	          ns.bonds_scaling_specific['C'+geom_id] = float(sp_str[i+1])
 	        else:
-	          sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA constraint group id is provided multiple times (id: '+str(geom_id)+')\nPlease check your parameters, or help for an example')
+	          sys.exit(
+				  config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
 	      elif sp_str[i][0].upper() == 'B':
 	        if int(geom_id) > ns.nb_bonds:
-	          sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA bond group id exceeds the number of bonds groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
+	          sys.exit(
+				  config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id exceeds the number of bonds groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
 	        if not 'B'+geom_id in ns.bonds_scaling_specific:
 	          if float(sp_str[i+1]) < 0:
-	            sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
+	            sys.exit(
+					config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
 	          ns.bonds_scaling_specific['B'+geom_id] = float(sp_str[i+1])
 	        else:
-	          sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA bond group id is provided multiple times (id: '+str(geom_id)+')\nPlease check your parameters, or help for an example')
+	          sys.exit(
+				  config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
 	      i += 2
 	  except ValueError:
-	    sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nPlease check your parameters, or help for an example')
+	    sys.exit(
+			config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
 
 	return
 
@@ -1687,7 +1667,8 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				read_cg_itp_file(ns, itp_lines)
 				process_scaling_str(ns)
 			except UnicodeDecodeError:
-				sys.exit(config.header_error+'Cannot read CG ITP, it seems you provided a binary file.')
+				sys.exit(
+					config.header_error + 'Cannot read CG ITP, it seems you provided a binary file.')
 
 	# if we do not have reference already from the optimization procedure
 	if manual_mode:
@@ -1790,7 +1771,8 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				domain_max = max(constraints[grp_constraint]['AA']['x'][-1], constraints[grp_constraint]['CG']['x'][-1])
 				avg_diff_grp_constraints.append(emd(constraints[grp_constraint]['AA']['hist'], constraints[grp_constraint]['CG']['hist'], ns.bins_constraints_dist_matrix) * ns.bonds2angles_scoring_factor)
 			except IndexError:
-				sys.exit(config.header_error+'Most probably because you have bonds or constraints that exceed '+str(ns.bonded_max_range)+' nm. Increase bins range for bonds and constraints and retry! See argument -bonds_max_range.')
+				sys.exit(
+					config.header_error + 'Most probably because you have bonds or constraints that exceed ' + str(ns.bonded_max_range) + ' nm. Increase bins range for bonds and constraints and retry! See argument -bonds_max_range.')
 		else:
 			avg_diff_grp_constraints.append(constraints[grp_constraint]['AA']['avg'])
 
@@ -1844,7 +1826,8 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				domain_max = max(bonds[grp_bond]['AA']['x'][-1], bonds[grp_bond]['CG']['x'][-1])
 				avg_diff_grp_bonds.append(emd(bonds[grp_bond]['AA']['hist'], bonds[grp_bond]['CG']['hist'], ns.bins_bonds_dist_matrix) * ns.bonds2angles_scoring_factor)
 			except IndexError:
-				sys.exit(config.header_error+'Most probably because you have bonds or constraints that exceed '+str(ns.bonded_max_range)+' nm. Increase bins range for bonds and bonds and retry! See argument -bonds_max_range.')
+				sys.exit(
+					config.header_error + 'Most probably because you have bonds or constraints that exceed ' + str(ns.bonded_max_range) + ' nm. Increase bins range for bonds and bonds and retry! See argument -bonds_max_range.')
 		else:
 			avg_diff_grp_bonds.append(bonds[grp_bond]['AA']['avg'])
 
@@ -1977,7 +1960,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 			print('Displaying max '+str(ncols)+' distributions per row using the CG ITP file ordering of distributions groups ('+str(hidden_cols)+' more are hidden)', flush=True)
 		else:
 			if not ns.mismatch_order:
-				print(config.header_warning+'Displaying max '+str(ncols)+' distributions groups per row and this can be MISLEADING because ordering by pairwise AA-mapped vs. CG distributions mismatch is DISABLED ('+str(hidden_cols)+' more are hidden)', flush=True)
+				print(shared.exceptions.header_warning + 'Displaying max ' + str(ncols) + ' distributions groups per row and this can be MISLEADING because ordering by pairwise AA-mapped vs. CG distributions mismatch is DISABLED (' + str(hidden_cols) + ' more are hidden)', flush=True)
 			else:
 				print('Displaying max '+str(ncols)+' distributions groups per row ordered by pairwise AA-mapped vs. CG distributions difference ('+str(hidden_cols)+' more are hidden)', flush=True)
 	else:
@@ -2365,7 +2348,8 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 			nsteps = int(sim_time*1000 / dt)
 			mdp_lines_in[nsteps_line] = sp_nsteps_line[0]+'= '+str(nsteps)+'    ; automatically modified by Opti-CG'
 		else:
-			sys.exit(config.header_error+'The provided MD MDP file does not contain one of these entries: dt, nsteps')
+			sys.exit(
+				config.header_error + 'The provided MD MDP file does not contain one of these entries: dt, nsteps')
 
 	# force writting to the log file every given nb of steps, to make sure simulations won't be killed for insufficient writting to the log file
 	# (which we use to check for simulations that are stuck/bugged)
@@ -2373,7 +2357,8 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 		nstlog = log_write_freq
 		mdp_lines_in[nstlog_line] = sp_nstlog_line[0]+'= '+str(nstlog)+'    ; automatically modified by Opti-CG'
 	else:
-		sys.exit(config.header_error+'The provided MD MDP file does not contain one of these entries: nstlog')
+		sys.exit(
+			config.header_error + 'The provided MD MDP file does not contain one of these entries: nstlog')
 
 	# force NOT writting coordinates data, as this can only slow the simulation and we don't need it
 	if nstxout_line != -1:
@@ -2459,12 +2444,12 @@ def eval_function(parameters_set, ns):
 	os.chdir(ns.exec_folder)
 
 	# create new directory for new parameters evaluation
-	current_eval_dir = config.iteration_sim_files_dirname+'_eval_step_'+str(ns.nb_eval)
+	current_eval_dir = config.iteration_sim_files_dirname + '_eval_step_' + str(ns.nb_eval)
 	shutil.copytree(config.input_sim_files_dirname, current_eval_dir)
 
 	# create a modified CG ITP file with parameters according to current evaluation type
 	update_cg_itp_obj(ns, parameters_set=parameters_set, update_type=1)
-	out_path_itp = config.iteration_sim_files_dirname+'_eval_step_'+str(ns.nb_eval)+'/'+ns.cg_itp_basename
+	out_path_itp = config.iteration_sim_files_dirname + '_eval_step_' + str(ns.nb_eval) + '/' + ns.cg_itp_basename
 	if ns.opti_cycle['nb_geoms']['dihedral'] == 0:
 		print_sections = ['constraint', 'bond', 'angle', 'exclusion']
 	else:
@@ -2511,7 +2496,7 @@ def eval_function(parameters_set, ns):
 				else:
 					last_log_file_size = log_file_size
 	else:
-		sys.exit('\n\n'+config.header_gmx_error+gmx_out+'\n'+config.header_error+'Gmx grompp failed at minimization step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_mini\nYou may also want to look into Opti-CG argument -mini_maxwarn\nIf you think this is a bug, please consider opening an issue on GitHub at '+config.github_url+'\n')
+		sys.exit('\n\n' + shared.exceptions.header_gmx_error + gmx_out + '\n' + config.header_error + 'Gmx grompp failed at minimization step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_mini\nYou may also want to look into Opti-CG argument -mini_maxwarn\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
 
 	# if minimization finished properly, we just check for the .gro file printed in the end
 	if os.path.isfile('mini.gro'):
@@ -2545,7 +2530,7 @@ def eval_function(parameters_set, ns):
 						last_log_file_size = log_file_size
 		else:
 			# pass
-			sys.exit('\n\n'+config.header_gmx_error+gmx_out+'\n'+config.header_error+'Gmx grompp failed at the pre-MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_equi\nIf you think this is a bug, please consider opening an issue on GitHub at '+config.github_url+'\n')
+			sys.exit('\n\n' + shared.exceptions.header_gmx_error + gmx_out + '\n' + config.header_error + 'Gmx grompp failed at the pre-MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_equi\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
 
 		# if pre-MD finished properly, we just check for the .gro file printed in the end
 		if os.path.isfile('pre-md.gro'):
@@ -2582,7 +2567,7 @@ def eval_function(parameters_set, ns):
 							last_log_file_size = log_file_size
 			else:
 				# pass
-				sys.exit('\n\n'+config.header_gmx_error+gmx_out+'\n'+config.header_error+'Gmx grompp failed at the MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_prod\nIf you think this is a bug, please consider opening an issue on GitHub at '+config.github_url+'\n')
+				sys.exit('\n\n' + shared.exceptions.header_gmx_error + gmx_out + '\n' + config.header_error + 'Gmx grompp failed at the MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_prod\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
 
 			# to verify if MD run finished properly, we check for the .gro file printed in the end
 			if os.path.isfile('md.gro'):
@@ -2604,7 +2589,7 @@ def eval_function(parameters_set, ns):
 				if ns.sasa_cg != None:
 
 					# store the distributions for each evaluation step
-					shutil.move('distributions.png', '../'+config.distrib_plots_all_evals_dirname+'/distributions_eval_step_'+str(ns.nb_eval)+'.png')
+					shutil.move('distributions.png', '../' + config.distrib_plots_all_evals_dirname + '/distributions_eval_step_' + str(ns.nb_eval) + '.png')
 
 					eval_score = 0
 					if 'constraint' in ns.opti_cycle['geoms'] and 'bond' in ns.opti_cycle['geoms']:
@@ -2706,19 +2691,19 @@ def eval_function(parameters_set, ns):
 
 	# store log files
 	if os.path.isfile(current_eval_dir+'/md.log'):
-		shutil.copy(current_eval_dir+'/md.log', config.log_files_all_evals_dirname+'/MD_sim_eval_step_'+str(ns.nb_eval)+'.log') # copy prod log file
+		shutil.copy(current_eval_dir +'/md.log', config.log_files_all_evals_dirname + '/MD_sim_eval_step_' + str(ns.nb_eval) + '.log') # copy prod log file
 	elif os.path.isfile(current_eval_dir+'/pre-md.log'):
-		shutil.copy(current_eval_dir+'/pre-md.log', config.log_files_all_evals_dirname+'/pre-MD_sim_eval_step_'+str(ns.nb_eval)+'.log') # copy equi log file
+		shutil.copy(current_eval_dir +'/pre-md.log', config.log_files_all_evals_dirname + '/pre-MD_sim_eval_step_' + str(ns.nb_eval) + '.log') # copy equi log file
 	elif os.path.isfile(current_eval_dir+'/mini.log'):
-		shutil.copy(current_eval_dir+'/mini.log', config.log_files_all_evals_dirname+'/mini_sim_eval_step_'+str(ns.nb_eval)+'.log') # copy mini log file
+		shutil.copy(current_eval_dir +'/mini.log', config.log_files_all_evals_dirname + '/mini_sim_eval_step_' + str(ns.nb_eval) + '.log') # copy mini log file
 
 	# update the best results distrib plot in execution directory
 	if new_best_fit:
-		shutil.copy(config.distrib_plots_all_evals_dirname+'/distributions_eval_step_'+str(ns.nb_eval)+'.png', config.best_distrib_plots)
+		shutil.copy(config.distrib_plots_all_evals_dirname + '/distributions_eval_step_' + str(ns.nb_eval) + '.png', config.best_distrib_plots)
 
 	# keep all sim files if user wants to
 	if ns.keep_all_sims:
-		shutil.copytree(current_eval_dir, config.sim_files_all_evals_dirname+'/'+current_eval_dir)
+		shutil.copytree(current_eval_dir, config.sim_files_all_evals_dirname + '/' + current_eval_dir)
 
 	# keep BI files (the very first guess of bonded parameters) only for figures
 	# TODO: remove
@@ -2737,7 +2722,7 @@ def eval_function(parameters_set, ns):
 	if eval_score == ns.worst_fit_score:
 		all_dist_pairwise = ''
 		for _ in range(len(ns.cg_itp['constraint'])+len(ns.cg_itp['bond'])+len(ns.cg_itp['angle'])+len(ns.cg_itp['dihedral'])):
-			all_dist_pairwise += str(config.sim_crash_EMD_indep_score)+' '
+			all_dist_pairwise += str(config.sim_crash_EMD_indep_score) + ' '
 		all_dist_pairwise += '\n'
 	else:
 		print_stdout_forced('  Total mismatch score:', round(fit_score_total, 3), '(Bonds/Constraints:', fit_score_constraints_bonds, '-- Angles:', fit_score_angles, '-- Dihedrals:', str(fit_score_dihedrals)+')')

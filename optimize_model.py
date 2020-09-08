@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
-import os, sys, re, shutil, subprocess, time, copy, contextlib
+import os, sys, shutil, subprocess, time, copy, contextlib
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
 from fstpso import FuzzyPSO	
 import numpy as np
 from datetime import datetime
-from scipy.optimize import curve_fit
-import MDAnalysis as mda
 
-import config
-from opti_CG import header_package, par_wrap, load_aa_data, read_cg_itp_file, update_cg_itp_obj, print_cg_itp_file, get_search_space_boundaries, get_initial_guess_list, gmx_args, create_bins_and_dist_matrices, perform_BI, read_ndx_atoms2beads, read_aa_traj, make_aa_traj_whole_for_selected_mols, get_AA_bonds_distrib, get_AA_angles_distrib, get_AA_dihedrals_distrib, get_atoms_weights_in_beads, get_beads_MDA_atomgroups, compute_Rg, set_MDA_backend, eval_function, compare_models
+from shared import exceptions
+from shared import config
+from opti_CG import header_package, par_wrap, load_aa_data, read_cg_itp_file, update_cg_itp_obj, \
+    get_search_space_boundaries, get_initial_guess_list, create_bins_and_dist_matrices, perform_BI, read_ndx_atoms2beads, read_aa_traj, make_aa_traj_whole_for_selected_mols, get_AA_bonds_distrib, get_AA_angles_distrib, get_AA_dihedrals_distrib, get_atoms_weights_in_beads, get_beads_MDA_atomgroups, \
+    set_MDA_backend, eval_function, compare_models
 
 # TODO: allow to feed a JSON file or DICT-like string for which bonds group to rescale for AA
 # TODO: allow to feed a JSON file for cycles of optimization ?? this is more optional but useful for big stuff possibly
@@ -90,7 +91,7 @@ Independently of parameters, the expected input is:
 
 You can prepare a directory using default input filenames, then provide only argument -input_dir.
 If -input_dir is provided, all filenames provided as arguments will also be searched for within
-this directory. Demonstration data are available at '''+config.github_url+'''.
+this directory. Demonstration data are available at ''' + config.github_url + '''.
 
 Arguments allows to specify scaling of the AA bonds used as reference to optimize the CG model.
 An image displaying all AA reference distributions will be created at the very beginning of the
@@ -121,8 +122,8 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
 # TODO: explain module analyze_opti_moves.py can be used to monitor optimization at any point of the process
 # TODO: end the help message by a new frame with examples from the demo data
 
-req_args_header = config.sep_close+'\n|                                     REQUIRED ARGUMENTS                                      |\n'+config.sep_close
-opt_args_header = config.sep_close+'\n|                                     OPTIONAL ARGUMENTS                                      |\n'+config.sep_close
+req_args_header = config.sep_close + '\n|                                     REQUIRED ARGUMENTS                                      |\n' + config.sep_close
+opt_args_header = config.sep_close + '\n|                                     OPTIONAL ARGUMENTS                                      |\n' + config.sep_close
 
 # bullet = '❭'
 # bullet = '★'
@@ -133,13 +134,17 @@ optional_args0 = args_parser.add_argument_group(req_args_header+'\n\n'+bullet+'E
 optional_args0.add_argument('-exec_mode', dest='exec_mode', help='MODE 1: Tune both bonds lengths, angles/dihedrals values\n        and their force constants\nMODE 2: Tune exclusively force constants, without changing\n        bonds lengths and angles/dihedrals values TODO: not how it currently works', type=int, default=1, metavar='              (1)')
 
 required_args = args_parser.add_argument_group(bullet+'REFERENCE AA MODEL')
-required_args.add_argument('-aa_tpr', dest='aa_tpr_filename', help=config.help_aa_tpr, type=str, default=config.metavar_aa_tpr, metavar='      '+par_wrap(config.metavar_aa_tpr))
-required_args.add_argument('-aa_traj', dest='aa_traj_filename', help=config.help_aa_traj, type=str, default=config.metavar_aa_traj, metavar='      '+par_wrap(config.metavar_aa_traj))
-required_args.add_argument('-cg_map', dest='cg_map_filename', help=config.help_cg_map, type=str, default=config.metavar_cg_map, metavar='        '+par_wrap(config.metavar_cg_map))
+required_args.add_argument('-aa_tpr', dest='aa_tpr_filename', help=config.help_aa_tpr, type=str, default=config.metavar_aa_tpr, metavar='      ' + par_wrap(
+    config.metavar_aa_tpr))
+required_args.add_argument('-aa_traj', dest='aa_traj_filename', help=config.help_aa_traj, type=str, default=config.metavar_aa_traj, metavar='      ' + par_wrap(
+    config.metavar_aa_traj))
+required_args.add_argument('-cg_map', dest='cg_map_filename', help=config.help_cg_map, type=str, default=config.metavar_cg_map, metavar='        ' + par_wrap(
+    config.metavar_cg_map))
 required_args.add_argument('-aa_rg_offset', dest='aa_rg_offset', help='(nm)', type=float, default=0.00, metavar='        '+par_wrap('0.00'))
 
 sim_filenames_args = args_parser.add_argument_group(bullet+'CG MODEL OPTIMIZATION')
-sim_filenames_args.add_argument('-cg_itp', dest='cg_itp_filename', help='ITP file of the CG model to optimize', type=str, default=config.metavar_cg_itp, metavar='      '+par_wrap(config.metavar_cg_itp))
+sim_filenames_args.add_argument('-cg_itp', dest='cg_itp_filename', help='ITP file of the CG model to optimize', type=str, default=config.metavar_cg_itp, metavar='      ' + par_wrap(
+    config.metavar_cg_itp))
 sim_filenames_args.add_argument('-cg_gro', dest='gro_input_filename', help='Starting GRO file used for iterative simulation\nWill be minimized and relaxed before each MD run', type=str, default='start_conf.gro', metavar='    (start_conf.gro)')
 sim_filenames_args.add_argument('-cg_top', dest='top_input_filename', help='TOP file used for iterative simulation', type=str, default='system.top', metavar='        (system.top)')
 sim_filenames_args.add_argument('-cg_mdp_mini', dest='mdp_minimization_filename', help='MDP file used for minimization runs', type=str, default='mini.mdp', metavar='     (mini.mdp)')
@@ -151,7 +156,8 @@ optional_args4.add_argument('-input_dir', dest='input_folder', help='Additional 
 optional_args4.add_argument('-output_dir', dest='output_folder', help='Directory where to store all outputs of this program\nDefault output_dir is named after timestamp', type=str, default='', metavar='')
 
 optional_args1 = args_parser.add_argument_group(bullet+'GROMACS SETTINGS')
-optional_args1.add_argument('-gmx', dest='gmx_path', help=config.help_gmx_path, type=str, default=config.gmx_path, metavar='                  '+par_wrap(config.gmx_path))
+optional_args1.add_argument('-gmx', dest='gmx_path', help=config.help_gmx_path, type=str, default=config.gmx_path, metavar='                  ' + par_wrap(
+    config.gmx_path))
 optional_args1.add_argument('-nt', dest='nb_threads', help='Number of threads to use, forwarded to gmx mdrun -nt', type=int, default=0, metavar='                     (0)')
 optional_args1.add_argument('-gpu_id', dest='gpu_id', help='String (use quotes) space-separated list of GPU device IDs', type=str, default='', metavar='')
 optional_args1.add_argument('-gmx_args_str', dest='gmx_args_str', help='String (use quotes) of arguments to forward to gmx mdrun\nIf provided, arguments -nt and -gpu_id are ignored', type=str, default='', metavar='')
@@ -159,29 +165,43 @@ optional_args1.add_argument('-mini_maxwarn', dest='mini_maxwarn', help='Max. num
 optional_args1.add_argument('-sim_kill_delay', dest='sim_kill_delay', help='Time (s) after which to kill a simulation that has not been\nwriting into its log file, in case a simulation gets stuck', type=int, default=60, metavar='        (60)')
 
 optional_args2 = args_parser.add_argument_group(bullet+'CG MODEL SCALING')
-optional_args2.add_argument('-bonds_scaling', dest='bonds_scaling', help=config.help_bonds_scaling, type=float, default=config.bonds_scaling, metavar='        '+par_wrap(config.bonds_scaling))
+optional_args2.add_argument('-bonds_scaling', dest='bonds_scaling', help=config.help_bonds_scaling, type=float, default=config.bonds_scaling, metavar='        ' + par_wrap(
+    config.bonds_scaling))
 optional_args2.add_argument('-bonds_scaling_str', dest='bonds_scaling_str', help=config.help_bonds_scaling_str, type=str, default=config.bonds_scaling_str, metavar='')
-optional_args2.add_argument('-min_bonds_length', dest='min_bonds_length', help=config.help_min_bonds_length, type=float, default=config.min_bonds_length, metavar='     '+par_wrap(config.min_bonds_length))
+optional_args2.add_argument('-min_bonds_length', dest='min_bonds_length', help=config.help_min_bonds_length, type=float, default=config.min_bonds_length, metavar='     ' + par_wrap(
+    config.min_bonds_length))
 
 optional_args5 = args_parser.add_argument_group(bullet+'CG MODEL SCORING')
 optional_args5.add_argument('-cg_time_short', dest='sim_duration_short', help='Simulation time (ns) of the MD runs analyzed for optimization (first cycles)\nWill modify MDP file for the MD runs', type=float, default=10, metavar='           (10)')
 optional_args5.add_argument('-cg_time_long', dest='sim_duration_long', help='Simulation time (ns) of the MD runs analyzed for optimization (last cycle)\nWill modify MDP file for the MD runs', type=float, default=25, metavar='           (25)')
-optional_args5.add_argument('-b2a_score_fact', dest='bonds2angles_scoring_factor', help=config.help_bonds2angles_scoring_factor, type=float, default=config.bonds2angles_scoring_factor, metavar='       '+par_wrap(config.bonds2angles_scoring_factor))
-optional_args5.add_argument('-bw_constraints', dest='bw_constraints', help=config.help_bw_constraints, type=float, default=config.bw_constraints, metavar='     '+par_wrap(config.bw_constraints))
-optional_args5.add_argument('-bw_bonds', dest='bw_bonds', help=config.help_bw_bonds, type=float, default=config.bw_bonds, metavar='            '+par_wrap(config.bw_bonds))
-optional_args5.add_argument('-bw_angles', dest='bw_angles', help=config.help_bw_angles, type=float, default=config.bw_angles, metavar='              '+par_wrap(config.bw_angles))
-optional_args5.add_argument('-bw_dihedrals', dest='bw_dihedrals', help=config.help_bw_dihedrals, type=float, default=config.bw_dihedrals, metavar='           '+par_wrap(config.bw_dihedrals))
-optional_args5.add_argument('-bonds_max_range', dest='bonded_max_range', help=config.help_bonds_max_range, type=float, default=config.bonds_max_range, metavar='        '+par_wrap(config.bonds_max_range))
+optional_args5.add_argument('-b2a_score_fact', dest='bonds2angles_scoring_factor', help=config.help_bonds2angles_scoring_factor, type=float, default=config.bonds2angles_scoring_factor, metavar='       ' + par_wrap(
+    config.bonds2angles_scoring_factor))
+optional_args5.add_argument('-bw_constraints', dest='bw_constraints', help=config.help_bw_constraints, type=float, default=config.bw_constraints, metavar='     ' + par_wrap(
+    config.bw_constraints))
+optional_args5.add_argument('-bw_bonds', dest='bw_bonds', help=config.help_bw_bonds, type=float, default=config.bw_bonds, metavar='            ' + par_wrap(
+    config.bw_bonds))
+optional_args5.add_argument('-bw_angles', dest='bw_angles', help=config.help_bw_angles, type=float, default=config.bw_angles, metavar='              ' + par_wrap(
+    config.bw_angles))
+optional_args5.add_argument('-bw_dihedrals', dest='bw_dihedrals', help=config.help_bw_dihedrals, type=float, default=config.bw_dihedrals, metavar='           ' + par_wrap(
+    config.bw_dihedrals))
+optional_args5.add_argument('-bonds_max_range', dest='bonded_max_range', help=config.help_bonds_max_range, type=float, default=config.bonds_max_range, metavar='        ' + par_wrap(
+    config.bonds_max_range))
 
 optional_args6 = args_parser.add_argument_group(bullet+'CG MODEL FORCE CONSTANTS')
-optional_args6.add_argument('-max_fct_bonds_f1', dest='default_max_fct_bonds_opti', help=config.help_max_fct_bonds, type=float, default=config.default_max_fct_bonds_opti, metavar='   '+par_wrap(config.default_max_fct_bonds_opti))
-optional_args6.add_argument('-max_fct_angles_f1', dest='default_max_fct_angles_opti_f1', help=config.help_max_fct_angles_f1, type=float, default=config.default_max_fct_angles_opti_f1, metavar='   '+par_wrap(config.default_max_fct_angles_opti_f1))
-optional_args6.add_argument('-max_fct_angles_f2', dest='default_max_fct_angles_opti_f2', help=config.help_max_fct_angles_f2, type=float, default=config.default_max_fct_angles_opti_f2, metavar='   '+par_wrap(config.default_max_fct_angles_opti_f2))
-optional_args6.add_argument('-max_fct_dihedrals_f149', dest='default_abs_range_fct_dihedrals_opti_func_with_mult', help=config.help_max_fct_dihedrals_with_mult, type=float, default=config.default_abs_range_fct_dihedrals_opti_func_with_mult, metavar=''+par_wrap(config.default_abs_range_fct_dihedrals_opti_func_with_mult))
-optional_args6.add_argument('-max_fct_dihedrals_f2', dest='default_max_fct_dihedrals_opti_func_without_mult', help=config.help_max_fct_dihedrals_without_mult, type=float, default=config.default_max_fct_dihedrals_opti_func_without_mult, metavar=''+par_wrap(config.default_max_fct_dihedrals_opti_func_without_mult))
+optional_args6.add_argument('-max_fct_bonds_f1', dest='default_max_fct_bonds_opti', help=config.help_max_fct_bonds, type=float, default=config.default_max_fct_bonds_opti, metavar='   ' + par_wrap(
+    config.default_max_fct_bonds_opti))
+optional_args6.add_argument('-max_fct_angles_f1', dest='default_max_fct_angles_opti_f1', help=config.help_max_fct_angles_f1, type=float, default=config.default_max_fct_angles_opti_f1, metavar='   ' + par_wrap(
+    config.default_max_fct_angles_opti_f1))
+optional_args6.add_argument('-max_fct_angles_f2', dest='default_max_fct_angles_opti_f2', help=config.help_max_fct_angles_f2, type=float, default=config.default_max_fct_angles_opti_f2, metavar='   ' + par_wrap(
+    config.default_max_fct_angles_opti_f2))
+optional_args6.add_argument('-max_fct_dihedrals_f149', dest='default_abs_range_fct_dihedrals_opti_func_with_mult', help=config.help_max_fct_dihedrals_with_mult, type=float, default=config.default_abs_range_fct_dihedrals_opti_func_with_mult, metavar='' + par_wrap(
+    config.default_abs_range_fct_dihedrals_opti_func_with_mult))
+optional_args6.add_argument('-max_fct_dihedrals_f2', dest='default_max_fct_dihedrals_opti_func_without_mult', help=config.help_max_fct_dihedrals_without_mult, type=float, default=config.default_max_fct_dihedrals_opti_func_without_mult, metavar='' + par_wrap(
+    config.default_max_fct_dihedrals_opti_func_without_mult))
 
 optional_args3 = args_parser.add_argument_group(bullet+'OTHERS')
-optional_args3.add_argument('-temp', dest='temp', help='Temperature used to perform Boltzmann inversion (K)', type=float, default=config.sim_temperature, metavar='                 '+par_wrap(config.sim_temperature))
+optional_args3.add_argument('-temp', dest='temp', help='Temperature used to perform Boltzmann inversion (K)', type=float, default=config.sim_temperature, metavar='                 ' + par_wrap(
+    config.sim_temperature))
 optional_args3.add_argument('-keep_all_sims', dest='keep_all_sims', help='Store all gmx files for all simulations, may use disk space', action='store_true', default=False)
 optional_args3.add_argument('-h', '--help', help='Show this help message and exit', action='help')
 optional_args3.add_argument('-v', '--verbose', dest='verbose', help=config.help_verbose, action='store_true', default=False)
@@ -238,7 +258,10 @@ print(config.sep_close)
 
 # avoid overwriting an output directory of a previous optimization run
 if os.path.isfile(ns.exec_folder) or os.path.isdir(ns.exec_folder):
-	sys.exit(config.header_error+'Provided output folder already exists, please delete existing folder manually or provide another folder name.')
+    msg = """{}
+    """.format(exceptpti)
+	sys.exit(
+        exceptions.header_error + 'Provided output folder already exists, please delete existing folder manually or provide another folder name.')
 
 # check if we can find files at user-provided location(s)
 arg_entries = vars(ns) # dict view of the arguments namespace
@@ -253,14 +276,15 @@ for i in range(len(user_provided_filenames)):
 			arg_entries[arg_entry] = data_folder_path
 		else:
 			alternative_path = '' if ns.input_folder != '' else ', '+data_folder_path
-			sys.exit(config.header_error+'Cannot find file for argument -'+args_names[i]+' (looked at locations: '+arg_entries[arg_entry]+alternative_path+')')
+			sys.exit(exceptions.header_error + 'Cannot find file for argument -' + args_names[i] + ' (looked at locations: ' + arg_entries[arg_entry] + alternative_path + ')')
 
 # check that gromacs alias is correct
 with open(os.devnull, 'w') as devnull:
 	try:
 		subprocess.call(ns.gmx_path, stdout=devnull, stderr=devnull)
 	except OSError:
-		sys.exit(config.header_error+'Cannot find GROMACS using alias \''+ns.gmx_path+'\', please provide the right GROMACS alias or path')
+		sys.exit(
+            exceptions.header_error + 'Cannot find GROMACS using alias \'' + ns.gmx_path + '\', please provide the right GROMACS alias or path')
 
 # check that ITP filename for the model to optimize is indeed included in the TOP file of the simulation directory
 # then find all TOP includes for copying files for simulations at each iteration
@@ -268,7 +292,8 @@ top_includes_filenames = []
 with open(ns.top_input_filename, 'r') as fp:
 	all_top_lines = fp.read()
 	if ns.cg_itp_basename not in all_top_lines:
-		sys.exit(config.header_error+'The CG ITP model filename you provided is not included in your TOP file')
+		sys.exit(
+            exceptions.header_error + 'The CG ITP model filename you provided is not included in your TOP file')
 
 	top_lines = all_top_lines.split('\n')
 	top_lines = [top_line.strip().split(';')[0] for top_line in top_lines] # split for comments
@@ -280,13 +305,15 @@ with open(ns.top_input_filename, 'r') as fp:
 
 # check gmx arguments conflicts
 if ns.gmx_args_str != '' and (ns.nb_threads != 0 or ns.gpu_id != ''):
-	print(config.header_warning+'Argument -gmx_args_str is provided together with one of arguments: -nb_threads, -gpu_id\nOnly argument -gmx_args_str will be used during this execution')
+	print(
+        shared.exceptions.header_warning + 'Argument -gmx_args_str is provided together with one of arguments: -nb_threads, -gpu_id\nOnly argument -gmx_args_str will be used during this execution')
 
 # check bonds scaling arguments conflicts
 if (ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length) or (ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
-	sys.exit(config.header_error+'Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length can be provided\nPlease check your parameters')
+	sys.exit(
+        exceptions.header_error + 'Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length can be provided\nPlease check your parameters')
 # if ns.bonds_scaling < 1:
-# 	sys.exit(config.header_error+'Bonds scaling factor is inferior to 1, please check your parameters')
+# 	sys.exit(exceptions.header_error+'Bonds scaling factor is inferior to 1, please check your parameters')
 
 
 ##################
@@ -299,28 +326,28 @@ ns.mda_backend = 'serial' # clusters execution
 # directory to write all files for current execution of optimizations routines
 os.mkdir(ns.exec_folder)
 os.mkdir(ns.exec_folder+'/.internal')
-os.mkdir(ns.exec_folder+'/'+config.distrib_plots_all_evals_dirname)
-os.mkdir(ns.exec_folder+'/'+config.log_files_all_evals_dirname)
+os.mkdir(ns.exec_folder +'/' + config.distrib_plots_all_evals_dirname)
+os.mkdir(ns.exec_folder +'/' + config.log_files_all_evals_dirname)
 if ns.keep_all_sims:
-	os.mkdir(ns.exec_folder+'/'+config.sim_files_all_evals_dirname)
+	os.mkdir(ns.exec_folder +'/' + config.sim_files_all_evals_dirname)
 
 # prepare a directory to be copied at each iteration of the optimization, to run the new simulation
-os.mkdir(ns.exec_folder+'/'+config.input_sim_files_dirname)
+os.mkdir(ns.exec_folder +'/' + config.input_sim_files_dirname)
 user_provided_sim_files = ['cg_itp_filename', 'gro_input_filename', 'top_input_filename', 'mdp_minimization_filename', 'mdp_pre_md_filename', 'mdp_md_filename']
 
 for sim_file in user_provided_sim_files:
-	shutil.copy(arg_entries[sim_file], ns.exec_folder+'/'+config.input_sim_files_dirname)
+	shutil.copy(arg_entries[sim_file], ns.exec_folder +'/' + config.input_sim_files_dirname)
 
 # get all TOP file includes copied into input simulation directory
 top_include_dirbase = os.path.dirname(arg_entries['top_input_filename'])
 for top_include in top_includes_filenames:
 	# shutil.copy(top_include_dirbase+'/'+top_include, ns.exec_folder+'/'+config.input_sim_files_dirname) #  PROBLEM LUCA
-  shutil.copy(ns.input_folder+'/'+top_include_dirbase+'/'+top_include, ns.exec_folder+'/'+config.input_sim_files_dirname)
+  shutil.copy(ns.input_folder +'/' + top_include_dirbase +'/' + top_include, ns.exec_folder +'/' + config.input_sim_files_dirname)
 
 # modify the TOP file to adapt includes paths
-with open(ns.exec_folder+'/'+config.input_sim_files_dirname+'/'+ns.top_input_basename, 'r') as fp:
+with open(ns.exec_folder +'/' + config.input_sim_files_dirname + '/' + ns.top_input_basename, 'r') as fp:
 	all_top_lines = fp.read().split('\n')
-with open(ns.exec_folder+'/'+config.input_sim_files_dirname+'/'+ns.top_input_basename, 'w+') as fp:
+with open(ns.exec_folder +'/' + config.input_sim_files_dirname + '/' + ns.top_input_basename, 'w+') as fp:
 	nb_includes = 0
 	for i in range(len(all_top_lines)):
 		if all_top_lines[i].startswith('#include'):
@@ -345,7 +372,7 @@ with open(ns.cg_itp_filename, 'r') as fp:
 	read_cg_itp_file(ns, itp_lines) # loads ITP object that contains our reference atomistic data -- won't ever be modified during execution
 
 # touch results files to be appended to later
-with open(ns.exec_folder+'/'+config.opti_perf_recap_file, 'w') as fp:
+with open(ns.exec_folder +'/' + config.opti_perf_recap_file, 'w') as fp:
 	# TODO: print that file has been generated with Opti-CG etc -- do this for basically all files
 	# TODO: add some info on the opti cycles ??
 	fp.write('# nb constraints: '+str(ns.nb_constraints)+'\n')
@@ -354,7 +381,7 @@ with open(ns.exec_folder+'/'+config.opti_perf_recap_file, 'w') as fp:
 	fp.write('# nb dihedrals: '+str(ns.nb_dihedrals)+'\n')
 	fp.write('#\n')
 	fp.write('# opti_cycle nb_eval fit_score_all fit_score_cstrs_bonds fit_score_angles fit_score_dihedrals eval_score Rg_AA_mapped Rg_CG parameters_set eval_time current_total_time\n')
-with open(ns.exec_folder+'/'+config.opti_pairwise_distances_file, 'w'):
+with open(ns.exec_folder +'/' + config.opti_pairwise_distances_file, 'w'):
 	pass
 
 # process specific bonds scaling string, if provided
@@ -362,7 +389,8 @@ ns.bonds_scaling_specific = None
 if ns.bonds_scaling_str != config.bonds_scaling_str:
   sp_str = ns.bonds_scaling_str.split()
   if len(sp_str) % 2 != 0:
-    sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nPlease check your parameters, or help for an example')
+    sys.exit(
+        exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
   ns.bonds_scaling_specific = dict()
   i = 0
   try:
@@ -370,25 +398,32 @@ if ns.bonds_scaling_str != config.bonds_scaling_str:
       geom_id = sp_str[i][1:]
       if sp_str[i][0].upper() == 'C':
         if int(geom_id) > ns.nb_constraints:
-          sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA constraint group id exceeds the number of constraints groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
+          sys.exit(
+              exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id exceeds the number of constraints groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
         if not 'C'+geom_id in ns.bonds_scaling_specific:
           if float(sp_str[i+1]) < 0:
-            sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
+            sys.exit(
+                exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
           ns.bonds_scaling_specific['C'+geom_id] = float(sp_str[i+1])
         else:
-          sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA constraint group id is provided multiple times (id: '+str(geom_id)+')\nPlease check your parameters, or help for an example')
+          sys.exit(
+              exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
       elif sp_str[i][0].upper() == 'B':
         if int(geom_id) > ns.nb_bonds:
-          sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA bond group id exceeds the number of bonds groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
+          sys.exit(
+              exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id exceeds the number of bonds groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
         if not 'B'+geom_id in ns.bonds_scaling_specific:
           if float(sp_str[i+1]) < 0:
-            sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
+            sys.exit(
+                exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
           ns.bonds_scaling_specific['B'+geom_id] = float(sp_str[i+1])
         else:
-          sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA bond group id is provided multiple times (id: '+str(geom_id)+')\nPlease check your parameters, or help for an example')
+          sys.exit(
+              exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
       i += 2
   except ValueError:
-    sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nPlease check your parameters, or help for an example')
+    sys.exit(
+        exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
 
 # read atom mapped trajectory + find domains boundaries for values ranges (NOT the force constants, for which it is config/user defined already)
 print()
@@ -459,7 +494,7 @@ for grp_dihedral in range(ns.nb_dihedrals):
   ns.cg_itp['dihedral'][grp_dihedral]['hist'] = dihedral_hist
 
   xmin, xmax = -180, 180
-  ns.data_BI['dihedral'].append([np.histogram(dihedral_values_rad, range=(np.deg2rad(xmin), np.deg2rad(xmax)), bins=2*config.bi_nb_bins)[0], np.std(dihedral_values_rad), np.mean(dihedral_values_rad), (xmin, xmax)])
+  ns.data_BI['dihedral'].append([np.histogram(dihedral_values_rad, range=(np.deg2rad(xmin), np.deg2rad(xmax)), bins=2 * config.bi_nb_bins)[0], np.std(dihedral_values_rad), np.mean(dihedral_values_rad), (xmin, xmax)])
 
   ns.domains_val['dihedral'].append([round(np.min(dihedral_values_deg), 2), round(np.max(dihedral_values_deg), 2)]) # boundaries of force constats during optimization
 
@@ -468,11 +503,11 @@ if not ns.bonds_rescaling_performed:
 
 # output png with all the reference distributions, so the user can check
 ns.atom_only = True
-ns.plot_filename = ns.exec_folder+'/'+config.ref_distrib_plots
+ns.plot_filename = ns.exec_folder +'/' + config.ref_distrib_plots
 with contextlib.redirect_stdout(open(os.devnull, 'w')):
   compare_models(ns, manual_mode=False)
 print()
-print('Plotted reference AA-mapped distributions (used as target during optimization) at location:\n ', ns.exec_folder+'/'+config.ref_distrib_plots)
+print('Plotted reference AA-mapped distributions (used as target during optimization) at location:\n ', ns.exec_folder +'/' + config.ref_distrib_plots)
 ns.atom_only = False
 
 
@@ -634,10 +669,10 @@ for i in range(len(opti_cycles)):
   # build vector for search space boundaries + create variations around the BI initial guesses
   search_space_boundaries = get_search_space_boundaries(ns)
   # ns.worst_fit_score = round(len(search_space_boundaries) * config.sim_crash_EMD_indep_score, 3)
-  ns.worst_fit_score = round(\
-    np.sqrt((ns.nb_constraints+ns.nb_bonds) * config.sim_crash_EMD_indep_score) + \
-    np.sqrt(ns.nb_angles * config.sim_crash_EMD_indep_score) + \
-    np.sqrt(ns.nb_dihedrals * config.sim_crash_EMD_indep_score) \
+  ns.worst_fit_score = round( \
+      np.sqrt((ns.nb_constraints+ns.nb_bonds) * config.sim_crash_EMD_indep_score) + \
+      np.sqrt(ns.nb_angles * config.sim_crash_EMD_indep_score) + \
+      np.sqrt(ns.nb_dihedrals * config.sim_crash_EMD_indep_score) \
     , 3)
   # nb_particles = int(10 + 2*np.sqrt(len(search_space_boundaries))) # formula used by FST-PSO to choose nb of particles, which defines the number of initial guesses we can use
   nb_particles = int(round(2 + np.sqrt(len(search_space_boundaries)))) # adapted to have less particles and fitted to our problems, which has good initial guesses and error driven initialization
@@ -656,7 +691,7 @@ for i in range(len(opti_cycles)):
   update_cg_itp_obj(ns, parameters_set=result[0].X, update_type=2)
 
 # clean temporary copied directory with user's input files
-shutil.rmtree(ns.exec_folder+'/'+config.input_sim_files_dirname)
+shutil.rmtree(ns.exec_folder +'/' + config.input_sim_files_dirname)
 
 # print some stats
 total_time_sec = datetime.now().timestamp() - ns.start_opti_ts

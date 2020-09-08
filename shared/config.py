@@ -119,11 +119,7 @@ best_distrib_plots = 'Best_fitted_model_AA-mapped_vs_CG_groups_distributions.png
 # stdout display formatting
 sep = '----------------------------------------------------------------------'
 sep_close = '+---------------------------------------------------------------------------------------------+'
-# header_warning = '\n========================= /!\\  WARNING  /!\\ ==========================\n'
-header_warning = '\n-- ! WARNING ! --\n'
-# header_error = '\n========================== /!\\  ERROR  /!\\ ===========================\n'
-header_error = '\n-- ! ERROR ! --\n'
-header_gmx_error = sep+'\n  GMX ERROR MSG\n'+sep+'\n\n'
+
 
 
 

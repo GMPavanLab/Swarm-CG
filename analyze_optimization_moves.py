@@ -8,8 +8,10 @@ import os, sys, warnings
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
 
-import config
-from opti_CG import forward_fill, header_package, par_wrap
+from shared import config
+from shared import exceptions
+from opti_CG import header_package
+from shared.utils import forward_fill
 
 # TODO: print some text to tell user if opti run finished or not -- then we can only look at the results files, not the running processes on the machine
 
@@ -65,16 +67,21 @@ min_nb_cols = 9 # to be sure we have enough columns for opti process plots, even
 # read scores for each geom at each fitness evaluation/simulation
 with warnings.catch_warnings():
 	warnings.filterwarnings("ignore", category=UserWarning)
-	iter_indep_scores = np.genfromtxt(ns.opti_dirname+'/'+config.opti_pairwise_distances_file, delimiter=' ')
+	iter_indep_scores = np.genfromtxt(ns.opti_dirname +'/' + config.opti_pairwise_distances_file, delimiter=' ')
 try:
 	used_dihedrals = iter_indep_scores[:,0]
 	for i in range(1, iter_indep_scores.shape[1]):
 		forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
 except IndexError:
-	sys.exit(config.header_error+'The optimization recap file seems empty, please wait for your optimization process to start or check for errors during execution')
+	msg = """{}
+	The optimization recap file seems empty, 
+	please wait for your optimization process to start 
+	or check for errors during execution
+	""".format(exceptions.header_error)
+	sys.exit(msg)
 
 # process files and plot
-with open(ns.opti_dirname+'/'+config.opti_perf_recap_file, 'r') as fp:
+with open(ns.opti_dirname +'/' + config.opti_perf_recap_file, 'r') as fp:
 
 	eval_lines = fp.read().split('\n')
 	nb_evals = len(eval_lines)-7
@@ -112,10 +119,10 @@ with open(ns.opti_dirname+'/'+config.opti_perf_recap_file, 'r') as fp:
 
 	all_eval_scores, all_eval_times, all_total_times = [], [], []
 	# worst_fit_score = round((nb_constraints+nb_bonds+nb_angles+nb_dihedrals) * config.sim_crash_EMD_indep_score, 3)
-	worst_fit_score = round(\
-	np.sqrt((nb_constraints+nb_bonds) * config.sim_crash_EMD_indep_score) + \
-	np.sqrt(nb_angles * config.sim_crash_EMD_indep_score) + \
-	np.sqrt(nb_dihedrals * config.sim_crash_EMD_indep_score) \
+	worst_fit_score = round( \
+		np.sqrt((nb_constraints+nb_bonds) * config.sim_crash_EMD_indep_score) + \
+		np.sqrt(nb_angles * config.sim_crash_EMD_indep_score) + \
+		np.sqrt(nb_dihedrals * config.sim_crash_EMD_indep_score) \
 	, 3)
 	all_fit_score_total, all_fit_score_constraints_bonds, all_fit_score_angles, all_fit_score_dihedrals = np.array([]), np.array([]), np.array([]), np.array([])
 	all_gyr_aa_mapped, all_gyr_aa_mapped_std, all_gyr_cg, all_gyr_cg_std = np.array([]), np.array([]), np.array([]), np.array([])
