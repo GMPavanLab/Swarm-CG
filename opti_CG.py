@@ -342,7 +342,7 @@ def read_cg_itp_file(ns, itp_lines):
 						ns.cg_itp['angle'][ns.nb_angles]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:3]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						sys.exit(
-							config.header_error + 'Incorrect reading of the CG ITP file within [angles] section, please check this file')
+							exceptions.header_error + 'Incorrect reading of the CG ITP file within [angles] section, please check this file')
 					func = verify_handled_functions('angle', sp_itp_line[3], i+1)
 					ns.cg_itp['angle'][ns.nb_angles]['funct'].append(func)
 					ns.cg_itp['angle'][ns.nb_angles]['value'].append(float(sp_itp_line[4]))
@@ -367,7 +367,7 @@ def read_cg_itp_file(ns, itp_lines):
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:4]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						sys.exit(
-							config.header_error + 'Incorrect reading of the CG ITP file within [dihedrals] section, please check this file')
+							exceptions.header_error + 'Incorrect reading of the CG ITP file within [dihedrals] section, please check this file')
 					func = verify_handled_functions('dihedral', sp_itp_line[4], i+1)
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['funct'].append(func)
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['value'].append(float(sp_itp_line[5])) # issue happens here for functions that are not handled
@@ -403,7 +403,7 @@ def read_cg_itp_file(ns, itp_lines):
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
 					sys.exit(
-						config.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within a ' + geom + ' group, only CG beads IDs should differ\nPlease correct the CG ITP file and separate groups using a blank or commented line')
+						exceptions.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within a ' + geom + ' group, only CG beads IDs should differ\nPlease correct the CG ITP file and separate groups using a blank or commented line')
 
 	for geom in ['bond', 'angle']: # bonds and angles only
 		for grp_geom in range(len(ns.cg_itp[geom])):
@@ -413,7 +413,7 @@ def read_cg_itp_file(ns, itp_lines):
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
 					sys.exit(
-						config.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group\nPlease correct the CG ITP file and separate groups using a blank or commented line')
+						exceptions.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group\nPlease correct the CG ITP file and separate groups using a blank or commented line')
 
 	for geom in ['dihedral']: # dihedrals only
 		for grp_geom in range(len(ns.cg_itp[geom])):
@@ -423,14 +423,14 @@ def read_cg_itp_file(ns, itp_lines):
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
 					sys.exit(
-						config.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group\nPlease correct the CG ITP file and separate groups using a blank or commented line')
+						exceptions.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group\nPlease correct the CG ITP file and separate groups using a blank or commented line')
 			for var in ['mult']:
 				var_set = set(ns.cg_itp[geom][grp_geom][var])
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
 					sys.exit(
-						config.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group')
+						exceptions.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group')
 	
 	ns.nb_constraints += 1
 	ns.nb_bonds += 1
@@ -468,7 +468,7 @@ def read_ndx_atoms2beads(ns):
 						lines_read += 1
 						if lines_read > 1:
 							sys.exit(
-								config.header_error + 'Some sections of the CG beads mapping file have multiple lines, please correct the mapping')
+								exceptions.header_error + 'Some sections of the CG beads mapping file have multiple lines, please correct the mapping')
 						bead_atoms_id = [int(atom_id)-1 for atom_id in ndx_line.split()] # retrieve indexing from 0 for atoms IDs for MDAnalysis
 						ns.all_beads[bead_id]['atoms_id'].extend(bead_atoms_id) # all atoms included in current bead
 
@@ -478,10 +478,10 @@ def read_ndx_atoms2beads(ns):
 
 					except NameError:
 						sys.exit(
-							config.header_error + 'The CG beads mapping file does NOT seem to contain CG beads sections, please verify the input mapping')
+							exceptions.header_error + 'The CG beads mapping file does NOT seem to contain CG beads sections, please verify the input mapping')
 					except ValueError: # non-integer atom ID provided
 						sys.exit(
-							config.header_error + 'Incorrect reading of the sections\' content in the CG beads mapping file, please verify the input mapping')
+							exceptions.header_error + 'Incorrect reading of the sections\' content in the CG beads mapping file, please verify the input mapping')
 
 	return
 
@@ -753,7 +753,7 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 		itp_obj = ns.opti_itp
 	else:
 		sys.exit(
-			config.header_error + 'Code error in function update_cg_itp_obj, please consider opening an issue on GitHub at ' + config.github_url)
+			exceptions.header_error + 'Code error in function update_cg_itp_obj, please consider opening an issue on GitHub at ' + config.github_url)
 
 	for i in range(ns.opti_cycle['nb_geoms']['constraint']):
 		itp_obj['constraint'][i]['value'] = round(parameters_set[i], 3) # constraint - distance
@@ -1185,7 +1185,7 @@ def read_aa_traj(ns):
 	ns.aa_universe = mda.Universe(ns.aa_tpr_filename, ns.aa_traj_filename, in_memory=True, refresh_offsets=True, guess_bonds=False) # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default
 	print('  Found', len(ns.aa_universe.trajectory), 'frames in AA trajectory file', flush=True)
 	# if len(ns.aa_universe.trajectory) > 20000:
-	# 	print(config.header_warning+'Your atomistic trajectory contains many frames, which increases computation time\nReasonably reducing the number of frames of your input AA trajectory won\'t affect results quality\n2k to 10k frames is usually enough, as long as behaviour and flexibility of your molecule are correctly described by your atomistic trajectory')
+	# 	print(exceptions.header_warning+'Your atomistic trajectory contains many frames, which increases computation time\nReasonably reducing the number of frames of your input AA trajectory won\'t affect results quality\n2k to 10k frames is usually enough, as long as behaviour and flexibility of your molecule are correctly described by your atomistic trajectory')
 
 	return
 
@@ -1540,7 +1540,7 @@ def perform_BI(ns):
 
 				else:
 					sys.exit(
-						config.header_error + 'Code error, we should never arrive here because functions have been checked during CG ITP file reading')
+						exceptions.header_error + 'Code error, we should never arrive here because functions have been checked during CG ITP file reading')
 
 				# here we just update the force constant, angle value is already set to the average of distribution
 				ns.out_itp['angle'][grp_angle]['fct'] = min(max(popt[0], config.default_min_fct_angles), config.default_max_fct_angles_bi) # stay within specified range for force constants
@@ -1579,7 +1579,7 @@ def perform_BI(ns):
 
 				else:
 					sys.exit(
-						config.header_error + 'Code error, we should never arrive here because functions have been checked during CG ITP file reading')
+						exceptions.header_error + 'Code error, we should never arrive here because functions have been checked during CG ITP file reading')
 
 				if ns.exec_mode == 1:
 					ns.out_itp['dihedral'][grp_dihedral]['value'] = np.rad2deg(popt[1])
@@ -1608,7 +1608,7 @@ def process_scaling_str(ns):
 	  sp_str = ns.bonds_scaling_str.split()
 	  if len(sp_str) % 2 != 0:
 	    sys.exit(
-			config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
+			exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
 	  ns.bonds_scaling_specific = dict()
 	  i = 0
 	  try:
@@ -1617,31 +1617,31 @@ def process_scaling_str(ns):
 	      if sp_str[i][0].upper() == 'C':
 	        if int(geom_id) > ns.nb_constraints:
 	          sys.exit(
-				  config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id exceeds the number of constraints groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
+				  exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id exceeds the number of constraints groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
 	        if not 'C'+geom_id in ns.bonds_scaling_specific:
 	          if float(sp_str[i+1]) < 0:
 	            sys.exit(
-					config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
+					exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
 	          ns.bonds_scaling_specific['C'+geom_id] = float(sp_str[i+1])
 	        else:
 	          sys.exit(
-				  config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
+				  exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
 	      elif sp_str[i][0].upper() == 'B':
 	        if int(geom_id) > ns.nb_bonds:
 	          sys.exit(
-				  config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id exceeds the number of bonds groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
+				  exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id exceeds the number of bonds groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
 	        if not 'B'+geom_id in ns.bonds_scaling_specific:
 	          if float(sp_str[i+1]) < 0:
 	            sys.exit(
-					config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
+					exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
 	          ns.bonds_scaling_specific['B'+geom_id] = float(sp_str[i+1])
 	        else:
 	          sys.exit(
-				  config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
+				  exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
 	      i += 2
 	  except ValueError:
 	    sys.exit(
-			config.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
+			exceptions.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
 
 	return
 
@@ -1668,7 +1668,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				process_scaling_str(ns)
 			except UnicodeDecodeError:
 				sys.exit(
-					config.header_error + 'Cannot read CG ITP, it seems you provided a binary file.')
+					exceptions.header_error + 'Cannot read CG ITP, it seems you provided a binary file.')
 
 	# if we do not have reference already from the optimization procedure
 	if manual_mode:
@@ -1772,7 +1772,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				avg_diff_grp_constraints.append(emd(constraints[grp_constraint]['AA']['hist'], constraints[grp_constraint]['CG']['hist'], ns.bins_constraints_dist_matrix) * ns.bonds2angles_scoring_factor)
 			except IndexError:
 				sys.exit(
-					config.header_error + 'Most probably because you have bonds or constraints that exceed ' + str(ns.bonded_max_range) + ' nm. Increase bins range for bonds and constraints and retry! See argument -bonds_max_range.')
+					exceptions.header_error + 'Most probably because you have bonds or constraints that exceed ' + str(ns.bonded_max_range) + ' nm. Increase bins range for bonds and constraints and retry! See argument -bonds_max_range.')
 		else:
 			avg_diff_grp_constraints.append(constraints[grp_constraint]['AA']['avg'])
 
@@ -1827,7 +1827,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				avg_diff_grp_bonds.append(emd(bonds[grp_bond]['AA']['hist'], bonds[grp_bond]['CG']['hist'], ns.bins_bonds_dist_matrix) * ns.bonds2angles_scoring_factor)
 			except IndexError:
 				sys.exit(
-					config.header_error + 'Most probably because you have bonds or constraints that exceed ' + str(ns.bonded_max_range) + ' nm. Increase bins range for bonds and bonds and retry! See argument -bonds_max_range.')
+					exceptions.header_error + 'Most probably because you have bonds or constraints that exceed ' + str(ns.bonded_max_range) + ' nm. Increase bins range for bonds and bonds and retry! See argument -bonds_max_range.')
 		else:
 			avg_diff_grp_bonds.append(bonds[grp_bond]['AA']['avg'])
 
@@ -2349,7 +2349,7 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 			mdp_lines_in[nsteps_line] = sp_nsteps_line[0]+'= '+str(nsteps)+'    ; automatically modified by Opti-CG'
 		else:
 			sys.exit(
-				config.header_error + 'The provided MD MDP file does not contain one of these entries: dt, nsteps')
+				exceptions.header_error + 'The provided MD MDP file does not contain one of these entries: dt, nsteps')
 
 	# force writting to the log file every given nb of steps, to make sure simulations won't be killed for insufficient writting to the log file
 	# (which we use to check for simulations that are stuck/bugged)
@@ -2358,7 +2358,7 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 		mdp_lines_in[nstlog_line] = sp_nstlog_line[0]+'= '+str(nstlog)+'    ; automatically modified by Opti-CG'
 	else:
 		sys.exit(
-			config.header_error + 'The provided MD MDP file does not contain one of these entries: nstlog')
+			exceptions.header_error + 'The provided MD MDP file does not contain one of these entries: nstlog')
 
 	# force NOT writting coordinates data, as this can only slow the simulation and we don't need it
 	if nstxout_line != -1:
@@ -2398,7 +2398,7 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 	if nstxout_compressed_line != -1:
 		mdp_lines_in[nstxout_compressed_line] = sp_nstxout_compressed_line[0]+'= '+str(nstxout_compressed)+'    ; automatically modified by Opti-CG'
 	else:
-		# sys.exit(config.header_error+'The provided MD MDP file does not contain one of these entries: nstxout-compressed')
+		# sys.exit(exceptions.header_error+'The provided MD MDP file does not contain one of these entries: nstxout-compressed')
 		mdp_lines_in += '\nnstxout-compressed = '+str(nstxout_compressed)+'    ; automatically added by Opti-CG'
 
 	# write output
@@ -2496,7 +2496,7 @@ def eval_function(parameters_set, ns):
 				else:
 					last_log_file_size = log_file_size
 	else:
-		sys.exit('\n\n' + shared.exceptions.header_gmx_error + gmx_out + '\n' + config.header_error + 'Gmx grompp failed at minimization step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_mini\nYou may also want to look into Opti-CG argument -mini_maxwarn\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
+		sys.exit('\n\n' + shared.exceptions.header_gmx_error + gmx_out + '\n' + exceptions.header_error + 'Gmx grompp failed at minimization step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_mini\nYou may also want to look into Opti-CG argument -mini_maxwarn\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
 
 	# if minimization finished properly, we just check for the .gro file printed in the end
 	if os.path.isfile('mini.gro'):
@@ -2530,7 +2530,7 @@ def eval_function(parameters_set, ns):
 						last_log_file_size = log_file_size
 		else:
 			# pass
-			sys.exit('\n\n' + shared.exceptions.header_gmx_error + gmx_out + '\n' + config.header_error + 'Gmx grompp failed at the pre-MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_equi\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
+			sys.exit('\n\n' + shared.exceptions.header_gmx_error + gmx_out + '\n' + exceptions.header_error + 'Gmx grompp failed at the pre-MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_equi\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
 
 		# if pre-MD finished properly, we just check for the .gro file printed in the end
 		if os.path.isfile('pre-md.gro'):
@@ -2567,7 +2567,7 @@ def eval_function(parameters_set, ns):
 							last_log_file_size = log_file_size
 			else:
 				# pass
-				sys.exit('\n\n' + shared.exceptions.header_gmx_error + gmx_out + '\n' + config.header_error + 'Gmx grompp failed at the MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_prod\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
+				sys.exit('\n\n' + shared.exceptions.header_gmx_error + gmx_out + '\n' + exceptions.header_error + 'Gmx grompp failed at the MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_prod\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
 
 			# to verify if MD run finished properly, we check for the .gro file printed in the end
 			if os.path.isfile('md.gro'):
