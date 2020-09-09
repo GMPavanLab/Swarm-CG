@@ -2,7 +2,7 @@ import sys
 
 import numpy as np
 
-import exceptions
+from . import exceptions
 
 
 def forward_fill(arr, cond_value):
@@ -36,16 +36,18 @@ def forward_fill(arr, cond_value):
                 """
                 sys.exit(msg)
 
-# simple moving average
-def sma(interval, window_size):
-    window = np.ones(int(window_size)) / float(window_size)
-    return np.convolve(interval, window, 'same')
 
-# exponential moving average
-def ewma(a, alpha, windowSize):
+def sma(x, window_size):
+    """
+    Implement simple moving average with convolution operator.
+    """
+    return ewma(x, 1, window_size)
+
+
+def ewma(x, alpha, windowSize):
+    """
+    Implement expontential moving average with convolution operator.
+    """
     wghts = (1 - alpha) ** np.arange(windowSize)
-    wghts /= wghts.sum()
-    out = np.full(len(a), np.nan)
-    # out[windowSize-1:] = np.convolve(a, wghts, 'valid')
-    out = np.convolve(a, wghts, 'same')
-    return out
+    wghts = wghts / wghts.sum()
+    return np.convolve(x, wghts, 'same')
