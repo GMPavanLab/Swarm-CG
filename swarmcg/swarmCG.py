@@ -1,24 +1,26 @@
-from pyemd import emd
-import sys, re, random, os, shutil, subprocess, signal, time, contextlib, warnings, textwrap
+# some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
+import warnings
+warnings.filterwarnings("ignore")
+import collections
+
+import (sys, re, random, os, shutil, subprocess, signal, time, contextlib,
+		warnings, textwrap, collections)
+from datetime import datetime
 
 # matplotlib new version has some problems with incorrectly uninstalled files at version upgrade and display a lot of warnings
 # also some numpy version have this ufunc warning at import
-warnings.filterwarnings("ignore")
 import numpy as np
 import matplotlib
-matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 import matplotlib.pyplot as plt
+from pyemd import emd
+
 from scipy.spatial.distance import cdist
-from scipy.cluster.hierarchy import linkage, fcluster
-from scipy.spatial.distance import squareform
 from scipy.optimize import curve_fit
-from scipy.signal import lfiltic, lfilter
-from itertools import compress
-# import networkx as nx
-import MDAnalysis as mda
-import collections
-from datetime import datetime
+
 from . import config
+from .shared import utils
+
+matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 warnings.resetwarnings()
 
 # TODO: When provided trajectory file does NOT contain PBC infos (box position and size for each frame, which are present in XTC format for example), we want to stil accept the provided trajectory format (if accepted by MDAnalysis) but we automatically disable the handling of PBC by the code
@@ -54,49 +56,6 @@ def header_package(module_line):
 '''+config.sep_close+'\n'
 
 
-def forward_fill(arr, cond_value):
-
-	# out = np.empty(len(arr))
-	valid_val = None
-	for i in range(len(arr)):
-		if arr[i] != cond_value:
-			# out[i] = arr[i]
-			valid_val = arr[i]
-		else:
-			j = i
-			while valid_val == None and j < len(arr):
-				j += 1
-				try:
-					if arr[j] != cond_value:
-						valid_val = arr[j]
-						break
-				except IndexError:
-					sys.exit(config.header_error+'Unexpected read of the optimization results, please check that your simulations have not all been crashing')
-			if valid_val != None:
-				# out[i] = valid_val
-				arr[i] = valid_val
-			else:
-				sys.exit('All simulations crashed, nothing to display\nPlease check the setup and settings of your optimization run')
-	# return out
-	return
-
-
-# simple moving average
-def sma(interval, window_size):
-	window = np.ones(int(window_size))/float(window_size)
-	return np.convolve(interval, window, 'same')
-
-
-# exponential moving average
-def ewma(a, alpha, windowSize):
-	wghts = (1-alpha)**np.arange(windowSize)
-	wghts /= wghts.sum()
-	out = np.full(len(a), np.nan)
-	# out[windowSize-1:] = np.convolve(a, wghts, 'valid')
-	out = np.convolve(a, wghts, 'same')
-	return out
-
-
 # cast object as string, enclose by parentheses and return a string -- for arguments display in help
 def par_wrap(string):
 	return '('+str(string)+')'
@@ -115,7 +74,7 @@ def set_MDA_backend(ns):
 		ns.mda_backend = 'serial'
 
 	return
-	
+
 
 # draw random float between given range and apply rounding to given digit
 def draw_float(low, high, dg_rnd):
@@ -1523,7 +1482,7 @@ def perform_BI(ns):
 				nb_passes = 3
 				alpha = 0.55
 				for _ in range(nb_passes):
-					hist_geoms_modif = ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins/10))
+					hist_geoms_modif = utils.ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins/10))
 
 				y = -config.kB * ns.temp * np.log(hist_geoms_modif + 1)
 				x = np.linspace(bi_xrange[0], bi_xrange[1], config.bi_nb_bins, endpoint=True)
@@ -1540,7 +1499,7 @@ def perform_BI(ns):
 
 				nb_passes = 5
 				for _ in range(nb_passes):
-					deriv = sma(deriv, int(config.bi_nb_bins/5))
+					deriv = utils.sma(deriv, int(config.bi_nb_bins/5))
 
 				deriv *= np.sqrt(y/min(y))
 				deriv = 1/deriv

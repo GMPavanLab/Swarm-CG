@@ -1,17 +1,17 @@
-import warnings
-
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
+import warnings
 warnings.filterwarnings("ignore")
-import os, sys, re, shutil, subprocess, time, copy, contextlib
+import os, sys, shutil, subprocess, time, copy, contextlib
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
+from datetime import datetime
+
 from fstpso import FuzzyPSO 
 import numpy as np
-from datetime import datetime
-from scipy.optimize import curve_fit
-import MDAnalysis as mda
+
 from . import config
 from . import swarmCG as scg
+
 warnings.resetwarnings()
 
 
