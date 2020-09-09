@@ -36,6 +36,8 @@ def forward_fill(arr, cond_value):
                 """
                 sys.exit(msg)
 
+    return arr
+
 
 def sma(x, window_size):
     """

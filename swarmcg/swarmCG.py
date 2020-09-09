@@ -18,6 +18,7 @@ from scipy.spatial.distance import cdist
 from scipy.optimize import curve_fit
 
 from . import config
+from .shared import utils
 
 matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 warnings.resetwarnings()
@@ -1481,7 +1482,7 @@ def perform_BI(ns):
 				nb_passes = 3
 				alpha = 0.55
 				for _ in range(nb_passes):
-					hist_geoms_modif = ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins/10))
+					hist_geoms_modif = utils.ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins/10))
 
 				y = -config.kB * ns.temp * np.log(hist_geoms_modif + 1)
 				x = np.linspace(bi_xrange[0], bi_xrange[1], config.bi_nb_bins, endpoint=True)
@@ -1498,7 +1499,7 @@ def perform_BI(ns):
 
 				nb_passes = 5
 				for _ in range(nb_passes):
-					deriv = sma(deriv, int(config.bi_nb_bins/5))
+					deriv = utils.sma(deriv, int(config.bi_nb_bins/5))
 
 				deriv *= np.sqrt(y/min(y))
 				deriv = 1/deriv
