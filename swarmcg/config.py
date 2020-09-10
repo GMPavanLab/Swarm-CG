@@ -1,5 +1,4 @@
 # general stuff
-module_version = '1.1.2'
 github_url = 'http://github.com/GMPavanLab/SwarmCG'
 gmx_path = 'gmx'
 
@@ -114,15 +113,6 @@ opti_perf_recap_file = '.internal/opti_recap_evals_perfs_and_params.csv'
 opti_pairwise_distances_file = '.internal/opti_recap_evals_pairwise_distribs_diffs.csv'
 ref_distrib_plots = 'reference_AA_distributions.png'
 best_distrib_plots = 'optimized_CG_model_distributions.png'
-
-# stdout display formatting
-sep = '----------------------------------------------------------------------'
-sep_close = '+---------------------------------------------------------------------------------------------+'
-# header_warning = '\n========================= /!\\  WARNING  /!\\ ==========================\n'
-header_warning = '\n-- ! WARNING ! --\n'
-# header_error = '\n========================== /!\\  ERROR  /!\\ ===========================\n'
-header_error = '\n-- ! ERROR ! --\n'
-header_gmx_error = sep+'\n  GMX ERROR MSG\n'+sep+'\n\n'
 
 
 

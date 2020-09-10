@@ -1,5 +1,8 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
+
+import swarmcg.shared.styling
+
 warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -9,14 +12,14 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
-from . import config
-from . import swarmCG as scg
-from shared.utils import forward_fill
+from swarmcg import config
+from swarmcg.shared.styling import ANALYSE_DESCR
+from swarmcg.shared.utils import forward_fill
 
 warnings.resetwarnings()
 
 
-def main():
+def main(ns):
 
 	# TODO: print some text to tell user if opti run finished or not -- then we can only look at the results files, not the running processes on the machine
 
@@ -32,61 +35,6 @@ def main():
 
 	plt.rcParams['axes.axisbelow'] = True
 
-	print(scg.header_package('                  Module: Optimization run analysis\n'))
-
-	args_parser = ArgumentParser(description='''\
-This module produces a visual summary (big plot) of an optimization procedure started with
-module 'scg_optimize' to refine the bonded terms of a coarse-grained (CG) molecular model.
-It works whether the optimization is ongoing or finished. The plot will be produced in the
-directory provided via argument -opti_dir.
-
-Top row displays bonded terms score (global and breakdown) together with radius of gyration
-(Rg) and solvent accessible surface area (SASA) estimations. We call these estimations because
-they are calculated on short simulations used during optimization (time depends on parameters
-used for optimization), therefore one should always run a long simulation at the end of the
-optimizaton process, from which one can calculate the real Rg and SASA values for your model.
-
-Other rows display bond, angle and dihedral parameters tested together with their independant
-score (distance from the AA distributions using EMD/Wasserstein). This allows to diagnose
-issues, notably related to the topology defined in the ITP file, for example if the score
-cannot go down for a specific group of bonds, angles or dihedrals. The optimization procedure
-is in principle robust, as demonstrated in the paper, however problems can arise from the CG
-representation used (e.g. if topology is too restrictive or incorrectly defined) and non-bonded
-parameters (e.g. strong intra-molecular attractions that would not allow the molecule to adopt
-extended conformations).
-''', formatter_class=lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52), add_help=False, usage=SUPPRESS)
-
-	args_header = config.sep_close+'\n|                                         ARGUMENTS                                           |\n'+config.sep_close
-	# bullet = '❭'
-	# bullet = '★'
-	# bullet = '|'
-	bullet = ' '
-
-	required_args = args_parser.add_argument_group(args_header+'\n\n'+bullet+'INPUT/OUTPUT')
-	required_args.add_argument('-opti_dir', dest='opti_dirname', help='Directory created by module \'scg_optimize\' that contains all files\ngenerated during the optimization procedure', type=str, metavar='')
-	required_args.add_argument('-o', dest='plot_filename', help='Filename for the output plot, produced in directory -opti_dir.\nExtension/format can be one of: eps, pdf, pgf, png, ps, raw, rgba,\nsvg, svgz', type=str, default='opti_summary.png', metavar='    (opti_summary.png)')
-
-	optional_args = args_parser.add_argument_group(bullet+'OTHERS')
-	optional_args.add_argument('-plot_scale', dest='plot_scale', help='Scale factor of the plot', type=float, default=1.0, metavar='        (1.0)')
-	optional_args.add_argument('-h', '--help', help='Show this help message and exit', action='help')
-
-	# display help if script was called without arguments
-	if len(sys.argv) == 1:
-	    args_parser.print_help()
-	    sys.exit()
-
-	# arguments handling, display command line if help or no arguments provided
-	# argcomplete.autocomplete(parser)
-	ns = args_parser.parse_args()
-	input_cmdline = ' '.join(map(cmd_quote, sys.argv))
-	print('Working directory:', os.getcwd())
-	print('Command line:', input_cmdline)
-	print()
-	print(config.sep_close)
-	print('| SUMMARIZING OPTIMIZATION PROCEDURE                                                          |')
-	print(config.sep_close)
-	print()
-
 	# parameters
 	read_offset = 15 # nb of trailing fields that have static lengths in the recap file (i.e. NOT dependent on number of bonds, angles, etc.)
 	min_nb_cols = 9 # to be sure we have enough columns for opti process plots, even if number of bonds/angles/dihedrals is less than this
@@ -98,9 +46,10 @@ extended conformations).
 	try:
 		used_dihedrals = iter_indep_scores[:,0]
 		for i in range(1, iter_indep_scores.shape[1]):
-			forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
+			iter_indep_scores[:,i] = forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
 	except IndexError:
-		sys.exit(config.header_error+'The optimization recap file seems empty, please wait for your optimization process to start or check for errors during execution')
+		sys.exit(
+			swarmcg.shared.styling.header_error + 'The optimization recap file seems empty, please wait for your optimization process to start or check for errors during execution')
 
 	# process files and plot
 	with open(ns.opti_dirname+'/'+config.opti_perf_recap_file, 'r') as fp:
@@ -285,22 +234,22 @@ extended conformations).
 	# display indicator when simulation(s) crashed for any reason -- check for None gyr_cg to identify a simulation as crashed
 	crashes_ids = np.where(all_gyr_cg == None)[0]+1
 
-	forward_fill(all_eval_scores, None)
-	forward_fill(all_fit_score_total, None)
-	forward_fill(all_fit_score_constraints_bonds, None)
-	forward_fill(all_fit_score_angles, None)
-	forward_fill(all_fit_score_dihedrals, None)
-	forward_fill(all_gyr_aa_mapped, None)
-	forward_fill(all_gyr_aa_mapped_std, None)
+	all_eval_scores = forward_fill(all_eval_scores, None)
+	all_fit_score_total = forward_fill(all_fit_score_total, None)
+	all_fit_score_constraints_bonds = forward_fill(all_fit_score_constraints_bonds, None)
+	all_fit_score_angles = forward_fill(all_fit_score_angles, None)
+	all_fit_score_dihedrals = forward_fill(all_fit_score_dihedrals, None)
+	all_gyr_aa_mapped = forward_fill(all_gyr_aa_mapped, None)
+	all_gyr_aa_mapped_std = forward_fill(all_gyr_aa_mapped_std, None)
 	# all_gyr_cg = np.where(all_gyr_cg == None, 0, all_gyr_cg)
-	forward_fill(all_gyr_cg, None)
-	forward_fill(all_gyr_cg_std, None)
-	forward_fill(all_sasa_aa_mapped, None)
-	forward_fill(all_sasa_aa_mapped_std, None)
+	all_gyr_cg = forward_fill(all_gyr_cg, None)
+	all_gyr_cg_std = forward_fill(all_gyr_cg_std, None)
+	all_sasa_aa_mapped = forward_fill(all_sasa_aa_mapped, None)
+	all_sasa_aa_mapped_std = forward_fill(all_sasa_aa_mapped_std, None)
 	# all_sasa_cg = np.where(all_sasa_cg == None, 0, all_sasa_cg)
-	# forward_fill(all_sasa_cg, 0)
-	forward_fill(all_sasa_cg, None)
-	forward_fill(all_sasa_cg_std, None)
+	# all_sasa_cg = forward_fill(all_sasa_cg, 0)
+	all_sasa_cg = forward_fill(all_sasa_cg, None)
+	all_sasa_cg_std = forward_fill(all_sasa_cg_std, None)
 
 	for i in range(len(all_gyr_aa_mapped)):
 		all_gyr_aa_mapped[i] += all_gyr_aa_mapped_offset
@@ -658,6 +607,54 @@ extended conformations).
 	print('Wrote visual optimization summary file at location:\n ', os.path.normpath(ns.opti_dirname+'/'+ns.plot_filename))
 	print()
 
+if __name__ == '__main__':
 
+	print(swarmcg.shared.styling.header_package(
+		'                  Module: Optimization run analysis\n'))
+
+	formatter = lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52)
+	args_parser = ArgumentParser(
+		description=ANALYSE_DESCR,
+		formatter_class=formatter,
+		add_help=False,
+		usage=SUPPRESS
+	)
+
+	args_header = swarmcg.shared.styling.sep_close + '\n|                                         ARGUMENTS                                           |\n' + swarmcg.shared.styling.sep_close
+	bullet = ' '
+
+	required_args = args_parser.add_argument_group(args_header + '\n\n' + bullet + 'INPUT/OUTPUT')
+	required_args.add_argument('-opti_dir', dest='opti_dirname',
+							   help='Directory created by module \'scg_optimize\' that contains all files\ngenerated during the optimization procedure',
+							   type=str, metavar='')
+	required_args.add_argument('-o', dest='plot_filename',
+							   help='Filename for the output plot, produced in directory -opti_dir.\nExtension/format can be one of: eps, pdf, pgf, png, ps, raw, rgba,\nsvg, svgz',
+							   type=str, default='opti_summary.png',
+							   metavar='    (opti_summary.png)')
+
+	optional_args = args_parser.add_argument_group(bullet + 'OTHERS')
+	optional_args.add_argument('-plot_scale', dest='plot_scale', help='Scale factor of the plot',
+							   type=float, default=1.0, metavar='        (1.0)')
+	optional_args.add_argument('-h', '--help', help='Show this help message and exit',
+							   action='help')
+
+	# display help if script was called without arguments
+	if len(sys.argv) == 1:
+		args_parser.print_help()
+		sys.exit()
+
+	# arguments handling, display command line if help or no arguments provided
+	ns = args_parser.parse_args()
+	input_cmdline = ' '.join(map(cmd_quote, sys.argv))
+	print('Working directory:', os.getcwd())
+	print('Command line:', input_cmdline)
+	print()
+	print(swarmcg.shared.styling.sep_close)
+	print(
+		'| SUMMARIZING OPTIMIZATION PROCEDURE                                                          |')
+	print(swarmcg.shared.styling.sep_close)
+	print()
+
+	main(ns)
 
 
