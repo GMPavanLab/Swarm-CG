@@ -1,5 +1,8 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
+
+import swarmcg.shared.styling
+
 warnings.filterwarnings("ignore")
 import os, sys, shutil, subprocess, time, copy, contextlib
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -34,7 +37,8 @@ def main():
   # ARGUMENTS HANDLING / HELP DISPLAY #
   #####################################
 
-  print(scg.header_package('                    Module: CG model optimization\n'))
+  print(
+    swarmcg.shared.styling.header_package('                    Module: CG model optimization\n'))
 
   args_parser = ArgumentParser(description='''\
 This module automatically optimizes the bonded parameters of a CG model to best match the bonds,
@@ -93,8 +97,8 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   # TODO: explain module analyze_opti_moves.py can be used to monitor optimization at any point of the process
   # TODO: end the help message by a new frame with examples from the demo data
 
-  req_args_header = config.sep_close+'\n|                                     REQUIRED ARGUMENTS                                      |\n'+config.sep_close
-  opt_args_header = config.sep_close+'\n|                                     OPTIONAL ARGUMENTS                                      |\n'+config.sep_close
+  req_args_header = swarmcg.shared.styling.sep_close + '\n|                                     REQUIRED ARGUMENTS                                      |\n' + swarmcg.shared.styling.sep_close
+  opt_args_header = swarmcg.shared.styling.sep_close + '\n|                                     OPTIONAL ARGUMENTS                                      |\n' + swarmcg.shared.styling.sep_close
   # bullet = '❭'
   # bullet = '★'
   # bullet = '|'
@@ -199,9 +203,9 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
 
   print()
   print()
-  print(config.sep_close)
+  print(swarmcg.shared.styling.sep_close)
   print('| PRE-PROCESSING AND CONTROLS                                                                 |')
-  print(config.sep_close)
+  print(swarmcg.shared.styling.sep_close)
   # print()
 
   # TODO: check that at least 10-20% of the simulations of the 1st swarm iteration finished properly, otherwise lower all energies or tell the user he is not writting into the log file regularly enough
@@ -210,7 +214,8 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
 
   # avoid overwriting an output directory of a previous optimization run
   if os.path.isfile(ns.exec_folder) or os.path.isdir(ns.exec_folder):
-    sys.exit(config.header_error+'Provided output folder already exists, please delete existing folder manually or provide another folder name.')
+    sys.exit(
+      swarmcg.shared.styling.header_error + 'Provided output folder already exists, please delete existing folder manually or provide another folder name.')
 
   # check if we can find files at user-provided location(s)
   arg_entries = vars(ns) # dict view of the arguments namespace
@@ -226,14 +231,15 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
       else:
         if ns.input_folder == '':
           data_folder_path = arg_entries[arg_entry]
-        sys.exit(config.header_error+'Cannot find file for argument -'+args_names[i]+' (expected at location: '+data_folder_path+')')
+        sys.exit(swarmcg.shared.styling.header_error + 'Cannot find file for argument -' + args_names[i] + ' (expected at location: ' + data_folder_path + ')')
 
   # check that gromacs alias is correct
   with open(os.devnull, 'w') as devnull:
     try:
       subprocess.call(ns.gmx_path, stdout=devnull, stderr=devnull)
     except OSError:
-      sys.exit(config.header_error+'Cannot find GROMACS using alias \''+ns.gmx_path+'\', please provide the right GROMACS alias or path')
+      sys.exit(
+        swarmcg.shared.styling.header_error + 'Cannot find GROMACS using alias \'' + ns.gmx_path + '\', please provide the right GROMACS alias or path')
 
   # check that ITP filename for the model to optimize is indeed included in the TOP file of the simulation directory
   # then find all TOP includes for copying files for simulations at each iteration
@@ -241,7 +247,8 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   with open(ns.top_input_filename, 'r') as fp:
     all_top_lines = fp.read()
     if ns.cg_itp_basename not in all_top_lines:
-      sys.exit(config.header_error+'The CG ITP model filename you provided is not included in your TOP file')
+      sys.exit(
+        swarmcg.shared.styling.header_error + 'The CG ITP model filename you provided is not included in your TOP file')
 
     top_lines = all_top_lines.split('\n')
     top_lines = [top_line.strip().split(';')[0] for top_line in top_lines] # split for comments
@@ -253,11 +260,13 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
 
   # check gmx arguments conflicts
   if ns.gmx_args_str != '' and (ns.nb_threads != 0 or ns.gpu_id != ''):
-  	print(config.header_warning+'Argument -gmx_args_str is provided together with one of arguments: -nb_threads, -gpu_id\nOnly argument -gmx_args_str will be used during this execution')
+  	print(
+      swarmcg.shared.styling.header_warning + 'Argument -gmx_args_str is provided together with one of arguments: -nb_threads, -gpu_id\nOnly argument -gmx_args_str will be used during this execution')
 
   # check bonds scaling arguments conflicts
   if (ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length) or (ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
-  	sys.exit(config.header_error+'Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length can be provided\nPlease check your parameters')
+  	sys.exit(
+      swarmcg.shared.styling.header_error + 'Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length can be provided\nPlease check your parameters')
   # if ns.bonds_scaling < 1:
   # 	sys.exit(config.header_error+'Bonds scaling factor is inferior to 1, please check your parameters')
 
@@ -338,7 +347,8 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   if ns.bonds_scaling_str != config.bonds_scaling_str:
     sp_str = ns.bonds_scaling_str.split()
     if len(sp_str) % 2 != 0:
-      sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nPlease check your parameters, or help for an example')
+      sys.exit(
+        swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
     ns.bonds_scaling_specific = dict()
     i = 0
     try:
@@ -346,25 +356,32 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
         geom_id = sp_str[i][1:]
         if sp_str[i][0].upper() == 'C':
           if int(geom_id) > ns.nb_constraints:
-            sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA constraint group id exceeds the number of constraints groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
+            sys.exit(
+              swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id exceeds the number of constraints groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
           if not 'C'+geom_id in ns.bonds_scaling_specific:
             if float(sp_str[i+1]) < 0:
-              sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
+              sys.exit(
+                swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
             ns.bonds_scaling_specific['C'+geom_id] = float(sp_str[i+1])
           else:
-            sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA constraint group id is provided multiple times (id: '+str(geom_id)+')\nPlease check your parameters, or help for an example')
+            sys.exit(
+              swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
         elif sp_str[i][0].upper() == 'B':
           if int(geom_id) > ns.nb_bonds:
-            sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA bond group id exceeds the number of bonds groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
+            sys.exit(
+              swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id exceeds the number of bonds groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
           if not 'B'+geom_id in ns.bonds_scaling_specific:
             if float(sp_str[i+1]) < 0:
-              sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
+              sys.exit(
+                swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
             ns.bonds_scaling_specific['B'+geom_id] = float(sp_str[i+1])
           else:
-            sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nA bond group id is provided multiple times (id: '+str(geom_id)+')\nPlease check your parameters, or help for an example')
+            sys.exit(
+              swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
         i += 2
     except ValueError:
-      sys.exit(config.header_error+'Cannot interpret argument -bonds_scaling_str as provided: \''+ns.bonds_scaling_str+'\'\nPlease check your parameters, or help for an example')
+      sys.exit(
+        swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
 
   # read atom mapped trajectory + find domains boundaries for values ranges (NOT the force constants, for which it is config/user defined already)
   print()
@@ -598,10 +615,10 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
 
     print()
     print()
-    print(config.sep_close)
+    print(swarmcg.shared.styling.sep_close)
     print('| STARTING OPTIMIZATION CYCLE', ns.opti_cycle['nb_cycle'], '                                                              |')
     print('| Optimizing', geoms_display, ' '*(95-16-len(geoms_display)), '|')
-    print(config.sep_close)
+    print(swarmcg.shared.styling.sep_close)
 
   	# actual BI to get the initial guesses of force constants, for all selected geoms at this given optimization step
     # BI is performed:
@@ -646,9 +663,9 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   ns.total_gmx_time = round(ns.total_gmx_time / (60 * 60), 2)
   ns.total_model_eval_time = round(ns.total_model_eval_time / (60 * 60), 2)
   print()
-  print(config.sep_close)
+  print(swarmcg.shared.styling.sep_close)
   print('|  FINISHED PROPERLY                                                                          |')
-  print(config.sep_close)
+  print(swarmcg.shared.styling.sep_close)
   print()
   print('Total nb of evaluation steps:', ns.nb_eval)
   print('Best model obtained at evaluation step number:', ns.best_fitness[1])

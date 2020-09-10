@@ -1,11 +1,13 @@
 from setuptools import setup, find_packages
 
+import swarmcg
+
 with open('README.md') as readme_file:
     README = readme_file.read()
 
 setup(
     name='swarm-cg',
-    version='v1.1.2',
+    version=swarmcg.__version__,
     description='Tools for automatic parametrization of bonded terms in coarse-grained molecular models, with respect to an all-atom trajectory',
 	author='Charly Empereur-mot',
 	author_email='charly.empereur@gmail.com',

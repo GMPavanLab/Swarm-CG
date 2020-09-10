@@ -1,5 +1,8 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
+
+import swarmcg.shared.styling
+
 warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -33,7 +36,7 @@ def main():
 	# ./evaluate_model.py -aa_tpr ../DATA_MDL/B3T/AA/topol.tpr -aa_traj ../DATA_MDL/B3T/AA/traj_atom.xtc -cg_map ../DATA_MDL/B3T/CG/MAPPING.ndx -cg_itp ../DATA_MDL/B3T/CG/MARTINI/B3T_CG.itp -cg_tpr B3T_HUMAN_SIM/produced.tpr -cg_traj B3T_HUMAN_SIM/produced.xtc
 
 
-	print(scg.header_package('                Module: Model bonded terms assessment\n'))
+	print(swarmcg.shared.styling.header_package('                Module: Model bonded terms assessment\n'))
 
 	args_parser = ArgumentParser(description='''\
 This module enables quick evaluation of the fit of bond, angle and dihedral distributions between
@@ -64,7 +67,7 @@ The AA trajectory is mapped on-the-fly using file from argument -cg_map, which u
 file format. Periodic boundary conditions are handled internally if the input trajectories
 contain box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52), add_help=False, usage=SUPPRESS)
 
-	all_args_header = config.sep_close+'\n|                                 REQUIRED/OPTIONAL ARGUMENTS                                 |\n'+config.sep_close
+	all_args_header = swarmcg.shared.styling.sep_close + '\n|                                 REQUIRED/OPTIONAL ARGUMENTS                                 |\n' + swarmcg.shared.styling.sep_close
 	# bullet = '❭'
 	# bullet = '★'
 	# bullet = '|'
@@ -126,24 +129,28 @@ contain box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(pr
 	# TODO: add missing checks -- if some are missing
 	# TODO: factorize all checks and put them in global lib
 	if not os.path.isfile(ns.aa_tpr_filename):
-		sys.exit(config.header_error+'Cannot find coordinate file of the atomistic simulation\n(GRO, PDB, or other trajectory formats supported by MDAnalysis)')
+		sys.exit(
+			swarmcg.shared.styling.header_error + 'Cannot find coordinate file of the atomistic simulation\n(GRO, PDB, or other trajectory formats supported by MDAnalysis)')
 	if not os.path.isfile(ns.aa_traj_filename):
-		sys.exit(config.header_error+'Cannot find trajectory file of the atomistic simulation\n(XTC, TRR, or other trajectory formats supported by MDAnalysis)')
+		sys.exit(
+			swarmcg.shared.styling.header_error + 'Cannot find trajectory file of the atomistic simulation\n(XTC, TRR, or other trajectory formats supported by MDAnalysis)')
 	if not os.path.isfile(ns.cg_map_filename):
-		sys.exit(config.header_error+'Cannot find CG beads mapping file (NDX-like file format)')
+		sys.exit(
+			swarmcg.shared.styling.header_error + 'Cannot find CG beads mapping file (NDX-like file format)')
 	if not os.path.isfile(ns.cg_itp_filename):
-		sys.exit(config.header_error+'Cannot find ITP file of the CG model')
+		sys.exit(swarmcg.shared.styling.header_error + 'Cannot find ITP file of the CG model')
 
 	# check bonds scaling arguments conflicts
 	if (ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length) or (ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
-		sys.exit(config.header_error+'Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length can be provided\nPlease check your parameters')
+		sys.exit(
+			swarmcg.shared.styling.header_error + 'Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length can be provided\nPlease check your parameters')
 	# if ns.bonds_scaling < 1:
 	# 	sys.exit(config.header_error+'Bonds scaling factor is inferior to 1, please check your parameters')
 
 	print()
-	print(config.sep_close)
+	print(swarmcg.shared.styling.sep_close)
 	print('| PRE-PROCESSING                                                                              |')
-	print(config.sep_close)
+	print(swarmcg.shared.styling.sep_close)
 	print()
 
 	# display parameters for function compare_models

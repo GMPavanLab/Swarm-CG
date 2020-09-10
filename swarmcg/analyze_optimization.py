@@ -1,5 +1,8 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
+
+import swarmcg.shared.styling
+
 warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -32,7 +35,7 @@ def main():
 
 	plt.rcParams['axes.axisbelow'] = True
 
-	print(scg.header_package('                  Module: Optimization run analysis\n'))
+	print(swarmcg.shared.styling.header_package('                  Module: Optimization run analysis\n'))
 
 	args_parser = ArgumentParser(description='''\
 This module produces a visual summary (big plot) of an optimization procedure started with
@@ -56,7 +59,7 @@ parameters (e.g. strong intra-molecular attractions that would not allow the mol
 extended conformations).
 ''', formatter_class=lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52), add_help=False, usage=SUPPRESS)
 
-	args_header = config.sep_close+'\n|                                         ARGUMENTS                                           |\n'+config.sep_close
+	args_header = swarmcg.shared.styling.sep_close + '\n|                                         ARGUMENTS                                           |\n' + swarmcg.shared.styling.sep_close
 	# bullet = '❭'
 	# bullet = '★'
 	# bullet = '|'
@@ -82,9 +85,9 @@ extended conformations).
 	print('Working directory:', os.getcwd())
 	print('Command line:', input_cmdline)
 	print()
-	print(config.sep_close)
+	print(swarmcg.shared.styling.sep_close)
 	print('| SUMMARIZING OPTIMIZATION PROCEDURE                                                          |')
-	print(config.sep_close)
+	print(swarmcg.shared.styling.sep_close)
 	print()
 
 	# parameters
@@ -100,7 +103,8 @@ extended conformations).
 		for i in range(1, iter_indep_scores.shape[1]):
 			forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
 	except IndexError:
-		sys.exit(config.header_error+'The optimization recap file seems empty, please wait for your optimization process to start or check for errors during execution')
+		sys.exit(
+			swarmcg.shared.styling.header_error + 'The optimization recap file seems empty, please wait for your optimization process to start or check for errors during execution')
 
 	# process files and plot
 	with open(ns.opti_dirname+'/'+config.opti_perf_recap_file, 'r') as fp:
