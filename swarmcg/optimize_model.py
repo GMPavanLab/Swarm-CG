@@ -13,6 +13,7 @@ from fstpso import FuzzyPSO
 import numpy as np
 
 from swarmcg import config
+from swarmcg.shared import exceptions
 from swarmcg import swarmCG as scg
 from swarmcg.shared.styling import OPTIMISE_DESCR
 
@@ -74,9 +75,11 @@ def main():
 
     # avoid overwriting an output directory of a previous optimization run
     if os.path.isfile(ns.exec_folder) or os.path.isdir(ns.exec_folder):
-        sys.exit(
-            swarmcg.shared.styling.header_error + 'Provided output folder already exists, please delete existing folder manually or provide another folder name.'
+        msg = (
+            "Provided output folder already exists, please delete existing folder "
+            "manually or provide another folder name."
         )
+        raise exceptions.AvoidOverwritingFolder(msg)
 
     # check if we can find files at user-provided location(s)
     arg_entries = vars(ns) # dict view of the arguments namespace
@@ -92,15 +95,22 @@ def main():
         else:
             if ns.input_folder == '':
                 data_folder_path = arg_entries[arg_entry]
-            sys.exit(swarmcg.shared.styling.header_error + 'Cannot find file for argument -' + args_names[i] + ' (expected at location: ' + data_folder_path + ')')
+            msg = (
+                f"Cannot find file for argument - {args_names[i]} "
+                f"(expected at location: {data_folder_path})"
+            )
+            raise FileNotFoundError(msg)
 
     # check that gromacs alias is correct
     with open(os.devnull, 'w') as devnull:
         try:
             subprocess.call(ns.gmx_path, stdout=devnull, stderr=devnull)
         except OSError:
-            sys.exit(
-                swarmcg.shared.styling.header_error + 'Cannot find GROMACS using alias \'' + ns.gmx_path + '\', please provide the right GROMACS alias or path')
+            msg = (
+                f"Cannot find GROMACS using alias {ns.gmx_path}, please provide "
+                f"the right GROMACS alias or path"
+            )
+            raise exceptions.ExecutableNotFound(msg)
 
     # check that ITP filename for the model to optimize is indeed included in the TOP file of the simulation directory
     # then find all TOP includes for copying files for simulations at each iteration
@@ -108,8 +118,8 @@ def main():
     with open(ns.top_input_filename, 'r') as fp:
         all_top_lines = fp.read()
         if ns.cg_itp_basename not in all_top_lines:
-            sys.exit(
-                swarmcg.shared.styling.header_error + 'The CG ITP model filename you provided is not included in your TOP file')
+            msg = "The CG ITP model filename you provided is not included in your TOP file."
+            raise exceptions.MDSimulationInputError(msg)
 
         top_lines = all_top_lines.split('\n')
         top_lines = [top_line.strip().split(';')[0] for top_line in top_lines] # split for comments
@@ -126,10 +136,11 @@ def main():
 
     # check bonds scaling arguments conflicts
     if (ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length) or (ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
-        sys.exit(
-            swarmcg.shared.styling.header_error + 'Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length can be provided\nPlease check your parameters')
-    # if ns.bonds_scaling < 1:
-    # 	sys.exit(config.header_error+'Bonds scaling factor is inferior to 1, please check your parameters')
+        msg = (
+            "Only one of arguments -bonds_scaling, -bonds_scaling_str and "
+            "-min_bonds_length can be provided. Please check your parameters"
+        )
+        raise exceptions.ConflictingArgument(msg)
 
     ##################
     # INITIALIZATION #
@@ -202,8 +213,12 @@ def main():
     if ns.bonds_scaling_str != config.bonds_scaling_str:
         sp_str = ns.bonds_scaling_str.split()
         if len(sp_str) % 2 != 0:
-            sys.exit(
-                swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
+            msg = (
+                f"Cannot interpret argument -bonds_scaling_str as provided: {ns.bonds_scaling_str}. "
+                f"Please check your parameters, or help for an example"
+            )
+            raise exceptions.InvalidArgument(msg)
+
         ns.bonds_scaling_specific = dict()
         i = 0
         try:
@@ -211,32 +226,31 @@ def main():
                 geom_id = sp_str[i][1:]
                 if sp_str[i][0].upper() == 'C':
                     if int(geom_id) > ns.nb_constraints:
-                        sys.exit(
-                            swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id exceeds the number of constraints groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
+                        info = "A constraint group id exceeds the number of constraints groups defined in the input CG ITP file."
+                        raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
                     if not 'C'+geom_id in ns.bonds_scaling_specific:
                         if float(sp_str[i+1]) < 0:
-                            sys.exit(
-                                swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
+                            info = "You cannot provide negative values for average distribution length."
+                            raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
                         ns.bonds_scaling_specific['C'+geom_id] = float(sp_str[i+1])
                     else:
-                        sys.exit(
-                            swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
+                        info = f"A constraint group id is provided multiple times (id: {geom_id})"
+                        raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
                 elif sp_str[i][0].upper() == 'B':
                     if int(geom_id) > ns.nb_bonds:
-                        sys.exit(
-                            swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id exceeds the number of bonds groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
+                        info = "A bond group id exceeds the number of bonds groups defined in the input CG ITP file."
+                        raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
                     if not 'B'+geom_id in ns.bonds_scaling_specific:
                         if float(sp_str[i+1]) < 0:
-                            sys.exit(
-                                swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
+                            info = "You cannot provide negative values for average distribution length."
+                            raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
                         ns.bonds_scaling_specific['B'+geom_id] = float(sp_str[i+1])
                     else:
-                        sys.exit(
-                            swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
+                        info = f"A bond group id is provided multiple times (id: {geom_id})"
+                        raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
                 i += 2
         except ValueError:
-            sys.exit(
-                swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
+            raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str)
 
     # read atom mapped trajectory + find domains boundaries for values ranges (NOT the force constants, for which it is config/user defined already)
     print()

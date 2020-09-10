@@ -12,6 +12,7 @@ import matplotlib
 
 from swarmcg import swarmCG as scg
 from swarmcg import config
+from swarmcg.shared import exceptions
 from swarmcg.shared.styling import EVALUATE_DESCR
 
 warnings.resetwarnings()
@@ -35,23 +36,33 @@ def main():
 	# TODO: add missing checks -- if some are missing
 	# TODO: factorize all checks and put them in global lib
 	if not os.path.isfile(ns.aa_tpr_filename):
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Cannot find coordinate file of the atomistic simulation\n(GRO, PDB, or other trajectory formats supported by MDAnalysis)')
+		msg = (
+			"Cannot find coordinate file of the atomistic simulation"
+			"(GRO, PDB, or other trajectory formats supported by MDAnalysis)"
+		)
+		raise exceptions.MissingCoordinateFile(msg)
 	if not os.path.isfile(ns.aa_traj_filename):
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Cannot find trajectory file of the atomistic simulation\n(XTC, TRR, or other trajectory formats supported by MDAnalysis)')
+		msg = (
+			"Cannot find trajectory file of the atomistic simulation"
+			"(XTC, TRR, or other trajectory formats supported by MDAnalysis)"
+		)
+		raise exceptions.MissingTrajectoryFile(msg)
+
 	if not os.path.isfile(ns.cg_map_filename):
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Cannot find CG beads mapping file (NDX-like file format)')
+		msg = "Cannot find CG beads mapping file (NDX-like file format)"
+		raise exceptions.MissingIndexFile(msg)
+
 	if not os.path.isfile(ns.cg_itp_filename):
-		sys.exit(swarmcg.shared.styling.header_error + 'Cannot find ITP file of the CG model')
+		msg = "Cannot find ITP file of the CG model"
+		raise exceptions.MissingItpFile(msg)
 
 	# check bonds scaling arguments conflicts
 	if (ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length) or (ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length can be provided\nPlease check your parameters')
-	# if ns.bonds_scaling < 1:
-	# 	sys.exit(config.header_error+'Bonds scaling factor is inferior to 1, please check your parameters')
+		msg = (
+			"Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length "
+			"can be provided. Please check your parameters"
+		)
+		raise exceptions.ConflictingArgument(msg)
 
 	print()
 	print(swarmcg.shared.styling.sep_close)
@@ -68,18 +79,11 @@ def main():
 		ns.atom_only = True
 	else:
 		ns.atom_only = False
-	# elif ns.cg_tpr_filename is not None and ns.cg_traj_filename is not None:
-	# 	ns.atom_only = False
-	# elif ns.cg_tpr_filename is not None or ns.cg_traj_filename is not None:
-	# 	if not os.path.isfile(str(ns.cg_tpr_filename)):
-	# 		sys.exit(config.header_error+'Cannot find portable run file of the coarse-grained simulation\n(TPR, or other portable formats supported by MDAnalysis)\nIf you want to look at distributions of your atomistic simulation\nexclusively, you have to omit both arguments -cg_tpr and -cg_traj')
-	# 	if not os.path.isfile(str(ns.cg_traj_filename)):
-	# 		sys.exit(config.header_error+'Cannot find trajectory file of the coarse-grained simulation (XTC, TRR, or other trajectory formats supported by MDAnalysis)\nIf you want to look at distributions of your atomistic simulation\nexclusively, you have to omit both arguments -aa_tpr and -cg_traj')
 
 	try:
 		if not ns.plot_filename.split('.')[-1] in ['eps', 'pdf', 'pgf', 'png', 'ps', 'raw', 'rgba', 'svg', 'svgz']:
 			ns.plot_filename = ns.plot_filename+'.png'
-	except IndexError:
+	except IndexError as e:
 		ns.plot_filename = ns.plot_filename+'.png'
 
 	scg.create_bins_and_dist_matrices(ns)
