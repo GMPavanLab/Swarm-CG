@@ -9,8 +9,8 @@ from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
 
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 import numpy as np
+from matplotlib.ticker import MaxNLocator
 
 from swarmcg import config
 from swarmcg.shared import exceptions

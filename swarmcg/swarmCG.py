@@ -14,6 +14,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from pyemd import emd
+import MDAnalysis as mda
 
 from scipy.spatial.distance import cdist
 from scipy.optimize import curve_fit
