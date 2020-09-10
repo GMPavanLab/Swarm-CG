@@ -19,7 +19,7 @@ warnings.resetwarnings()
 matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 
 
-def main():
+def run(ns):
 
 	from numpy import VisibleDeprecationWarning
 	warnings.filterwarnings("ignore", category=VisibleDeprecationWarning) # filter MDAnalysis + numpy deprecation stuff that is annoying
@@ -90,18 +90,7 @@ def main():
 	scg.compare_models(ns, manual_mode=True, calc_sasa=False)
 
 
-if __name__ == '__main__':
-
-	# command for tests
-	# ./evaluate_model.py -aa_tpr ../DATA_MDL/Mono_B/atomistic/MOB_atomistic_solvated.tpr -aa_traj ../DATA_MDL/Mono_B/atomistic/MOB_atomistic_solvated.xtc -cg_map ../DATA_MDL/Mono_B/MOB_atom_mapping/atomistic/MOB_mapping.ndx -cg_itp MOB_HUMAN_SIM/Mono_B.itp -cg_tpr MOB_HUMAN_SIM/cg_solvated.tpr -cg_traj MOB_HUMAN_SIM/cg_solvated.xtc
-
-	# ./evaluate_model.py -aa_tpr ../DATA_MDL/Mono_B/atomistic/MOB_atomistic_solvated.tpr -aa_traj ../DATA_MDL/Mono_B/atomistic/MOB_atomistic_solvated.xtc -cg_map ../DATA_MDL/Mono_B/MOB_atom_mapping/atomistic/MOB_mapping.ndx -cg_itp MOB_HUMAN_SIM/Mono_B.itp
-
-	# ./evaluate_model.py -aa_tpr ../DATA_MDL/BTA/BTA_atom_mapping/atomistic/fake_for_test.tpr -aa_traj ../DATA_MDL/BTA/BTA_atom_mapping/atomistic/ATOM_TRAJ.xtc -cg_map ../DATA_MDL/BTA/BTA_atom_mapping/atomistic/index_bta.ndx -cg_itp BTA_HUMAN_SIM/bta_P3.itp -cg_tpr BTA_HUMAN_SIM/cg_solvated.tpr -cg_traj BTA_HUMAN_SIM/cg_solvated.xtc
-
-	# ./evaluate_model.py -aa_tpr ../DATA_MDL/POPC/AA/topol.tpr -aa_traj ../DATA_MDL/POPC/AA/traj.trr -cg_map ../DATA_MDL/POPC/CG/mapping.ndx -cg_itp POPC_CG_SIM/martini_v2.0_POPC_02.itp -cg_tpr POPC_CG_SIM/cg_solvated.tpr -cg_traj POPC_CG_SIM/cg_solvated.xtc
-
-	# ./evaluate_model.py -aa_tpr ../DATA_MDL/B3T/AA/topol.tpr -aa_traj ../DATA_MDL/B3T/AA/traj_atom.xtc -cg_map ../DATA_MDL/B3T/CG/MAPPING.ndx -cg_itp ../DATA_MDL/B3T/CG/MARTINI/B3T_CG.itp -cg_tpr B3T_HUMAN_SIM/produced.tpr -cg_traj B3T_HUMAN_SIM/produced.xtc
+def main():
 
 	print(swarmcg.shared.styling.header_package(
 		'                Module: Model bonded terms assessment\n'))
@@ -213,4 +202,4 @@ if __name__ == '__main__':
 	print('Working directory:', os.getcwd())
 	print('Command line:', input_cmdline)
 
-	main(ns)
+	run(ns)

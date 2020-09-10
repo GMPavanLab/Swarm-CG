@@ -20,7 +20,7 @@ from swarmcg.shared.utils import forward_fill
 warnings.resetwarnings()
 
 
-def main(ns):
+def run(ns):
 
 	# TODO: print some text to tell user if opti run finished or not -- then we can only look at the results files, not the running processes on the machine
 
@@ -612,7 +612,8 @@ def main(ns):
 	print('Wrote visual optimization summary file at location:\n ', os.path.normpath(ns.opti_dirname+'/'+ns.plot_filename))
 	print()
 
-if __name__ == '__main__':
+
+def main():
 
 	print(swarmcg.shared.styling.header_package(
 		'                  Module: Optimization run analysis\n'))
@@ -660,6 +661,6 @@ if __name__ == '__main__':
 	print(swarmcg.shared.styling.sep_close)
 	print()
 
-	main(ns)
+	run(ns)
 
 

@@ -20,7 +20,7 @@ from swarmcg.shared.styling import OPTIMISE_DESCR
 warnings.resetwarnings()
 
 
-def main():
+def run(ns):
 
     from numpy import VisibleDeprecationWarning
     warnings.filterwarnings("ignore", category=VisibleDeprecationWarning) # filter MDAnalysis + numpy deprecation stuff that is annoying
@@ -544,7 +544,7 @@ def main():
     print()
 
 
-if __name__ == '__main__':
+def main():
 
     print(
     swarmcg.shared.styling.header_package('                    Module: CG model optimization\n'))
@@ -735,5 +735,5 @@ if __name__ == '__main__':
     print('Command line:', input_cmdline)
     print('Results directory:', ns.exec_folder)
 
-    main(ns)
+    run(ns)
 
