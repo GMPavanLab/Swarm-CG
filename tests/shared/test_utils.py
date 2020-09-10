@@ -23,7 +23,7 @@ def test_forward_fill():
 
 def test_forward_fill_fail():
     # given:
-    x = [1, 2, 10, 4, None, None, 10, 10]
+    x = [None, None]
 
     # when:
     cond_value = None
