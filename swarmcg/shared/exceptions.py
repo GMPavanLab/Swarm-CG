@@ -34,6 +34,10 @@ class IncompleteOptimisationFile(BaseError):
     pass
 
 
+class OptimisationResultsError(BaseError):
+    pass
+
+
 class MissingCoordinateFile(BaseError):
     pass
 

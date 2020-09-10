@@ -1,7 +1,10 @@
+import pytest
+
 import numpy as np
 from numpy.testing import assert_almost_equal
 
 from swarmcg.shared import utils
+from swarmcg.shared.exceptions import OptimisationResultsError
 
 
 # TODO: add test on failure but needs dedicated exceptions rather and sys.exit
@@ -16,6 +19,16 @@ def test_forward_fill():
     # then:
     expected = [1, 2, 10, 4, 4, 4, 10, 10]
     assert result == expected
+
+
+def test_forward_fill_fail():
+    # given:
+    x = [1, 2, 10, 4, None, None, 10, 10]
+
+    # when:
+    cond_value = None
+    with pytest.raises(OptimisationResultsError):
+        _ = utils.forward_fill(x, cond_value)
 
 
 def test_sma():
