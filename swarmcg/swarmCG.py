@@ -4,10 +4,8 @@ import warnings
 import swarmcg.shared.styling
 
 warnings.filterwarnings("ignore")
-import collections
-
-import (sys, re, random, os, shutil, subprocess, signal, time, contextlib,
-		warnings, textwrap, collections)
+import sys, re, random, os, shutil, subprocess, signal, time, contextlib
+import warnings, collections
 from datetime import datetime
 
 # matplotlib new version has some problems with incorrectly uninstalled files at version upgrade and display a lot of warnings
@@ -28,11 +26,9 @@ warnings.resetwarnings()
 
 # TODO: When provided trajectory file does NOT contain PBC infos (box position and size for each frame, which are present in XTC format for example), we want to stil accept the provided trajectory format (if accepted by MDAnalysis) but we automatically disable the handling of PBC by the code
 
-
 # cast object as string, enclose by parentheses and return a string -- for arguments display in help
 def par_wrap(string):
 	return '('+str(string)+')'
-
 
 # set MDAnalysis backend and number of threads
 def set_MDA_backend(ns):

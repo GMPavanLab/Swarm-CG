@@ -12,8 +12,9 @@ from datetime import datetime
 from fstpso import FuzzyPSO 
 import numpy as np
 
-from . import config
-from . import swarmCG as scg
+from swarmcg import config
+from swarmcg import swarmCG as scg
+from swarmcg.shared.styling import OPTIMISE_DESCR
 
 warnings.resetwarnings()
 
@@ -32,150 +33,9 @@ def main():
 
   # NOTE: gmx trjconv and sasa may produce bugs when using TPR produced with gromacs v5, only current solution seems to be implementing the SASA calculation using MDTraj
 
-
   #####################################
   # ARGUMENTS HANDLING / HELP DISPLAY #
   #####################################
-
-  print(
-    swarmcg.shared.styling.header_package('                    Module: CG model optimization\n'))
-
-  args_parser = ArgumentParser(description='''\
-This module automatically optimizes the bonded parameters of a CG model to best match the bonds,
-angles and dihedrals distributions of a reference AA model. Different sets of bonded parameters
-are explored via swarm optimization (FST-PSO) and iterative CG simulations. Bonded parameters are
-evaluated for the matching they produce between AA and CG distributions via a scoring function
-relying on the Earth Movers' Distance (EMD/Wasserstein). The process is designed to execute in
-4-24h on a standard desktop machine, according to hardware, molecule size and simulations setup. 
-
-This module has 2 optimization modes:
-
-  (1) TUNE BOTH BONDS LENGTHS, ANGLES/DIHEDRALS VALUES AND THEIR FORCE CONSTANTS. First uses
-      Boltzmann Inversion to estimate bonds lengths, angles/dihedrals values and their force
-      constants, then runs optimization to best fit the reference AA-mapped distributions.
-
-  (2) TUNE ONLY FORCE CONSTANTS FOR ANGLES/DIHEDRALS VALUES AND ALL PARAMETERS FOR BONDS.
-      Equilibrium values of angles/dihedrals provided in the preliminary  CG ITP model are
-      conserved while optimization best fits reference AA-mapped distributions.
-
-Independently of parameters, the expected input is:
-
-  (1) Atomistic trajectory of the molecule   (gromacs binary TPR + trajectory files XTC TRR)
-  (2) Mapping file, atoms to CG beads        (gromacs NDX format)
-  (3) CG model ITP file to be optimized      (group identical bonds/angles/dihedrals, see below)
-  (4) CG simulation files                    (initial configuration GRO + system TOP + MDP files)
-
-You can prepare a directory using default input filenames, then provide only argument -in_dir.
-If -in_dir is provided, all filenames provided as arguments will also be searched for within
-this directory. Demonstration data are available at '''+config.github_url+'''.
-
-Arguments allows to specify scaling of the AA bonds used as reference to optimize the CG model.
-An image displaying all AA reference distributions will be created at the very beginning of the
-optimization process. You can check it to make sure scaling is conform to your expectations.
-
-The CG model preliminary ITP file follows the standard ITP format, with one subtlety. The file
-can include groups of bonds, angles and dihedrals that will be considered identical. Their
-distributions will be averaged within groups. This is important to obtain reliable results for
-symmetrical molecules. Groups can be formed using empty line(s) or comment(s), like this:
-
-  [ angles ]
-
-  ; i     j     k    funct   angle  force.c.
-  ; grp 1
-    5     6    10        1     150       40      ; NOTE 1: force constants can be set to 0
-    9     8    11        1     150       40      ;         in the prelim. model to optimize
-  ; grp 2
-    1     6    10        2     120        0      ; NOTE 2: either comment(s) or empty line(s)
-    4     8    11        2     120        0      ;         separate groups of bonds/ang/dihe.
-
-The AA trajectory is mapped on-the-fly using file from argument -cg_map, which uses gromacs NDX
-file format. Periodic boundary conditions are handled internally if the input AA trajectory
-contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52), add_help=False, usage=SUPPRESS)
-
-  # TODO: handle trajectories for which no box informations are provided
-  # TODO: explain what is modified in the MDP
-  # TODO: explain module analyze_opti_moves.py can be used to monitor optimization at any point of the process
-  # TODO: end the help message by a new frame with examples from the demo data
-
-  req_args_header = swarmcg.shared.styling.sep_close + '\n|                                     REQUIRED ARGUMENTS                                      |\n' + swarmcg.shared.styling.sep_close
-  opt_args_header = swarmcg.shared.styling.sep_close + '\n|                                     OPTIONAL ARGUMENTS                                      |\n' + swarmcg.shared.styling.sep_close
-  # bullet = '❭'
-  # bullet = '★'
-  # bullet = '|'
-  bullet = ' '
-
-  optional_args0 = args_parser.add_argument_group(req_args_header+'\n\n'+bullet+'EXECUTION MODE')
-  optional_args0.add_argument('-exec_mode', dest='exec_mode', help='MODE 1: Tune both bonds lengths, angles/dihedrals values\n        and their force constants\nMODE 2: Like MODE 1 but angles/dihedrals values in the prelim.\n        CG model ITP are conserved during optimization\nMODE 3: Like MODE 1 but only dihedrals values in the prelim.\n        CG model ITP are conserved during optimization', type=int, default=1, metavar='              (1)')
-
-  required_args = args_parser.add_argument_group(bullet+'REFERENCE AA MODEL')
-  required_args.add_argument('-aa_tpr', dest='aa_tpr_filename', help=config.help_aa_tpr, type=str, default=config.metavar_aa_tpr, metavar='      '+scg.par_wrap(config.metavar_aa_tpr))
-  required_args.add_argument('-aa_traj', dest='aa_traj_filename', help=config.help_aa_traj, type=str, default=config.metavar_aa_traj, metavar='      '+scg.par_wrap(config.metavar_aa_traj))
-  required_args.add_argument('-cg_map', dest='cg_map_filename', help=config.help_cg_map, type=str, default=config.metavar_cg_map, metavar='        '+scg.par_wrap(config.metavar_cg_map))
-
-  sim_filenames_args = args_parser.add_argument_group(bullet+'CG MODEL OPTIMIZATION')
-  sim_filenames_args.add_argument('-cg_itp', dest='cg_itp_filename', help='ITP file of the CG model to optimize', type=str, default=config.metavar_cg_itp, metavar='      '+scg.par_wrap(config.metavar_cg_itp))
-  sim_filenames_args.add_argument('-cg_gro', dest='gro_input_filename', help='Starting GRO file used for iterative simulation\nWill be minimized and relaxed before each MD run', type=str, default='start_conf.gro', metavar='    (start_conf.gro)')
-  sim_filenames_args.add_argument('-cg_top', dest='top_input_filename', help='TOP file used for iterative simulation', type=str, default='system.top', metavar='        (system.top)')
-  sim_filenames_args.add_argument('-cg_mdp_mini', dest='mdp_minimization_filename', help='MDP file used for minimization runs', type=str, default='mini.mdp', metavar='     (mini.mdp)')
-  sim_filenames_args.add_argument('-cg_mdp_equi', dest='mdp_equi_filename', help='MDP file used for equilibration runs', type=str, default='equi.mdp', metavar='     (equi.mdp)')
-  sim_filenames_args.add_argument('-cg_mdp_md', dest='mdp_md_filename', help='MDP file used for the MD runs analyzed for optimization', type=str, default='md.mdp', metavar='         (md.mdp)')
-
-  optional_args4 = args_parser.add_argument_group(opt_args_header+'\n\n'+bullet+'FILES HANDLING')
-  optional_args4.add_argument('-in_dir', dest='input_folder', help='Additional prefix path used to find argument-provided files\nIf ambiguous, files found without prefix are preferred', type=str, default='.', metavar='')
-  optional_args4.add_argument('-out_dir', dest='output_folder', help='Directory where to store all outputs of this program\nDefault -out_dir is named after timestamp', type=str, default='', metavar='')
-
-  optional_args1 = args_parser.add_argument_group(bullet+'GROMACS SETTINGS')
-  optional_args1.add_argument('-gmx', dest='gmx_path', help=config.help_gmx_path, type=str, default=config.gmx_path, metavar='                  '+scg.par_wrap(config.gmx_path))
-  optional_args1.add_argument('-nt', dest='nb_threads', help='Number of threads to use, forwarded to gmx mdrun -nt', type=int, default=0, metavar='                     (0)')
-  optional_args1.add_argument('-gpu_id', dest='gpu_id', help='String (use quotes) space-separated list of GPU device IDs', type=str, default='', metavar='')
-  optional_args1.add_argument('-gmx_args_str', dest='gmx_args_str', help='String (use quotes) of arguments to forward to gmx mdrun\nIf provided, arguments -nt and -gpu_id are ignored', type=str, default='', metavar='')
-  optional_args1.add_argument('-mini_maxwarn', dest='mini_maxwarn', help='Max. number of warnings to ignore, forwarded to gmx\ngrompp -maxwarn at each minimization step', type=int, default=1, metavar='           (1)')
-  optional_args1.add_argument('-sim_kill_delay', dest='sim_kill_delay', help='Time (s) after which to kill a simulation that has not been\nwriting into its log file, in case a simulation gets stuck', type=int, default=60, metavar='        (60)')
-
-  optional_args2 = args_parser.add_argument_group(bullet+'CG MODEL SCALING')
-  optional_args2.add_argument('-aa_rg_offset', dest='aa_rg_offset', help='Radius of gyration offset (nm) to be applied to AA data\naccording to your potential bonds rescaling (for display only)', type=float, default=0.00, metavar='        '+scg.par_wrap('0.00'))
-  optional_args2.add_argument('-bonds_scaling', dest='bonds_scaling', help=config.help_bonds_scaling, type=float, default=config.bonds_scaling, metavar='        '+scg.par_wrap(config.bonds_scaling))
-  optional_args2.add_argument('-bonds_scaling_str', dest='bonds_scaling_str', help=config.help_bonds_scaling_str, type=str, default=config.bonds_scaling_str, metavar='')
-  optional_args2.add_argument('-min_bonds_length', dest='min_bonds_length', help=config.help_min_bonds_length, type=float, default=config.min_bonds_length, metavar='     '+scg.par_wrap(config.min_bonds_length))
-
-  optional_args5 = args_parser.add_argument_group(bullet+'CG MODEL SCORING')
-  optional_args5.add_argument('-cg_time_short', dest='sim_duration_short', help='Simulation time (ns) of the MD runs analyzed for optimization\nIn opti. cycles 1 and 2, this will modify MDP file for the MD runs', type=float, default=10, metavar='         (10)')
-  optional_args5.add_argument('-cg_time_long', dest='sim_duration_long', help='Simulation time (ns) of the MD runs analyzed for optimization\nIn opti. cycle 3, this will modify MDP file for the MD runs', type=float, default=25, metavar='          (25)')
-  optional_args5.add_argument('-b2a_score_fact', dest='bonds2angles_scoring_factor', help=config.help_bonds2angles_scoring_factor, type=float, default=config.bonds2angles_scoring_factor, metavar='       '+scg.par_wrap(config.bonds2angles_scoring_factor))
-  optional_args5.add_argument('-bw_constraints', dest='bw_constraints', help=config.help_bw_constraints, type=float, default=config.bw_constraints, metavar='     '+scg.par_wrap(config.bw_constraints))
-  optional_args5.add_argument('-bw_bonds', dest='bw_bonds', help=config.help_bw_bonds, type=float, default=config.bw_bonds, metavar='            '+scg.par_wrap(config.bw_bonds))
-  optional_args5.add_argument('-bw_angles', dest='bw_angles', help=config.help_bw_angles, type=float, default=config.bw_angles, metavar='              '+scg.par_wrap(config.bw_angles))
-  optional_args5.add_argument('-bw_dihedrals', dest='bw_dihedrals', help=config.help_bw_dihedrals, type=float, default=config.bw_dihedrals, metavar='           '+scg.par_wrap(config.bw_dihedrals))
-  optional_args5.add_argument('-bonds_max_range', dest='bonded_max_range', help=config.help_bonds_max_range, type=float, default=config.bonds_max_range, metavar='        '+scg.par_wrap(config.bonds_max_range))
-
-  optional_args6 = args_parser.add_argument_group(bullet+'CG MODEL FORCE CONSTANTS')
-  optional_args6.add_argument('-max_fct_bonds_f1', dest='default_max_fct_bonds_opti', help=config.help_max_fct_bonds, type=float, default=config.default_max_fct_bonds_opti, metavar='   '+scg.par_wrap(config.default_max_fct_bonds_opti))
-  optional_args6.add_argument('-max_fct_angles_f1', dest='default_max_fct_angles_opti_f1', help=config.help_max_fct_angles_f1, type=float, default=config.default_max_fct_angles_opti_f1, metavar='   '+scg.par_wrap(config.default_max_fct_angles_opti_f1))
-  optional_args6.add_argument('-max_fct_angles_f2', dest='default_max_fct_angles_opti_f2', help=config.help_max_fct_angles_f2, type=float, default=config.default_max_fct_angles_opti_f2, metavar='   '+scg.par_wrap(config.default_max_fct_angles_opti_f2))
-  optional_args6.add_argument('-max_fct_dihedrals_f149', dest='default_abs_range_fct_dihedrals_opti_func_with_mult', help=config.help_max_fct_dihedrals_with_mult, type=float, default=config.default_abs_range_fct_dihedrals_opti_func_with_mult, metavar=''+scg.par_wrap(config.default_abs_range_fct_dihedrals_opti_func_with_mult))
-  optional_args6.add_argument('-max_fct_dihedrals_f2', dest='default_max_fct_dihedrals_opti_func_without_mult', help=config.help_max_fct_dihedrals_without_mult, type=float, default=config.default_max_fct_dihedrals_opti_func_without_mult, metavar=''+scg.par_wrap(config.default_max_fct_dihedrals_opti_func_without_mult))
-
-  optional_args3 = args_parser.add_argument_group(bullet+'OTHERS')
-  optional_args3.add_argument('-temp', dest='temp', help='Temperature used to perform Boltzmann inversion (K)', type=float, default=config.sim_temperature, metavar='                 '+scg.par_wrap(config.sim_temperature))
-  optional_args3.add_argument('-keep_all_sims', dest='keep_all_sims', help='Store all gmx files for all simulations, may use disk space', action='store_true', default=False)
-  optional_args3.add_argument('-h', '--help', help='Show this help message and exit', action='help')
-  optional_args3.add_argument('-v', '--verbose', dest='verbose', help=config.help_verbose, action='store_true', default=False)
-
-  # display help if script was called without arguments
-  if len(sys.argv) == 1:
-      args_parser.print_help()
-      sys.exit()
-
-  # arguments handling, display command line if help or no arguments provided
-  # argcomplete.autocomplete(parser)
-  ns = args_parser.parse_args()
-  input_cmdline = ' '.join(map(cmd_quote, sys.argv))
-  ns.exec_folder = time.strftime("MODEL_OPTI__STARTED_%d-%m-%Y_%Hh%Mm%Ss") # default folder name for all files of this optimization run, in case none is provided
-  if ns.output_folder != '':
-  	ns.exec_folder = ns.output_folder
-  print('Working directory:', os.getcwd())
-  print('Command line:', input_cmdline)
-  print('Results directory:', ns.exec_folder)
 
   # namespace variables not directly linked to arguments for plotting or for global package interpretation
   ns.mismatch_order = False
@@ -640,7 +500,7 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
     # nb_particles = 2 # for tests
     initial_guess_list = scg.get_initial_guess_list(ns, nb_particles)
 
-  	# actual optimization
+    # actual optimization
     with open(os.devnull, 'w') as devnull:
       with contextlib.redirect_stdout(devnull):
         FP = FuzzyPSO()
@@ -677,6 +537,194 @@ contains box dimensions.''', formatter_class=lambda prog: RawTextHelpFormatter(p
   print()
 
 
+if __name__ == '__main__':
 
+  print(
+    swarmcg.shared.styling.header_package('                    Module: CG model optimization\n'))
+
+  formatter = lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52)
+  args_parser = ArgumentParser(
+    description=OPTIMISE_DESCR,
+    formatter_class=formatter,
+    add_help=False,
+    usage=SUPPRESS
+  )
+
+  # TODO: handle trajectories for which no box informations are provided
+  # TODO: explain what is modified in the MDP
+  # TODO: explain module analyze_opti_moves.py can be used to monitor optimization at any point of the process
+  # TODO: end the help message by a new frame with examples from the demo data
+
+  req_args_header = swarmcg.shared.styling.sep_close + '\n|                                     REQUIRED ARGUMENTS                                      |\n' + swarmcg.shared.styling.sep_close
+  opt_args_header = swarmcg.shared.styling.sep_close + '\n|                                     OPTIONAL ARGUMENTS                                      |\n' + swarmcg.shared.styling.sep_close
+  bullet = ' '
+
+  optional_args0 = args_parser.add_argument_group(
+    req_args_header + '\n\n' + bullet + 'EXECUTION MODE')
+  optional_args0.add_argument('-exec_mode', dest='exec_mode',
+                              help='MODE 1: Tune both bonds lengths, angles/dihedrals values\n        and their force constants\nMODE 2: Like MODE 1 but angles/dihedrals values in the prelim.\n        CG model ITP are conserved during optimization\nMODE 3: Like MODE 1 but only dihedrals values in the prelim.\n        CG model ITP are conserved during optimization',
+                              type=int, default=1, metavar='              (1)')
+
+  required_args = args_parser.add_argument_group(bullet + 'REFERENCE AA MODEL')
+  required_args.add_argument('-aa_tpr', dest='aa_tpr_filename', help=config.help_aa_tpr, type=str,
+                             default=config.metavar_aa_tpr,
+                             metavar='      ' + scg.par_wrap(config.metavar_aa_tpr))
+  required_args.add_argument('-aa_traj', dest='aa_traj_filename', help=config.help_aa_traj,
+                             type=str, default=config.metavar_aa_traj,
+                             metavar='      ' + scg.par_wrap(config.metavar_aa_traj))
+  required_args.add_argument('-cg_map', dest='cg_map_filename', help=config.help_cg_map, type=str,
+                             default=config.metavar_cg_map,
+                             metavar='        ' + scg.par_wrap(config.metavar_cg_map))
+
+  sim_filenames_args = args_parser.add_argument_group(bullet + 'CG MODEL OPTIMIZATION')
+  sim_filenames_args.add_argument('-cg_itp', dest='cg_itp_filename',
+                                  help='ITP file of the CG model to optimize', type=str,
+                                  default=config.metavar_cg_itp,
+                                  metavar='      ' + scg.par_wrap(config.metavar_cg_itp))
+  sim_filenames_args.add_argument('-cg_gro', dest='gro_input_filename',
+                                  help='Starting GRO file used for iterative simulation\nWill be minimized and relaxed before each MD run',
+                                  type=str, default='start_conf.gro',
+                                  metavar='    (start_conf.gro)')
+  sim_filenames_args.add_argument('-cg_top', dest='top_input_filename',
+                                  help='TOP file used for iterative simulation', type=str,
+                                  default='system.top', metavar='        (system.top)')
+  sim_filenames_args.add_argument('-cg_mdp_mini', dest='mdp_minimization_filename',
+                                  help='MDP file used for minimization runs', type=str,
+                                  default='mini.mdp', metavar='     (mini.mdp)')
+  sim_filenames_args.add_argument('-cg_mdp_equi', dest='mdp_equi_filename',
+                                  help='MDP file used for equilibration runs', type=str,
+                                  default='equi.mdp', metavar='     (equi.mdp)')
+  sim_filenames_args.add_argument('-cg_mdp_md', dest='mdp_md_filename',
+                                  help='MDP file used for the MD runs analyzed for optimization',
+                                  type=str, default='md.mdp', metavar='         (md.mdp)')
+
+  optional_args4 = args_parser.add_argument_group(
+    opt_args_header + '\n\n' + bullet + 'FILES HANDLING')
+  optional_args4.add_argument('-in_dir', dest='input_folder',
+                              help='Additional prefix path used to find argument-provided files\nIf ambiguous, files found without prefix are preferred',
+                              type=str, default='.', metavar='')
+  optional_args4.add_argument('-out_dir', dest='output_folder',
+                              help='Directory where to store all outputs of this program\nDefault -out_dir is named after timestamp',
+                              type=str, default='', metavar='')
+
+  optional_args1 = args_parser.add_argument_group(bullet + 'GROMACS SETTINGS')
+  optional_args1.add_argument('-gmx', dest='gmx_path', help=config.help_gmx_path, type=str,
+                              default=config.gmx_path,
+                              metavar='                  ' + scg.par_wrap(config.gmx_path))
+  optional_args1.add_argument('-nt', dest='nb_threads',
+                              help='Number of threads to use, forwarded to gmx mdrun -nt', type=int,
+                              default=0, metavar='                     (0)')
+  optional_args1.add_argument('-gpu_id', dest='gpu_id',
+                              help='String (use quotes) space-separated list of GPU device IDs',
+                              type=str, default='', metavar='')
+  optional_args1.add_argument('-gmx_args_str', dest='gmx_args_str',
+                              help='String (use quotes) of arguments to forward to gmx mdrun\nIf provided, arguments -nt and -gpu_id are ignored',
+                              type=str, default='', metavar='')
+  optional_args1.add_argument('-mini_maxwarn', dest='mini_maxwarn',
+                              help='Max. number of warnings to ignore, forwarded to gmx\ngrompp -maxwarn at each minimization step',
+                              type=int, default=1, metavar='           (1)')
+  optional_args1.add_argument('-sim_kill_delay', dest='sim_kill_delay',
+                              help='Time (s) after which to kill a simulation that has not been\nwriting into its log file, in case a simulation gets stuck',
+                              type=int, default=60, metavar='        (60)')
+
+  optional_args2 = args_parser.add_argument_group(bullet + 'CG MODEL SCALING')
+  optional_args2.add_argument('-aa_rg_offset', dest='aa_rg_offset',
+                              help='Radius of gyration offset (nm) to be applied to AA data\naccording to your potential bonds rescaling (for display only)',
+                              type=float, default=0.00, metavar='        ' + scg.par_wrap('0.00'))
+  optional_args2.add_argument('-bonds_scaling', dest='bonds_scaling',
+                              help=config.help_bonds_scaling, type=float,
+                              default=config.bonds_scaling,
+                              metavar='        ' + scg.par_wrap(config.bonds_scaling))
+  optional_args2.add_argument('-bonds_scaling_str', dest='bonds_scaling_str',
+                              help=config.help_bonds_scaling_str, type=str,
+                              default=config.bonds_scaling_str, metavar='')
+  optional_args2.add_argument('-min_bonds_length', dest='min_bonds_length',
+                              help=config.help_min_bonds_length, type=float,
+                              default=config.min_bonds_length,
+                              metavar='     ' + scg.par_wrap(config.min_bonds_length))
+
+  optional_args5 = args_parser.add_argument_group(bullet + 'CG MODEL SCORING')
+  optional_args5.add_argument('-cg_time_short', dest='sim_duration_short',
+                              help='Simulation time (ns) of the MD runs analyzed for optimization\nIn opti. cycles 1 and 2, this will modify MDP file for the MD runs',
+                              type=float, default=10, metavar='         (10)')
+  optional_args5.add_argument('-cg_time_long', dest='sim_duration_long',
+                              help='Simulation time (ns) of the MD runs analyzed for optimization\nIn opti. cycle 3, this will modify MDP file for the MD runs',
+                              type=float, default=25, metavar='          (25)')
+  optional_args5.add_argument('-b2a_score_fact', dest='bonds2angles_scoring_factor',
+                              help=config.help_bonds2angles_scoring_factor, type=float,
+                              default=config.bonds2angles_scoring_factor,
+                              metavar='       ' + scg.par_wrap(config.bonds2angles_scoring_factor))
+  optional_args5.add_argument('-bw_constraints', dest='bw_constraints',
+                              help=config.help_bw_constraints, type=float,
+                              default=config.bw_constraints,
+                              metavar='     ' + scg.par_wrap(config.bw_constraints))
+  optional_args5.add_argument('-bw_bonds', dest='bw_bonds', help=config.help_bw_bonds, type=float,
+                              default=config.bw_bonds,
+                              metavar='            ' + scg.par_wrap(config.bw_bonds))
+  optional_args5.add_argument('-bw_angles', dest='bw_angles', help=config.help_bw_angles,
+                              type=float, default=config.bw_angles,
+                              metavar='              ' + scg.par_wrap(config.bw_angles))
+  optional_args5.add_argument('-bw_dihedrals', dest='bw_dihedrals', help=config.help_bw_dihedrals,
+                              type=float, default=config.bw_dihedrals,
+                              metavar='           ' + scg.par_wrap(config.bw_dihedrals))
+  optional_args5.add_argument('-bonds_max_range', dest='bonded_max_range',
+                              help=config.help_bonds_max_range, type=float,
+                              default=config.bonds_max_range,
+                              metavar='        ' + scg.par_wrap(config.bonds_max_range))
+
+  optional_args6 = args_parser.add_argument_group(bullet + 'CG MODEL FORCE CONSTANTS')
+  optional_args6.add_argument('-max_fct_bonds_f1', dest='default_max_fct_bonds_opti',
+                              help=config.help_max_fct_bonds, type=float,
+                              default=config.default_max_fct_bonds_opti,
+                              metavar='   ' + scg.par_wrap(config.default_max_fct_bonds_opti))
+  optional_args6.add_argument('-max_fct_angles_f1', dest='default_max_fct_angles_opti_f1',
+                              help=config.help_max_fct_angles_f1, type=float,
+                              default=config.default_max_fct_angles_opti_f1,
+                              metavar='   ' + scg.par_wrap(config.default_max_fct_angles_opti_f1))
+  optional_args6.add_argument('-max_fct_angles_f2', dest='default_max_fct_angles_opti_f2',
+                              help=config.help_max_fct_angles_f2, type=float,
+                              default=config.default_max_fct_angles_opti_f2,
+                              metavar='   ' + scg.par_wrap(config.default_max_fct_angles_opti_f2))
+  optional_args6.add_argument('-max_fct_dihedrals_f149',
+                              dest='default_abs_range_fct_dihedrals_opti_func_with_mult',
+                              help=config.help_max_fct_dihedrals_with_mult, type=float,
+                              default=config.default_abs_range_fct_dihedrals_opti_func_with_mult,
+                              metavar='' + scg.par_wrap(
+                                config.default_abs_range_fct_dihedrals_opti_func_with_mult))
+  optional_args6.add_argument('-max_fct_dihedrals_f2',
+                              dest='default_max_fct_dihedrals_opti_func_without_mult',
+                              help=config.help_max_fct_dihedrals_without_mult, type=float,
+                              default=config.default_max_fct_dihedrals_opti_func_without_mult,
+                              metavar='' + scg.par_wrap(
+                                config.default_max_fct_dihedrals_opti_func_without_mult))
+
+  optional_args3 = args_parser.add_argument_group(bullet + 'OTHERS')
+  optional_args3.add_argument('-temp', dest='temp',
+                              help='Temperature used to perform Boltzmann inversion (K)',
+                              type=float, default=config.sim_temperature,
+                              metavar='                 ' + scg.par_wrap(config.sim_temperature))
+  optional_args3.add_argument('-keep_all_sims', dest='keep_all_sims',
+                              help='Store all gmx files for all simulations, may use disk space',
+                              action='store_true', default=False)
+  optional_args3.add_argument('-h', '--help', help='Show this help message and exit', action='help')
+  optional_args3.add_argument('-v', '--verbose', dest='verbose', help=config.help_verbose,
+                              action='store_true', default=False)
+
+  # display help if script was called without arguments
+  if len(sys.argv) == 1:
+    args_parser.print_help()
+    sys.exit()
+
+  # arguments handling, display command line if help or no arguments provided
+  # argcomplete.autocomplete(parser)
+  ns = args_parser.parse_args()
+  input_cmdline = ' '.join(map(cmd_quote, sys.argv))
+  ns.exec_folder = time.strftime(
+    "MODEL_OPTI__STARTED_%d-%m-%Y_%Hh%Mm%Ss")  # default folder name for all files of this optimization run, in case none is provided
+  if ns.output_folder != '':
+    ns.exec_folder = ns.output_folder
+  print('Working directory:', os.getcwd())
+  print('Command line:', input_cmdline)
+  print('Results directory:', ns.exec_folder)
 
 
