@@ -46,7 +46,7 @@ def main(ns):
 	try:
 		used_dihedrals = iter_indep_scores[:,0]
 		for i in range(1, iter_indep_scores.shape[1]):
-			forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
+			iter_indep_scores[:,i] = forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
 	except IndexError:
 		sys.exit(
 			swarmcg.shared.styling.header_error + 'The optimization recap file seems empty, please wait for your optimization process to start or check for errors during execution')
@@ -234,22 +234,22 @@ def main(ns):
 	# display indicator when simulation(s) crashed for any reason -- check for None gyr_cg to identify a simulation as crashed
 	crashes_ids = np.where(all_gyr_cg == None)[0]+1
 
-	forward_fill(all_eval_scores, None)
-	forward_fill(all_fit_score_total, None)
-	forward_fill(all_fit_score_constraints_bonds, None)
-	forward_fill(all_fit_score_angles, None)
-	forward_fill(all_fit_score_dihedrals, None)
-	forward_fill(all_gyr_aa_mapped, None)
-	forward_fill(all_gyr_aa_mapped_std, None)
+	all_eval_scores = forward_fill(all_eval_scores, None)
+	all_fit_score_total = forward_fill(all_fit_score_total, None)
+	all_fit_score_constraints_bonds = forward_fill(all_fit_score_constraints_bonds, None)
+	all_fit_score_angles = forward_fill(all_fit_score_angles, None)
+	all_fit_score_dihedrals = forward_fill(all_fit_score_dihedrals, None)
+	all_gyr_aa_mapped = forward_fill(all_gyr_aa_mapped, None)
+	all_gyr_aa_mapped_std = forward_fill(all_gyr_aa_mapped_std, None)
 	# all_gyr_cg = np.where(all_gyr_cg == None, 0, all_gyr_cg)
-	forward_fill(all_gyr_cg, None)
-	forward_fill(all_gyr_cg_std, None)
-	forward_fill(all_sasa_aa_mapped, None)
-	forward_fill(all_sasa_aa_mapped_std, None)
+	all_gyr_cg = forward_fill(all_gyr_cg, None)
+	all_gyr_cg_std = forward_fill(all_gyr_cg_std, None)
+	all_sasa_aa_mapped = forward_fill(all_sasa_aa_mapped, None)
+	all_sasa_aa_mapped_std = forward_fill(all_sasa_aa_mapped_std, None)
 	# all_sasa_cg = np.where(all_sasa_cg == None, 0, all_sasa_cg)
-	# forward_fill(all_sasa_cg, 0)
-	forward_fill(all_sasa_cg, None)
-	forward_fill(all_sasa_cg_std, None)
+	# all_sasa_cg = forward_fill(all_sasa_cg, 0)
+	all_sasa_cg = forward_fill(all_sasa_cg, None)
+	all_sasa_cg_std = forward_fill(all_sasa_cg_std, None)
 
 	for i in range(len(all_gyr_aa_mapped)):
 		all_gyr_aa_mapped[i] += all_gyr_aa_mapped_offset
