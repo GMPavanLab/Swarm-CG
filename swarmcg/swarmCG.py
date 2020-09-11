@@ -1,8 +1,5 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
-
-import swarmcg.shared.styling
-
 warnings.filterwarnings("ignore")
 import sys, re, random, os, shutil, subprocess, signal, time, contextlib
 import warnings, collections
@@ -13,14 +10,14 @@ from datetime import datetime
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from pyemd import emd
 import MDAnalysis as mda
-
+from pyemd import emd
 from scipy.spatial.distance import cdist
 from scipy.optimize import curve_fit
 
-from . import config
-from .shared import utils
+from swarmcg import config
+from swarmcg.shared import utils
+from swarmcg.shared import exceptions
 
 matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 warnings.resetwarnings()
@@ -48,7 +45,7 @@ def set_MDA_backend(ns):
 
 # draw random float between given range and apply rounding to given digit
 def draw_float(low, high, dg_rnd):
-	
+
 	return round(random.uniform(low, high), dg_rnd) # low and high included
 
 
@@ -124,7 +121,7 @@ def draw_float(low, high, dg_rnd):
 # 						ns.all_atoms[atom_id_2]['conn'].add(atom_id_1)
 
 # 		print('Net charge in the reference all atom model:', round(total_charge, 4))
-	
+
 # 	return
 
 
@@ -138,7 +135,6 @@ def load_aa_data(ns):
 
 		molname_atom_group = ns.aa_universe.atoms[0].fragment # select the AA connected graph for the first moltype found in TPR
 		ns.all_aa_mols.append(molname_atom_group)
-		# print(dir(molname_atom_group.atoms[0])) # for dev, display properties
 
 		# atoms and their attributes
 		for i in range(len(molname_atom_group)):
@@ -193,21 +189,19 @@ def verify_handled_functions(geom, func_obj, line_obj):
 	try:
 		func = int(func_obj)
 	except (ValueError, IndexError):
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Error while reading CG ITP file at line ' + str(line_obj) + ', please check this file')
-	
-	if geom == 'constraint' and func not in config.handled_constraints_functions:
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Error while reading constraint function in CG ITP file at line ' + str(line_obj) + '\nThis potential function is not implemented in Swarm-CG at the moment\nPlease use one of these constraint potential functions: ' + ", ".join(map(str, config.handled_constraints_functions)))
-	elif geom == 'bond' and func not in config.handled_bonds_functions:
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Error while reading bond function in CG ITP file at line ' + str(line_obj) + '\nThis potential function is not implemented in Swarm-CG at the moment\nPlease use one of these bond potential functions: ' + ", ".join(map(str, config.handled_bonds_functions)))
-	elif geom == 'angle' and func not in config.handled_angles_functions:
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Error while reading angle function in CG ITP file at line ' + str(line_obj) + '\nThis potential function is not implemented in Swarm-CG at the moment\nPlease use one of these angle potential functions: ' + ", ".join(map(str, config.handled_angles_functions)))
-	elif geom == 'dihedral' and func not in config.handled_dihedrals_functions:
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Error while reading dihedral function in CG ITP file at line ' + str(line_obj) + '\nThis potential function is not implemented in Swarm-CG at the moment\nPlease use one of these dihedral potential functions: ' + ", ".join(map(str, config.handled_dihedrals_functions)))
+		msg = (
+			f"Error while reading CG ITP file at line {line_obj}, please check this file"
+		)
+		raise exceptions.MissformattedFile(msg)
+
+	if func not in config.handled_functions[geom]:
+		funstions_str = ", ".join(map(str, config.handled_functions[geom]))
+		msg = (
+			f"Error while reading {geom} function in CG ITP file at line {line_obj}. "
+			f"This potential function is not implemented in Swarm-CG at the moment. "
+			f"Please use one of these constraint potential functions: {funstions_str}"
+		)
+		raise exceptions.MissformattedFile(msg)
 
 	return func
 

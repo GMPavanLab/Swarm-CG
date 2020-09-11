@@ -1,8 +1,5 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
-
-import swarmcg.shared.styling
-
 warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -12,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import MaxNLocator
 
+import swarmcg.shared.styling
 from swarmcg import config
 from swarmcg.shared import exceptions
 from swarmcg.shared.styling import ANALYSE_DESCR

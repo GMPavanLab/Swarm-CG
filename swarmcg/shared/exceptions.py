@@ -67,3 +67,7 @@ class AvoidOverwritingFolder(BaseError):
 
 class MDSimulationInputError(BaseError):
     pass
+
+
+class MissformattedFile(BaseError):
+    pass

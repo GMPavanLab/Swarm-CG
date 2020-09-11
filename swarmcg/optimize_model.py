@@ -1,8 +1,5 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
-
-import swarmcg.shared.styling
-
 warnings.filterwarnings("ignore")
 import os, sys, shutil, subprocess, time, copy, contextlib
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -12,6 +9,7 @@ from datetime import datetime
 from fstpso import FuzzyPSO 
 import numpy as np
 
+import swarmcg.shared.styling
 from swarmcg import config
 from swarmcg.shared import exceptions
 from swarmcg import swarmCG as scg

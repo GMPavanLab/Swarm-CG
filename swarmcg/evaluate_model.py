@@ -1,8 +1,6 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
 
-import swarmcg.shared.styling
-
 warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -10,6 +8,7 @@ from shlex import quote as cmd_quote
 
 import matplotlib
 
+import swarmcg.shared.styling
 from swarmcg import swarmCG as scg
 from swarmcg import config
 from swarmcg.shared import exceptions
