@@ -12,6 +12,15 @@ class BaseError(Exception):
         super().__init__(self.message)
 
 
+class ExecError(Exception):
+    """
+    Base exception class.
+    """
+    def __init__(self, msg):
+        self.message = header_gmx_error + msg
+        super().__init__(self.message)
+
+
 class InvalidArgument(BaseError):
 
     base_msg = (
@@ -54,8 +63,9 @@ class MissingIndexFile(BaseError):
     pass
 
 
-class ConflictingArgument(BaseError):
+class InputArgumentError(BaseError):
     pass
+
 
 class ExecutableNotFound(BaseError):
     pass
@@ -72,5 +82,6 @@ class MDSimulationInputError(BaseError):
 class MissformattedFile(BaseError):
     pass
 
-class ComputationError(BaseError)
+
+class ComputationError(ExecError):
     pass

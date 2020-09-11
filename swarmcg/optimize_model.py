@@ -138,7 +138,7 @@ def run(ns):
             "Only one of arguments -bonds_scaling, -bonds_scaling_str and "
             "-min_bonds_length can be provided. Please check your parameters"
         )
-        raise exceptions.ConflictingArgument(msg)
+        raise exceptions.InputArgumentError(msg)
 
     ##################
     # INITIALIZATION #

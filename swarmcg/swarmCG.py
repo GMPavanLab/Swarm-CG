@@ -1758,8 +1758,8 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				read_cg_itp_file(ns, itp_lines)
 				process_scaling_str(ns)
 			except UnicodeDecodeError:
-				sys.exit(
-					swarmcg.shared.styling.header_error + 'Cannot read CG ITP, it seems you provided a binary file.')
+				msg = "Cannot read CG ITP, it seems you provided a binary file."
+				raise exceptions.MissformattedFile(msg)
 
 	# if we do not have reference already from the optimization procedure
 	if manual_mode:
@@ -1862,8 +1862,12 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				domain_max = max(constraints[grp_constraint]['AA']['x'][-1], constraints[grp_constraint]['CG']['x'][-1])
 				avg_diff_grp_constraints.append(emd(constraints[grp_constraint]['AA']['hist'], constraints[grp_constraint]['CG']['hist'], ns.bins_constraints_dist_matrix) * ns.bonds2angles_scoring_factor)
 			except IndexError:
-				sys.exit(
-					swarmcg.shared.styling.header_error + 'Most probably because you have bonds or constraints that exceed ' + str(ns.bonded_max_range) + ' nm. Increase bins range for bonds and constraints and retry! See argument -bonds_max_range.')
+				msg = (
+					f"Most probably because you have bonds or constraints that "
+					f"exceed {ns.bonded_max_range} nm. Increase bins range for bonds and "
+					f"constraints and retry! See argument -bonds_max_range."
+				)
+				raise ValueError(msg)
 		else:
 			avg_diff_grp_constraints.append(constraints[grp_constraint]['AA']['avg'])
 
@@ -1917,8 +1921,12 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				domain_max = max(bonds[grp_bond]['AA']['x'][-1], bonds[grp_bond]['CG']['x'][-1])
 				avg_diff_grp_bonds.append(emd(bonds[grp_bond]['AA']['hist'], bonds[grp_bond]['CG']['hist'], ns.bins_bonds_dist_matrix) * ns.bonds2angles_scoring_factor)
 			except IndexError:
-				sys.exit(
-					swarmcg.shared.styling.header_error + 'Most probably because you have bonds or constraints that exceed ' + str(ns.bonded_max_range) + ' nm. Increase bins range for bonds and bonds and retry! See argument -bonds_max_range.')
+				msg = (
+					f"Most probably because you have bonds or constraints that "
+					f"exceed {ns.bonded_max_range} nm. Increase bins range for bonds and "
+					f"constraints and retry! See argument -bonds_max_range."
+				)
+				raise ValueError(msg)
 		else:
 			avg_diff_grp_bonds.append(bonds[grp_bond]['AA']['avg'])
 
@@ -2454,8 +2462,8 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 			nsteps = int(sim_time*1000 / dt)
 			mdp_lines_in[nsteps_line] = sp_nsteps_line[0]+'= '+str(nsteps)+'    ; automatically modified by Swarm-CG'
 		else:
-			sys.exit(
-				swarmcg.shared.styling.header_error + 'The provided MD MDP file does not contain one of these entries: dt, nsteps')
+			msg = "The provided MD MDP file does not contain one of these entries: dt, nsteps."
+			raise exceptions.MissformattedFile(msg)
 
 	# force writting to the log file every given nb of steps, to make sure simulations won't be killed for insufficient writting to the log file
 	# (which we use to check for simulations that are stuck/bugged)
@@ -2463,8 +2471,8 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 		nstlog = log_write_freq
 		mdp_lines_in[nstlog_line] = sp_nstlog_line[0]+'= '+str(nstlog)+'    ; automatically modified by Swarm-CG'
 	else:
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'The provided MD MDP file does not contain one of these entries: nstlog')
+		msg = "The provided MD MDP file does not contain one of these entries: nstlog."
+		raise exceptions.MissformattedFile(msg)
 
 	# force NOT writting coordinates data, as this can only slow the simulation and we don't need it
 	if nstxout_line != -1:
@@ -2544,7 +2552,11 @@ def eval_function(parameters_set, ns):
 	start_eval_ts = datetime.now().timestamp()
 
 	print_stdout_forced()
-	print_stdout_forced('Starting iteration', ns.nb_eval, 'at', time.strftime('%H:%M:%S'), 'on', time.strftime('%d-%m-%Y'))
+	# TODO: this should use logging
+	print_stdout_forced(
+		f"Starting iteration {ns.nb_eval} at {time.strftime('%H:%M:%S')} "
+		f"on {time.strftime('%d-%m-%Y')}"
+	)
 
 	# enter the execution directory
 	os.chdir(ns.exec_folder)
@@ -2605,7 +2617,13 @@ def eval_function(parameters_set, ns):
 			gmx_process.kill()
 
 	else:
-		sys.exit('\n\n' + swarmcg.shared.styling.header_gmx_error + gmx_out + '\n' + swarmcg.shared.styling.header_error + 'Gmx grompp failed at minimization step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_mini\nYou may also want to look into argument -mini_maxwarn\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
+		msg = (
+			f"Gmx grompp failed at minimisation step, see gmx error message above. Please check "
+			f"the parameters of the MDP file provided through argument -cg_sim_mdp_mini. If you "
+			f"think this is a bug, please consider opening an issue on GitHub "
+			f"at {config.github_url}"
+		)
+		raise exceptions.ComputationError(msg)
 
 	# if minimization finished properly, we just check for the .gro file printed in the end
 	if os.path.isfile('mini.gro'):
@@ -2641,8 +2659,13 @@ def eval_function(parameters_set, ns):
 				gmx_process.kill()
 
 		else:
-			# pass
-			sys.exit('\n\n' + swarmcg.shared.styling.header_gmx_error + gmx_out + '\n' + swarmcg.shared.styling.header_error + 'Gmx grompp failed at equilibration step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_equi\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
+			msg = (
+				f"Gmx grompp failed at equilibration step, see gmx error message above. Please check "
+				f"the parameters of the MDP file provided through argument -cg_sim_mdp_equi. If you "
+				f"think this is a bug, please consider opening an issue on GitHub "
+				f"at {config.github_url }"
+			)
+			raise exceptions.ComputationError(msg)
 
 		# if EQUI finished properly, we just check for the .gro file printed in the end
 		if os.path.isfile('equi.gro'):
@@ -2681,8 +2704,13 @@ def eval_function(parameters_set, ns):
 					gmx_process.kill()
 
 			else:
-				# pass
-				sys.exit('\n\n' + swarmcg.shared.styling.header_gmx_error + gmx_out + '\n' + swarmcg.shared.styling.header_error + 'Gmx grompp failed at the MD step, see gmx error message above\nPlease check the parameters of the MDP file provided through argument -cg_sim_mdp_prod\nIf you think this is a bug, please consider opening an issue on GitHub at ' + config.github_url + '\n')
+				msg = (
+					f"Gmx grompp failed at MD step, see gmx error message above. Please check "
+					f"the parameters of the MDP file provided through argument -cg_sim_mdp_prod. If you "
+					f"think this is a bug, please consider opening an issue on GitHub "
+					f"at {config.github_url}"
+				)
+				raise exceptions.ComputationError(msg)
 
 			# to verify if MD run finished properly, we check for the .gro file printed in the end
 			if os.path.isfile('md.gro'):
@@ -2762,7 +2790,7 @@ def eval_function(parameters_set, ns):
 							ns.all_emd_dist_geoms = all_emd_dist_geoms
 
 				else:
-					print_stdout_forced('  MD run failed (molecule exploded)')
+					print_stdout_forced("  MD run failed (molecule exploded)")
 					eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
 					ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
 					# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, None)
@@ -2771,7 +2799,10 @@ def eval_function(parameters_set, ns):
 
 			else:
 				if md_run_killed:
-					print_stdout_forced('  MD run failed (unstable simulation was killed, with unstable = NOT writing in log file for '+str(ns.sim_kill_delay)+' sec)')
+					print_stdout_forced(
+						f"  MD run failed (unstable simulation was killed, with unstable "
+						f"= NOT writing in log file for {str(ns.sim_kill_delay)} sec)"
+					)
 				else:
 					print_stdout_forced('  MD run failed (simulation process terminated with error)')
 				eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
@@ -2782,9 +2813,14 @@ def eval_function(parameters_set, ns):
 
 		else:
 			if equi_killed:
-				print_stdout_forced('  Equilibration run failed (unstable simulation was killed, with unstable = NOT writing in log file for '+str(ns.sim_kill_delay)+' sec)')
+				print_stdout_forced(
+					f"  Equilibration run failed (unstable simulation was killed, with unstable "
+					f"= NOT writing in log file for {str(ns.sim_kill_delay)} sec)"
+				)
 			else:
-				print_stdout_forced('  Equilibration run failed (simulation process terminated with error)')
+				print_stdout_forced(
+					"  Equilibration run failed (simulation process terminated with error)"
+				)
 			eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
 			ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
 			# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, None)
@@ -2792,9 +2828,14 @@ def eval_function(parameters_set, ns):
 			ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
 	else:
 		if mini_killed:
-			print_stdout_forced('  Minimization run failed (unstable simulation was killed, with unstable = NOT writing in log file for '+str(ns.sim_kill_delay)+' sec)')
+			print_stdout_forced(
+				f"  Minimization run failed (unstable simulation was killed, with unstable "
+				f"= NOT writing in log file for {str(ns.sim_kill_delay)} sec)"
+			)
 		else:
-			print_stdout_forced('  Minimization run failed (simulation process terminated with error)')
+			print_stdout_forced(
+				"  Minimization run failed (simulation process terminated with error)"
+			)
 		eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
 		ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
 		# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, None)
