@@ -1,25 +1,24 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
-
-import swarmcg.shared.styling
-
 warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
 
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 import numpy as np
+from matplotlib.ticker import MaxNLocator
 
+import swarmcg.shared.styling
 from swarmcg import config
+from swarmcg.shared import exceptions
 from swarmcg.shared.styling import ANALYSE_DESCR
 from swarmcg.shared.utils import forward_fill
 
 warnings.resetwarnings()
 
 
-def main(ns):
+def run(ns):
 
 	# TODO: print some text to tell user if opti run finished or not -- then we can only look at the results files, not the running processes on the machine
 
@@ -46,10 +45,14 @@ def main(ns):
 	try:
 		used_dihedrals = iter_indep_scores[:,0]
 		for i in range(1, iter_indep_scores.shape[1]):
-			iter_indep_scores[:,i] = forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
-	except IndexError:
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'The optimization recap file seems empty, please wait for your optimization process to start or check for errors during execution')
+			iter_indep_scores[:, i] = forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
+	except IndexError as e:
+		msg = (
+			"The optimization recap file seems empty, please wait for your optimization process "
+			"to start or check for errors during execution"
+		)
+		raise exceptions.IncompleteOptimisationFile(msg)
+
 
 	# process files and plot
 	with open(ns.opti_dirname+'/'+config.opti_perf_recap_file, 'r') as fp:
@@ -90,10 +93,10 @@ def main(ns):
 
 		all_eval_scores, all_eval_times, all_total_times = [], [], []
 		# worst_fit_score = round((nb_constraints+nb_bonds+nb_angles+nb_dihedrals) * config.sim_crash_EMD_indep_score, 3)
-		worst_fit_score = round(\
-		np.sqrt((nb_constraints+nb_bonds) * config.sim_crash_EMD_indep_score) + \
-		np.sqrt(nb_angles * config.sim_crash_EMD_indep_score) + \
-		np.sqrt(nb_dihedrals * config.sim_crash_EMD_indep_score) \
+		worst_fit_score = round(
+			np.sqrt((nb_constraints+nb_bonds) * config.sim_crash_EMD_indep_score) +
+			np.sqrt(nb_angles * config.sim_crash_EMD_indep_score) +
+			np.sqrt(nb_dihedrals * config.sim_crash_EMD_indep_score)
 		, 3)
 		all_fit_score_total, all_fit_score_constraints_bonds, all_fit_score_angles, all_fit_score_dihedrals = np.array([]), np.array([]), np.array([]), np.array([])
 		all_gyr_aa_mapped, all_gyr_aa_mapped_std, all_gyr_cg, all_gyr_cg_std = np.array([]), np.array([]), np.array([]), np.array([])
@@ -607,7 +610,8 @@ def main(ns):
 	print('Wrote visual optimization summary file at location:\n ', os.path.normpath(ns.opti_dirname+'/'+ns.plot_filename))
 	print()
 
-if __name__ == '__main__':
+
+def main():
 
 	print(swarmcg.shared.styling.header_package(
 		'                  Module: Optimization run analysis\n'))
@@ -655,6 +659,6 @@ if __name__ == '__main__':
 	print(swarmcg.shared.styling.sep_close)
 	print()
 
-	main(ns)
+	run(ns)
 
 

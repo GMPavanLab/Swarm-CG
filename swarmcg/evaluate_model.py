@@ -1,8 +1,6 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
 
-import swarmcg.shared.styling
-
 warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -10,15 +8,17 @@ from shlex import quote as cmd_quote
 
 import matplotlib
 
+import swarmcg.shared.styling
 from swarmcg import swarmCG as scg
 from swarmcg import config
+from swarmcg.shared import exceptions
 from swarmcg.shared.styling import EVALUATE_DESCR
 
 warnings.resetwarnings()
 matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 
 
-def main():
+def run(ns):
 
 	from numpy import VisibleDeprecationWarning
 	warnings.filterwarnings("ignore", category=VisibleDeprecationWarning) # filter MDAnalysis + numpy deprecation stuff that is annoying
@@ -35,23 +35,33 @@ def main():
 	# TODO: add missing checks -- if some are missing
 	# TODO: factorize all checks and put them in global lib
 	if not os.path.isfile(ns.aa_tpr_filename):
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Cannot find coordinate file of the atomistic simulation\n(GRO, PDB, or other trajectory formats supported by MDAnalysis)')
+		msg = (
+			"Cannot find coordinate file of the atomistic simulation"
+			"(GRO, PDB, or other trajectory formats supported by MDAnalysis)"
+		)
+		raise exceptions.MissingCoordinateFile(msg)
 	if not os.path.isfile(ns.aa_traj_filename):
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Cannot find trajectory file of the atomistic simulation\n(XTC, TRR, or other trajectory formats supported by MDAnalysis)')
+		msg = (
+			"Cannot find trajectory file of the atomistic simulation"
+			"(XTC, TRR, or other trajectory formats supported by MDAnalysis)"
+		)
+		raise exceptions.MissingTrajectoryFile(msg)
+
 	if not os.path.isfile(ns.cg_map_filename):
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Cannot find CG beads mapping file (NDX-like file format)')
+		msg = "Cannot find CG beads mapping file (NDX-like file format)"
+		raise exceptions.MissingIndexFile(msg)
+
 	if not os.path.isfile(ns.cg_itp_filename):
-		sys.exit(swarmcg.shared.styling.header_error + 'Cannot find ITP file of the CG model')
+		msg = "Cannot find ITP file of the CG model"
+		raise exceptions.MissingItpFile(msg)
 
 	# check bonds scaling arguments conflicts
 	if (ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length) or (ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length can be provided\nPlease check your parameters')
-	# if ns.bonds_scaling < 1:
-	# 	sys.exit(config.header_error+'Bonds scaling factor is inferior to 1, please check your parameters')
+		msg = (
+			"Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length "
+			"can be provided. Please check your parameters"
+		)
+		raise exceptions.InputArgumentError(msg)
 
 	print()
 	print(swarmcg.shared.styling.sep_close)
@@ -68,36 +78,18 @@ def main():
 		ns.atom_only = True
 	else:
 		ns.atom_only = False
-	# elif ns.cg_tpr_filename is not None and ns.cg_traj_filename is not None:
-	# 	ns.atom_only = False
-	# elif ns.cg_tpr_filename is not None or ns.cg_traj_filename is not None:
-	# 	if not os.path.isfile(str(ns.cg_tpr_filename)):
-	# 		sys.exit(config.header_error+'Cannot find portable run file of the coarse-grained simulation\n(TPR, or other portable formats supported by MDAnalysis)\nIf you want to look at distributions of your atomistic simulation\nexclusively, you have to omit both arguments -cg_tpr and -cg_traj')
-	# 	if not os.path.isfile(str(ns.cg_traj_filename)):
-	# 		sys.exit(config.header_error+'Cannot find trajectory file of the coarse-grained simulation (XTC, TRR, or other trajectory formats supported by MDAnalysis)\nIf you want to look at distributions of your atomistic simulation\nexclusively, you have to omit both arguments -aa_tpr and -cg_traj')
 
 	try:
 		if not ns.plot_filename.split('.')[-1] in ['eps', 'pdf', 'pgf', 'png', 'ps', 'raw', 'rgba', 'svg', 'svgz']:
 			ns.plot_filename = ns.plot_filename+'.png'
-	except IndexError:
+	except IndexError as e:
 		ns.plot_filename = ns.plot_filename+'.png'
 
 	scg.create_bins_and_dist_matrices(ns)
 	scg.compare_models(ns, manual_mode=True, calc_sasa=False)
 
 
-if __name__ == '__main__':
-
-	# command for tests
-	# ./evaluate_model.py -aa_tpr ../DATA_MDL/Mono_B/atomistic/MOB_atomistic_solvated.tpr -aa_traj ../DATA_MDL/Mono_B/atomistic/MOB_atomistic_solvated.xtc -cg_map ../DATA_MDL/Mono_B/MOB_atom_mapping/atomistic/MOB_mapping.ndx -cg_itp MOB_HUMAN_SIM/Mono_B.itp -cg_tpr MOB_HUMAN_SIM/cg_solvated.tpr -cg_traj MOB_HUMAN_SIM/cg_solvated.xtc
-
-	# ./evaluate_model.py -aa_tpr ../DATA_MDL/Mono_B/atomistic/MOB_atomistic_solvated.tpr -aa_traj ../DATA_MDL/Mono_B/atomistic/MOB_atomistic_solvated.xtc -cg_map ../DATA_MDL/Mono_B/MOB_atom_mapping/atomistic/MOB_mapping.ndx -cg_itp MOB_HUMAN_SIM/Mono_B.itp
-
-	# ./evaluate_model.py -aa_tpr ../DATA_MDL/BTA/BTA_atom_mapping/atomistic/fake_for_test.tpr -aa_traj ../DATA_MDL/BTA/BTA_atom_mapping/atomistic/ATOM_TRAJ.xtc -cg_map ../DATA_MDL/BTA/BTA_atom_mapping/atomistic/index_bta.ndx -cg_itp BTA_HUMAN_SIM/bta_P3.itp -cg_tpr BTA_HUMAN_SIM/cg_solvated.tpr -cg_traj BTA_HUMAN_SIM/cg_solvated.xtc
-
-	# ./evaluate_model.py -aa_tpr ../DATA_MDL/POPC/AA/topol.tpr -aa_traj ../DATA_MDL/POPC/AA/traj.trr -cg_map ../DATA_MDL/POPC/CG/mapping.ndx -cg_itp POPC_CG_SIM/martini_v2.0_POPC_02.itp -cg_tpr POPC_CG_SIM/cg_solvated.tpr -cg_traj POPC_CG_SIM/cg_solvated.xtc
-
-	# ./evaluate_model.py -aa_tpr ../DATA_MDL/B3T/AA/topol.tpr -aa_traj ../DATA_MDL/B3T/AA/traj_atom.xtc -cg_map ../DATA_MDL/B3T/CG/MAPPING.ndx -cg_itp ../DATA_MDL/B3T/CG/MARTINI/B3T_CG.itp -cg_tpr B3T_HUMAN_SIM/produced.tpr -cg_traj B3T_HUMAN_SIM/produced.xtc
+def main():
 
 	print(swarmcg.shared.styling.header_package(
 		'                Module: Model bonded terms assessment\n'))
@@ -209,4 +201,4 @@ if __name__ == '__main__':
 	print('Working directory:', os.getcwd())
 	print('Command line:', input_cmdline)
 
-	main(ns)
+	run(ns)
