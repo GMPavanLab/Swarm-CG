@@ -16,8 +16,10 @@ from scipy.spatial.distance import cdist
 from scipy.optimize import curve_fit
 
 from swarmcg import config
-from swarmcg.shared import utils
+from swarmcg.shared import utils, styling
 from swarmcg.shared import exceptions
+from swarmcg.simulations.potentials import (gmx_bonds_func_1, gmx_angles_func_1, gmx_angles_func_2,
+	gmx_dihedrals_func_1, gmx_dihedrals_func_2)
 
 matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 warnings.resetwarnings()
@@ -1453,48 +1455,6 @@ def get_CG_dihedrals_distrib(ns, beads_ids):
 
 	return dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad
 
-
-# gromacs potential function 1 for bonds
-def gmx_bonds_func_1(x, a, b, c):
-
-	return a/2 * (x-b)**2 + c
-
-
-# gromacs potential function 1 for angles
-def gmx_angles_func_1(x, a, b, c):
-
-    # return a/2 * (x-b)**2 + c
-    return gmx_bonds_func_1(x, a, b, c) # it's actually the same
-
-
-# gromacs potential function 2 for angles
-def gmx_angles_func_2(x, a, b, c):
-
-    return a/2 * (np.cos(x)-np.cos(b))**2 + c
-
-
-# gromacs potential function 1 for dihedrals -- generated on the fly with adjusted multiplicity
-def gmx_dihedrals_func_1(mult):
-
-	def mult_adjusted(x, a, b, c):
-
-		return a * (1 + np.cos(mult*x-b)) + c
-
-	return mult_adjusted
-
-
-# gromacs potential function 2 for dihedrals -- basically the same as potential function 2 for angles
-def gmx_dihedrals_func_2(x, a, b, c):
-
-	# return gmx_angles_func_1(x, a, b, c)
-	return gmx_bonds_func_1(x, a, b, c) # it's actually the same
-
-
-# TODO: for dihedral function 9, this is the merging of several potentials of gmx_dihedrals_func_1 -- here one of mult=1 together with another of mult=2
-# def f(x,a,b,c,d,e):
-#     return a * (1+np.cos(x-b)) + d * (1+np.cos(2*x-e)) + c
-
-
 # update ITP force constants with Boltzmann inversion for selected geoms at this given optimization step
 def perform_BI(ns):
 	
@@ -1543,7 +1503,7 @@ def perform_BI(ns):
 				deriv = 1/deriv
 				sigma = np.where(y < max(y), deriv, np.inf)
 				
-				popt, pcov = curve_fit(gmx_bonds_func_1, x*10, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False) # multiply for amgstrom for BI
+				popt, pcov = curve_fit(gmx_bonds_func_1, x * 10, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False) # multiply for amgstrom for BI
 
 				# here we just update the force constant, bond length is already set to the average of distribution
 				ns.out_itp['bond'][grp_bond]['fct'] = min(max(popt[0]*100, config.default_min_fct_bonds), config.default_max_fct_bonds_bi) # stay within specified range for force constants
@@ -1819,9 +1779,9 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				return 0, 0, 0, 0, 0, None # ns.sasa_cg == None will be checked in eval_function and worst score will be attributed
 
 	print()
-	print(swarmcg.shared.styling.sep_close, flush=True)
+	print(styling.sep_close, flush=True)
 	print('| SCORING AND PLOTTING                                                                        |', flush=True)
-	print(swarmcg.shared.styling.sep_close, flush=True)
+	print(styling.sep_close, flush=True)
 	print()
 
 	# constraints
@@ -2059,7 +2019,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 			print('Displaying max '+str(ncols)+' distributions per row using the CG ITP file ordering of distributions groups ('+str(hidden_cols)+' more are hidden)', flush=True)
 		else:
 			if not ns.mismatch_order:
-				print(swarmcg.shared.styling.header_warning + 'Displaying max ' + str(ncols) + ' distributions groups per row and this can be MISLEADING because ordering by pairwise AA-mapped vs. CG distributions mismatch is DISABLED (' + str(hidden_cols) + ' more are hidden)', flush=True)
+				print(styling.header_warning + 'Displaying max ' + str(ncols) + ' distributions groups per row and this can be MISLEADING because ordering by pairwise AA-mapped vs. CG distributions mismatch is DISABLED (' + str(hidden_cols) + ' more are hidden)', flush=True)
 			else:
 				print('Displaying max '+str(ncols)+' distributions groups per row ordered by pairwise AA-mapped vs. CG distributions difference ('+str(hidden_cols)+' more are hidden)', flush=True)
 	else:
