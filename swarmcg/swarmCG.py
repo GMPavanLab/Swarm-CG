@@ -265,8 +265,12 @@ def read_cg_itp_file(ns, itp_lines):
 					try:
 						ns.cg_itp['constraint'][ns.nb_constraints]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
-						sys.exit(
-							swarmcg.shared.styling.header_error + 'Incorrect reading of the CG ITP file within [constraints] section, please check this file')
+						msg = (
+							"Incorrect reading of the CG ITP file within [constraints] section. "
+							"Please check this file."
+						)
+						raise exceptions.MissformattedFile(msg)
+
 					func = verify_handled_functions('constraint', sp_itp_line[2], i+1)
 					ns.cg_itp['constraint'][ns.nb_constraints]['funct'].append(func)
 					ns.cg_itp['constraint'][ns.nb_constraints]['value'].append(float(sp_itp_line[3]))
@@ -289,8 +293,12 @@ def read_cg_itp_file(ns, itp_lines):
 					try:
 						ns.cg_itp['bond'][ns.nb_bonds]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
-						sys.exit(
-							swarmcg.shared.styling.header_error + 'Incorrect reading of the CG ITP file within [bonds] section, please check this file')
+						msg = (
+							"Incorrect reading of the CG ITP file within [bonds] section. "
+							"Please check this file."
+						)
+						raise exceptions.MissformattedFile(msg)
+
 					func = verify_handled_functions('bond', sp_itp_line[2], i+1)
 					ns.cg_itp['bond'][ns.nb_bonds]['funct'].append(func)
 					ns.cg_itp['bond'][ns.nb_bonds]['value'].append(float(sp_itp_line[3]))
@@ -314,8 +322,12 @@ def read_cg_itp_file(ns, itp_lines):
 					try:
 						ns.cg_itp['angle'][ns.nb_angles]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:3]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
-						sys.exit(
-							swarmcg.shared.styling.header_error + 'Incorrect reading of the CG ITP file within [angles] section, please check this file')
+						msg = (
+							"Incorrect reading of the CG ITP file within [angles] section. "
+							"Please check this file."
+						)
+						raise exceptions.MissformattedFile(msg)
+
 					func = verify_handled_functions('angle', sp_itp_line[3], i+1)
 					ns.cg_itp['angle'][ns.nb_angles]['funct'].append(func)
 					ns.cg_itp['angle'][ns.nb_angles]['value'].append(float(sp_itp_line[4]))
@@ -339,8 +351,12 @@ def read_cg_itp_file(ns, itp_lines):
 					try:
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:4]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
-						sys.exit(
-							swarmcg.shared.styling.header_error + 'Incorrect reading of the CG ITP file within [dihedrals] section, please check this file')
+						msg = (
+							"Incorrect reading of the CG ITP file within [dihedrals] section. "
+							"Please check this file."
+						)
+						raise exceptions.MissformattedFile(msg)
+
 					func = verify_handled_functions('dihedral', sp_itp_line[4], i+1)
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['funct'].append(func)
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['value'].append(float(sp_itp_line[5])) # issue happens here for functions that are not handled
@@ -368,6 +384,13 @@ def read_cg_itp_file(ns, itp_lines):
 	# error handling, verify that funct, value and fct are all identical within the group, as they should be, and reduce arrays to single elements
 	# TODO: make these messages more clear and CORRECT for the dihedral function handling -- also explain this is the current Opti.CG implementation, function 9 might come in next version
 	# TODO: check what kind of error or processing is done when a correct line is duplicated within a group ?? probably it goes on in a bad way
+
+	msg = (
+		f"In the provided CG ITP file {geom} have been grouped, but {geom} group "
+		f"{str(grp_geom + 1)} holds lines that have different parameters. Parameters should be "
+		f"identical within a group, only CG beads IDs should differ. "
+		f"Please correct the CG ITP file and separate groups using a blank or commented line"
+	)
 	for geom in ['constraint']: # constraints only
 		for grp_geom in range(len(ns.cg_itp[geom])):
 			for var in ['funct', 'value']:
@@ -375,8 +398,7 @@ def read_cg_itp_file(ns, itp_lines):
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					sys.exit(
-						swarmcg.shared.styling.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within a ' + geom + ' group, only CG beads IDs should differ\nPlease correct the CG ITP file and separate groups using a blank or commented line')
+					raise exceptions.MissformattedFile(msg)
 
 	for geom in ['bond', 'angle']: # bonds and angles only
 		for grp_geom in range(len(ns.cg_itp[geom])):
@@ -385,8 +407,7 @@ def read_cg_itp_file(ns, itp_lines):
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					sys.exit(
-						swarmcg.shared.styling.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group\nPlease correct the CG ITP file and separate groups using a blank or commented line')
+					raise exceptions.MissformattedFile(msg)
 
 	for geom in ['dihedral']: # dihedrals only
 		for grp_geom in range(len(ns.cg_itp[geom])):
@@ -395,16 +416,15 @@ def read_cg_itp_file(ns, itp_lines):
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					sys.exit(
-						swarmcg.shared.styling.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group\nPlease correct the CG ITP file and separate groups using a blank or commented line')
+					raise exceptions.MissformattedFile(msg)
+
 			for var in ['mult']:
 				var_set = set(ns.cg_itp[geom][grp_geom][var])
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					sys.exit(
-						swarmcg.shared.styling.header_error + 'In the provided CG ITP file ' + geom + ' have been grouped, but ' + geom + ' group ' + str(grp_geom + 1) + ' holds ' + geom + ' lines that have different parameters\nParameters should be identical within groups, only CG beads IDs should differ between lines of a ' + geom + ' group')
-	
+					raise exceptions.MissformattedFile(msg)
+
 	ns.nb_constraints += 1
 	ns.nb_bonds += 1
 	ns.nb_angles += 1
@@ -443,8 +463,14 @@ def read_ndx_atoms2beads(ns):
 					try:
 						lines_read += 1
 						if lines_read > 1:
-							sys.exit(
-								swarmcg.shared.styling.header_error + 'A section of the CG beads mapping (NDX) file has multiple lines, while Swarm-CG accepts only one line per section\nPlease use a single line for IDs under section ' + current_section + ' near line ' + str(i + 1))
+							msg = (
+								f"A section of the CG beads mapping (NDX) file has multiple lines, "
+								f"while Swarm-CG accepts only one line per section. Please use a "
+								f"single line for IDs under section {current_section} "
+								f"near line {str(i + 1)}"
+							)
+							raise exceptions.MissformattedFile(msg)
+
 						bead_atoms_id = [int(atom_id)-1 for atom_id in ndx_line.split()] # retrieve indexing from 0 for atoms IDs for MDAnalysis
 						ns.all_beads[bead_id]['atoms_id'].extend(bead_atoms_id) # all atoms included in current bead
 
@@ -453,11 +479,19 @@ def read_ndx_atoms2beads(ns):
 						bead_id += 1
 
 					except NameError:
-						sys.exit(
-							swarmcg.shared.styling.header_error + 'The CG beads mapping (NDX) file does NOT seem to contain CG beads sections, please verify the input mapping\nThe expected format is Gromacs NDX')
+						msg = (
+							"The CG beads mapping (NDX) file does NOT seem to contain CG beads "
+							"sections. Please verify the input mapping. The expected format is "
+							"Gromacs NDX."
+						)
+						raise exceptions.MissformattedFile(msg)
 					except ValueError: # non-integer atom ID provided
-						sys.exit(
-							swarmcg.shared.styling.header_error + 'Incorrect reading of the sections content in the CG beads mapping (NDX) file\nFound non-integer values for some IDs at line ' + str(i + 1) + ' under section ' + current_section)
+						msg = (
+							f"Incorrect reading of the sections content in the CG beads mapping "
+							f"(NDX) file. Found non-integer values for some IDs at line "
+							f"{str(i + 1)} under section {current_section}."
+						)
+						raise exceptions.MissformattedFile(msg)
 
 	return
 
@@ -494,8 +528,12 @@ def get_beads_MDA_atomgroups(ns):
 			ns.mda_weights_atom_grps[bead_id] = np.array([ns.atom_w[bead_id][atom_id]*ns.aa_universe.atoms[atom_id].mass for atom_id in ns.atom_w[bead_id]])
 			# ns.mda_weights_atom_grps[bead_id] = np.array([ns.atom_w[bead_id][atom_id]*ns.all_atoms[atom_id]['atom_mass'] for atom_id in ns.atom_w[bead_id]])
 		except IndexError as e:
-			sys.exit(
-				swarmcg.shared.styling.header_error + 'An ID present in your mapping (NDX) file could not be found in the AA trajectory, please check your mapping (NDX) file\nSee the error below to understand which ID (here 0-indexed) could not be found:\n  ' + str(e))
+			msg = (
+				f"An ID present in your mapping (NDX) file could not be found in the AA trajectory. "
+				f"Please check your mapping (NDX) file. See the error below to understand which "
+				f"ID (here 0-indexed) could not be found: {str(e)}"
+			)
+			raise exceptions.MissformattedFile(msg)
 
 	return
 
@@ -555,7 +593,7 @@ def compute_Rg(ns, traj_type):
 		# 	pass
 
 	else:
-		sys.exit('Code error compute_Rg')
+		raise RuntimeError('Code error compute_Rg')
 
 	return
 
@@ -589,7 +627,7 @@ def exec_gmx(gmx_cmd):
 def compute_SASA(ns, traj_type):
 
 	if traj_type == 'AA':
-		sys.exit('Compute_SASA not implemented for AA atm')
+		raise exceptions.InvalidArgument('Compute_SASA not implemented for AA atm')
 
 	elif traj_type == 'AA_mapped':
 
@@ -685,8 +723,11 @@ def compute_SASA(ns, traj_type):
 				non_zero_return_code = True
 
 		if non_zero_return_code:
-			print_stdout_forced('There were some errors while calculating SASA for AA-mapped trajectory, please check the error messages displayed above')
-			sys.exit() # exit, otherwise it will try to calculate AA-mapped SASA at every iteration
+			msg = (
+				"There were some errors while calculating SASA for AA-mapped trajectory. "
+				"Please check the error messages displayed above."
+			)
+			raise exceptions.ComputationError(msg)
 		else:
 			sasa_aa_mapped_per_frame = read_xvg_col(ns.aa_mapped_sasa_filename, 1)
 			ns.sasa_aa_mapped = round(np.mean(sasa_aa_mapped_per_frame), 2)
@@ -721,7 +762,7 @@ def compute_SASA(ns, traj_type):
 			# print_stdout_forced('COMPUTED CG SASA:', ns.sasa_cg)
 
 	else:
-		sys.exit('Code error compute SASA')
+		raise exceptions.ComputationError('Code error compute SASA')
 
 	return
 
@@ -734,8 +775,11 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 	elif update_type == 2: # cycles optimized
 		itp_obj = ns.opti_itp
 	else:
-		sys.exit(
-			swarmcg.shared.styling.header_error + 'Code error in function update_cg_itp_obj, please consider opening an issue on GitHub at ' + config.github_url)
+		msg = (
+			f"Code error in function update_cg_itp_obj, please consider opening an issue on GitHub "
+			f"at {config.github_url}."
+		)
+		raise exceptions.InvalidArgument(msg)
 
 	for i in range(ns.opti_cycle['nb_geoms']['constraint']):
 		itp_obj['constraint'][i]['value'] = round(parameters_set[i], 3) # constraint - distance
@@ -937,7 +981,8 @@ def get_search_space_boundaries(ns):
 			elif ns.cg_itp['angle'][grp_angle]['funct'] == 2:
 				search_space_boundaries.extend([[config.default_min_fct_angles, ns.default_max_fct_angles_opti_f2]])
 			else:
-				sys.exit('Code error in force constants calculations, in the angles block')
+				msg = "Code error in force constants calculations, in the angles block."
+				raise exceptions.InvalidArgument(msg)
 
 	if ns.opti_cycle['nb_geoms']['dihedral'] > 0:
 		if ns.exec_mode == 1:
@@ -949,7 +994,8 @@ def get_search_space_boundaries(ns):
 			elif ns.cg_itp['dihedral'][grp_dihedral]['funct'] in [1, 4, 9]:
 				search_space_boundaries.extend([[-ns.default_abs_range_fct_dihedrals_opti_func_with_mult, ns.default_abs_range_fct_dihedrals_opti_func_with_mult]])
 			else:
-				sys.exit('Code error in force constants calculations, in the dihedrals block')
+				msg = "Code error in force constants calculations, in the dihedrals block."
+				raise exceptions.InvalidArgument(msg)
 
 	return search_space_boundaries
 
@@ -983,7 +1029,12 @@ def get_initial_guess_list(ns, nb_particles):
 		elif ns.cg_itp['angle'][i]['funct'] == 2:
 			fct_angles.append(min(max(ns.out_itp['angle'][i]['fct'], config.default_min_fct_angles), ns.default_max_fct_angles_opti_f2)) # angles force constants
 		else:
-			sys.exit('Code error during force constants range definition while getting the initial guesses from BI')
+			msg = (
+				"Code error during force constants range definition while getting the initial "
+				"guesses from BI."
+			)
+			raise exceptions.InvalidArgument(msg)
+
 	input_guess.extend(fct_angles)
 
 	if ns.exec_mode == 1:
@@ -1116,7 +1167,12 @@ def get_initial_guess_list(ns, nb_particles):
 			elif ns.cg_itp['angle'][j]['funct'] == 2:
 				draw_high = min(max(ns.out_itp['angle'][j]['fct']*(1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']+config.fct_guess_min_flat_diff_angles), ns.default_max_fct_angles_opti_f2)
 			else:
-				sys.exit('Code error during force constants range definition for angles during particles initialization')
+				msg = (
+					"Code error during force constants range definition for angles during particles "
+					"initialization guesses from BI."
+				)
+				raise exceptions.InvalidArgument(msg)
+
 			init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# dihedrals values
@@ -1531,8 +1587,11 @@ def perform_BI(ns):
 						popt[0] = 30
 
 				else:
-					sys.exit(
-						swarmcg.shared.styling.header_error + 'Code error, we should never arrive here because functions have been checked during CG ITP file reading')
+					msg = (
+						"Code error, we should never arrive here because functions have been "
+						"checked during CG ITP file reading."
+					)
+					raise exceptions.InvalidArgument(msg)
 
 				# here we just update the force constant, angle value is already set to the average of distribution
 				ns.out_itp['angle'][grp_angle]['fct'] = min(max(popt[0], config.default_min_fct_angles), config.default_max_fct_angles_bi) # stay within specified range for force constants
@@ -1570,8 +1629,11 @@ def perform_BI(ns):
 					popt[0] = abs(popt[0]) # just to be safe, in case the fit yielded negative fct values but this is very unlikely since we provide good starting parameters for the fit
 
 				else:
-					sys.exit(
-						swarmcg.shared.styling.header_error + 'Code error, we should never arrive here because functions have been checked during CG ITP file reading')
+					msg = (
+						"Code error, we should never arrive here because functions have been checked "
+						"during CG ITP file reading."
+					)
+					raise exceptions.InvalidArgument(msg)
 
 				if ns.exec_mode == 1:
 					ns.out_itp['dihedral'][grp_dihedral]['value'] = np.rad2deg(popt[1])
@@ -1597,43 +1659,80 @@ def process_scaling_str(ns):
 	# process specific bonds scaling string, if provided
 	ns.bonds_scaling_specific = None
 	if ns.bonds_scaling_str != config.bonds_scaling_str:
-	  sp_str = ns.bonds_scaling_str.split()
-	  if len(sp_str) % 2 != 0:
-	    sys.exit(
-			swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
-	  ns.bonds_scaling_specific = dict()
-	  i = 0
-	  try:
-	    while i < len(sp_str):
-	      geom_id = sp_str[i][1:]
-	      if sp_str[i][0].upper() == 'C':
-	        if int(geom_id) > ns.nb_constraints:
-	          sys.exit(
-				  swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id exceeds the number of constraints groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
-	        if not 'C'+geom_id in ns.bonds_scaling_specific:
-	          if float(sp_str[i+1]) < 0:
-	            sys.exit(
-					swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
-	          ns.bonds_scaling_specific['C'+geom_id] = float(sp_str[i+1])
-	        else:
-	          sys.exit(
-				  swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA constraint group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
-	      elif sp_str[i][0].upper() == 'B':
-	        if int(geom_id) > ns.nb_bonds:
-	          sys.exit(
-				  swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id exceeds the number of bonds groups defined in the input CG ITP file\nPlease check your parameters, or help for an example')
-	        if not 'B'+geom_id in ns.bonds_scaling_specific:
-	          if float(sp_str[i+1]) < 0:
-	            sys.exit(
-					swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nYou cannot provide negative values for average distribution length\nPlease check your parameters, or help for an example')
-	          ns.bonds_scaling_specific['B'+geom_id] = float(sp_str[i+1])
-	        else:
-	          sys.exit(
-				  swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nA bond group id is provided multiple times (id: ' + str(geom_id) + ')\nPlease check your parameters, or help for an example')
-	      i += 2
-	  except ValueError:
-	    sys.exit(
-			swarmcg.shared.styling.header_error + 'Cannot interpret argument -bonds_scaling_str as provided: \'' + ns.bonds_scaling_str + '\'\nPlease check your parameters, or help for an example')
+		sp_str = ns.bonds_scaling_str.split()
+		if len(sp_str) % 2 != 0:
+			msg = (
+				f"Cannot interpret argument -bonds_scaling_str as provided: {ns.bonds_scaling_str}. "
+				f"Please check your parameters, or look for help in an example."
+			)
+			raise ValueError(msg)
+
+		ns.bonds_scaling_specific = dict()
+		i = 0
+		try:
+			while i < len(sp_str):
+				geom_id = sp_str[i][1:]
+				if sp_str[i][0].upper() == 'C':
+					if int(geom_id) > ns.nb_constraints:
+						info = (
+							f"A constraint group id exceeds the number of "
+							f"constraints groups defined in the input CG ITP file. "
+						)
+						raise exceptions.InvalidArgument(
+							'bonds_scaling_str', ns.bonds_scaling_str, info
+						)
+
+					if not 'C' + geom_id in ns.bonds_scaling_specific:
+						if float(sp_str[i + 1]) < 0:
+							info = (
+								f"You cannot provide negative values for average distribution length."
+							)
+							raise exceptions.InvalidArgument(
+								'bonds_scaling_str', ns.bonds_scaling_str, info
+							)
+
+						ns.bonds_scaling_specific['C'+ geom_id] = float(sp_str[i + 1])
+					else:
+						info = (
+							f"A constraint group id is provided multiple "
+							f"times (id: { str(geom_id)}."
+						)
+						raise exceptions.InvalidArgument(
+							'bonds_scaling_str', ns.bonds_scaling_str, info
+						)
+
+				elif sp_str[i][0].upper() == 'B':
+					if int(geom_id) > ns.nb_bonds:
+						info = (
+							f"A bond group id exceeds the number of bonds groups defined in the "
+							f"input CG ITP file."
+						)
+						raise exceptions.InvalidArgument(
+							'bonds_scaling_str', ns.bonds_scaling_str, info
+						)
+
+					if not 'B' + geom_id in ns.bonds_scaling_specific:
+						if float(sp_str[i + 1]) < 0:
+							info = (
+								f"You cannot provide negative values for average distribution "
+								f"length."
+							)
+							raise exceptions.InvalidArgument(
+								'bonds_scaling_str', ns.bonds_scaling_str, info
+							)
+
+						ns.bonds_scaling_specific['B'+geom_id] = float(sp_str[i+1])
+					else:
+						info = (
+							f"A bond group id is provided multiple times (id: {str(geom_id)})."
+						)
+						raise exceptions.InvalidArgument(
+							'bonds_scaling_str', ns.bonds_scaling_str, info
+						)
+				i += 2
+
+		except ValueError:
+			raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, '')
 
 	return
 

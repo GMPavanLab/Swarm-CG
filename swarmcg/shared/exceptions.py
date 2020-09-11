@@ -17,7 +17,7 @@ class InvalidArgument(BaseError):
     base_msg = (
         "Cannot interpret argument -{name} as provided: {value}. "
         "{additional_info}"
-        "Please check your parameters, or help for an example"
+        "Please check your parameters, or look for help in an example."
     )
 
     def __init__(self, argument, value, additional_info=""):
@@ -38,7 +38,7 @@ class OptimisationResultsError(BaseError):
     pass
 
 
-class MissingCoordinateFile(BaseError):
+class MissingInputFileError(BaseError):
     pass
 
 
@@ -70,4 +70,7 @@ class MDSimulationInputError(BaseError):
 
 
 class MissformattedFile(BaseError):
+    pass
+
+class ComputationError(BaseError)
     pass
