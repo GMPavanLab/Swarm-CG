@@ -212,7 +212,7 @@ def verify_handled_functions(geom, func_obj, line_obj):
 def read_cg_itp_file(ns, itp_lines):
 
 	print('Reading Coarse-Grained (CG) ITP file')
-	ns.cg_itp = {'moleculetype': {'molname': '', 'nrexcl': 0}, 'atoms': [], 'constraint': [], 'bond': [], 'angle': [], 'dihedral': [], 'exclusion': []}
+	ns.cg_itp = {'moleculetype': {'molname': '', 'nrexcl': 0}, 'atoms': [], 'constraint': [], 'bond': [], 'angle': [], 'dihedral': [], 'exclusion': [], 'virtual_sitesn': []}
 	ns.nb_constraints, ns.nb_bonds, ns.nb_angles, ns.nb_dihedrals = -1, -1, -1, -1
 
 	for i in range(len(itp_lines)):
@@ -391,9 +391,6 @@ def read_cg_itp_file(ns, itp_lines):
 
 				elif r_virtual:
 					# For user information we need to provide the number of VS.
-					#
-					# We need to take into account: the atom associated to the virtual site must be VT type
-					#
 					# We need to define the function types for the VSn
 
 					#Read VS index, and VS function, list_cg_atoms
@@ -409,22 +406,17 @@ def read_cg_itp_file(ns, itp_lines):
 						raise exceptions.MissformattedFile(msg)
 					else:
 						#Check if the bead is defined as VS
-					    if not ns.cg_itp['atoms'][bead_id]['bead_type'] == 'VS':
+					    if ns.cg_itp['atoms'][bead_id]['bead_type'] != 'VS':
 							msg = (
 								"The virtual site {} should be defined with bead type"
 								" VS".format(bead_id+1)
 							)
 							raise exceptions.MissformattedFile(msg)
 					#Function is in the function list
-					if not vs_type in config.handled_functions['virtual_sitesn']:
-						msg = (
-							"The definition of the CG virtual sites {} uses a function which is"
-							" not defined in the code ({}). Please check the .itp file or use "
-							"one of the functions defined within SwarmCG.".format(bead_id,vs_type)
-						)
-						raise exceptions.MissformattedFile(msg)
+					func = verify_handled_functions('virtual_sitesn', vs_type, i + 1)
 
-					#The cg_atoms in list_cg_atoms
+
+					#The cg_atoms in list_cg_atoms, checking that the indexes are lower than the one of the VS
 					for bid in cg_atomlist:
 						if bid >= bead_id:
 							msg = (
@@ -434,11 +426,8 @@ def read_cg_itp_file(ns, itp_lines):
 							)
 							raise exceptions.MissformattedFile(msg)
 
-					try:
-						mass_and_eol = ' '.join(sp_itp_line[7:])
-						ns.cg_itp['atoms'].append({'bead_id': int(bead_id)-1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue, 'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge), 'mass_and_eol': mass_and_eol}) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
-					except IndexError:
-						ns.cg_itp['atoms'].append({'bead_id': int(bead_id)-1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue, 'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge)}) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
+					ns.cg_itp['virutal_sitesn'].append({'bead_id': bead_id, 'vs_type': vs_type, 'atom_list': cg_atomlist)
+
 
 				elif r_exclusion:
 
@@ -888,6 +877,18 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f} {7}\n'.format(itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'], itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'], itp_obj['atoms'][i]['resnr'], itp_obj['atoms'][i]['mass_and_eol']))
 			else:
 				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}\n'.format(itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'], itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'], itp_obj['atoms'][i]['resnr']))
+
+		fp.write('\n\n[  ]\n')
+		fp.write('; id type resnr residue   atom  cgnr    charge     mass\n\n')
+
+		if len(itp_obj['virtual_sitesn']) > 0:
+			fp.write('\n\n[ virtual_sitesn ]\n')
+			for i in range(len(itp_obj['virtual_sitesn'])):
+
+				fp.write('{0:<4} {1:>4} {}\n'.format(
+					itp_obj['virtual_sitesn'][i]['bead_id'] + 1,
+					itp_obj['virtual_sitesn'][i]['vs_type']),
+					' '.join([str(bid+1) for bid in itp_obj['virtual_sitesn'][i]['atom_list']]))
 
 		if 'constraint' in print_sections and 'constraint' in itp_obj and len(itp_obj['constraint']) > 0:
 			fp.write('\n\n[ constraints ]\n')
