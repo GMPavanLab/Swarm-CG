@@ -67,6 +67,7 @@ handled_functions = {
     'angle': [1, 2],
     'dihedral': [1, 2, 4],
     'dihedral_with_mult': [1, 4]
+    'virtual_sitesn': [1]
     # these functions use 3 parameters, the last one being multiplicity (if it's omitted gromacs will use 1 by default, we reproduce this behavior)
 }
 

@@ -220,21 +220,23 @@ def read_cg_itp_file(ns, itp_lines):
 		if itp_line != '' and not itp_line.startswith(';'):
 
 			if bool(re.search('\[.*moleculetype.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion = True, False, False, False, False, False, False
+				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = True, False, False, False, False, False, False, False
 			elif bool(re.search('\[.*atoms.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion = False, True, False, False, False, False, False
+				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, True, False, False, False, False, False, False
 			elif bool(re.search('\[.*constraint.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion = False, False, True, False, False, False, False
+				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, True, False, False, False, False, False
 			elif bool(re.search('\[.*bond.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion = False, False, False, True, False, False, False
+				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, True, False, False, False, False
 			elif bool(re.search('\[.*angle.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion = False, False, False, False, True, False, False
+				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, True, False, False, False
 			elif bool(re.search('\[.*dihedral.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion = False, False, False, False, False, True, False
+				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, False, True, False, False
 			elif bool(re.search('\[.*exclusion.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion = False, False, False, False, False, False, True
+				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, False, False, True, False
+			elif bool(re.search('\[.*virtual_sitesn.*\]', itp_line)):
+				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, False, False, False, True
 			elif bool(re.search('\[.*\]', itp_line)): # all other sections
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion = False, False, False, False, False, False, False
+				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, False, False, False, False
 
 			else:
 				sp_itp_line = itp_line.split()
@@ -251,6 +253,14 @@ def read_cg_itp_file(ns, itp_lines):
 						ns.cg_itp['atoms'].append({'bead_id': int(bead_id)-1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue, 'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge), 'mass_and_eol': mass_and_eol}) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except IndexError:
 						ns.cg_itp['atoms'].append({'bead_id': int(bead_id)-1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue, 'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge)}) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
+					#Check if the atom index correspond to the length of the atoms list,
+					# if this check is passed it allow to do direct accesses within the list
+					if not len(ns.cg_itp['atoms']) == int(bead_id):
+						msg = (
+							"Swarm-CG handles .itp files with atoms indexed consecutively starting from 1.\n"
+							"The atom {} does not follow this formatting.".format(bead_id)
+						)
+						raise exceptions.MissformattedFile(msg)
 
 				elif r_constraints:
 
@@ -378,6 +388,57 @@ def read_cg_itp_file(ns, itp_lines):
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['plt_id'].append(sp_itp_line[9])
 					except IndexError:
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['plt_id'].append('')
+
+				elif r_virtual:
+					# For user information we need to provide the number of VS.
+					#
+					# We need to take into account: the atom associated to the virtual site must be VT type
+					#
+					# We need to define the function types for the VSn
+
+					#Read VS index, and VS function, list_cg_atoms
+					bead_id, vs_type, cg_atomlist = int(sp_itp_line[0])-1, sp_itp_line[1], [int(bid)-1 for bid in sp_itp_line[2:]]
+
+
+					#Check if the bead is defined in the atom list
+					if bead_id >= len(ns.cg_itp['atoms']):
+						msg = (
+							"The bead index definition of the CG virtual sites {} in not defined"
+							" within in the atomlist".format(bead_id)
+						)
+						raise exceptions.MissformattedFile(msg)
+					else:
+						#Check if the bead is defined as VS
+					    if not ns.cg_itp['atoms'][bead_id]['bead_type'] == 'VS':
+							msg = (
+								"The virtual site {} should be defined with bead type"
+								" VS".format(bead_id+1)
+							)
+							raise exceptions.MissformattedFile(msg)
+					#Function is in the function list
+					if not vs_type in config.handled_functions['virtual_sitesn']:
+						msg = (
+							"The definition of the CG virtual sites {} uses a function which is"
+							" not defined in the code ({}). Please check the .itp file or use "
+							"one of the functions defined within SwarmCG.".format(bead_id,vs_type)
+						)
+						raise exceptions.MissformattedFile(msg)
+
+					#The cg_atoms in list_cg_atoms
+					for bid in cg_atomlist:
+						if bid >= bead_id:
+							msg = (
+								"The definition of the CG virtual sites {} includes atoms that "
+								"either they are not in the list or their index comes after the "
+								"index is higher than the one of the virtual site.".format(bead_id)
+							)
+							raise exceptions.MissformattedFile(msg)
+
+					try:
+						mass_and_eol = ' '.join(sp_itp_line[7:])
+						ns.cg_itp['atoms'].append({'bead_id': int(bead_id)-1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue, 'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge), 'mass_and_eol': mass_and_eol}) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
+					except IndexError:
+						ns.cg_itp['atoms'].append({'bead_id': int(bead_id)-1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue, 'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge)}) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 
 				elif r_exclusion:
 
