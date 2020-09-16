@@ -1296,6 +1296,24 @@ def read_aa_traj(ns):
 	return
 
 
+def initialize_cg_traj(ns):
+	print('Building Coarse-Grained (CG) trajectory', flush=True)
+	with warnings.catch_warnings():
+		warnings.filterwarnings("ignore",
+								category=ImportWarning)  # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
+		ns.cg_universe2 = mda.Universe(ns.gro_input_basename, ns.gro_input_basename, in_memory=True, refresh_offsets=True,
+									  guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default
+		#Here we need to extract the number of atoms, or a more refined method to extract only the elements on which we are interested
+		ns.
+
+	# if len(ns.aa_universe.trajectory) > 20000:
+	# 	print(config.header_warning+'Your atomistic trajectory contains many frames, which increases computation time\nReasonably reducing the number of frames of your input AA trajectory won\'t affect results quality\n2k to 10k frames is usually enough, as long as behaviour and flexibility of your molecule are correctly described by your atomistic trajectory')
+
+	return
+
+def map_aa2cg_traj(ns):
+	return
+
 # use selected whole molecules as MDA atomgroups and make their coordinates whole, inplace, across the complete tAA rajectory
 def make_aa_traj_whole_for_selected_mols(ns):
 	
