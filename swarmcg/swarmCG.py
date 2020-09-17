@@ -488,6 +488,51 @@ def read_cg_itp_file(ns, itp_lines):
 
 	return
 
+#This function reads the defaults masses associated to each atomtype loaded into the topology file
+def fetch_cg_mass_itp(ns):
+	#Declaring the ns.cg_atomtypes = {} in order to retreive the mass of each particle whenever is missing by searching the type as arguments
+	ns.cg_atomtypes_mass = {}
+	#Parsing the topology file to find all the .itp included
+	list_itp = []
+	with open(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + ns.top_input_basename, 'r') as fp:
+		all_top_lines = fp.read().split('\n')
+	for line in all_top_lines:
+		if line.split()[0] == "#include":
+			#Reading the filename of the loaded .itps
+			aux = line.split()[1]
+			list_itp.append(aux[1:len(aux)-1])
+
+	#Reading all the atomtypes within each .itp found in the topology file
+	for itp_name in list_itp:
+		with open(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + itp_name, 'r') as fp:
+			itp_file = fp.read().split('\n')
+
+		#Stripping all comments from the list of line
+		for i in range(len(itp_file)):
+			itp_file[i] = strip(itp_file[i],";")
+
+		#Popping out all the empty lines
+        list_idx = [index for index, value in enumerate(itp_file) if value == ""]
+		list_idx.reverse()
+		for idx in list_idx:
+			itp_file.pop(idx)
+
+		# Here a boolean checking if we are in a atomtypes section
+		bAtomTypes = False
+
+		#The lines of the file should be now cleaned, therefore it is possible to skip all the checks to monitor empty lines
+		for line in itp_file:
+			words = line.split()
+			if bAtomTypes:
+				ns.cg_atomtypes_mass[words[0]] = float(words[1])
+
+			#Searching the atomtype keyword
+			if (words[0] == "[" and words[0] == "atomtypes" and words[0] == "]"):
+				bAtomTypes = True
+			elif words[0] == "[" and words[1] != "atomtypes":
+				bAtomTypes = False
+
+	return
 
 # load CG beads from NDX-like file
 def read_ndx_atoms2beads(ns):
@@ -1317,6 +1362,10 @@ def initialize_cg_traj(ns):
 	# 	print(config.header_warning+'Your atomistic trajectory contains many frames, which increases computation time\nReasonably reducing the number of frames of your input AA trajectory won\'t affect results quality\n2k to 10k frames is usually enough, as long as behaviour and flexibility of your molecule are correctly described by your atomistic trajectory')
 
 	return
+
+#Strip the comments from the list
+def strip(line,val):
+	return line[:line.find(val)]
 
 def map_aa2cg_traj(ns):
 	return
