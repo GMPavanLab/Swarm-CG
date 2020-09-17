@@ -1304,7 +1304,14 @@ def initialize_cg_traj(ns):
 		ns.cg_universe2 = mda.Universe(ns.gro_input_basename, ns.gro_input_basename, in_memory=True, refresh_offsets=True,
 									  guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default
 		#Here we need to extract the number of atoms, or a more refined method to extract only the elements on which we are interested
-		ns.
+		#We need to assume that the molecule we will study is located at the beginning of the file. This assumptions does not change much, as the atom names and weights can be taken from the itp file
+		sel = ns.cg_universe2.atoms[:len(ns.cg_itp['atoms'])]
+		#I generate a numpy array of the size np.zeros(len(ns.aa_universe.trajectory,len(ns.cg_itp['atoms'])))
+		coord = np.zeros((len(ns.aa_universe.trajectory),len(ns.cg_itp['atoms']),3))
+		np.aa2cg_trajectory = mda.Merge(sel)
+		np.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
+
+	#Assigning to the new universe the masses related to the CG
 
 	# if len(ns.aa_universe.trajectory) > 20000:
 	# 	print(config.header_warning+'Your atomistic trajectory contains many frames, which increases computation time\nReasonably reducing the number of frames of your input AA trajectory won\'t affect results quality\n2k to 10k frames is usually enough, as long as behaviour and flexibility of your molecule are correctly described by your atomistic trajectory')
