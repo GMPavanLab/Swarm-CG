@@ -264,6 +264,13 @@ def run(ns):
     # for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
     scg.get_beads_MDA_atomgroups(ns)
 
+    # mapping the trajectory aa2cg
+    print('Initializing the mapped trajectory')
+    scg.initialize_cg_traj(ns)
+    print('Mapping the trajectory from AA to CG representation')
+    scg.map_aa2cg_traj(ns)
+
+
     ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None # will be computed one single time with model evaluation script
     ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None # will be computed one single time with model evaluation script
 

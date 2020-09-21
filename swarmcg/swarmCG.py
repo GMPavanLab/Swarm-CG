@@ -186,6 +186,7 @@ def load_aa_data(ns):
 
 
 # check if functions present in CG ITP file can be used by this program, if not we throw an error
+# Definitions containted in config.py
 def verify_handled_functions(geom, func_obj, line_obj):
 
 	try:
@@ -433,7 +434,7 @@ def read_cg_itp_file(ns, itp_lines):
 							)
 							raise exceptions.MissformattedFile(msg)
 					#Function is in the function list
-					func = verify_handled_functions('virtual_sitesn', vs_type, i + 1)
+					func = verify_handled_functions('virtual_sitesn', vs_type, i)
 
 
 					#The cg_atoms in list_cg_atoms, checking that the indexes are lower than the one of the VS
@@ -1497,17 +1498,15 @@ def create_bins_and_dist_matrices(ns, constraints=True):
 # calculate bonds distribution from AA trajectory
 def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 
-	bond_values = np.empty(len(ns.aa_universe.trajectory) * len(beads_ids))
+	bond_values = np.empty(len(ns.aa2cg_trajectory.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2 = beads_ids[i]
 		# print('bead_id_1:', bead_id_1, 'using atoms:', ns.mda_beads_atom_grps[bead_id_1].atoms, 'with weights:', ns.mda_weights_atom_grps[bead_id_1])
 		# print('bead_id_2:', bead_id_2, 'using atoms:', ns.mda_beads_atom_grps[bead_id_2].atoms, 'with weights:', ns.mda_weights_atom_grps[bead_id_2])
 		# print()
 		frame_nb = 0
-		for _ in ns.aa_universe.trajectory:
-			pos_1 = ns.mda_beads_atom_grps[bead_id_1].center(ns.mda_weights_atom_grps[bead_id_1], pbc=None, compound='group') # no need for PBC handling, trajectories were made wholes for the molecule
-			pos_2 = ns.mda_beads_atom_grps[bead_id_2].center(ns.mda_weights_atom_grps[bead_id_2], pbc=None, compound='group')
-			bond_values[len(ns.aa_universe.trajectory)*i+frame_nb] = mda.lib.distances.calc_bonds(pos_1, pos_2, backend=ns.mda_backend, box=None) / 10 # retrieve nm
+		for _ in ns.aa2cg_trajectory.trajectory:
+			bond_values[len(ns.aa2cg_trajectory.trajectory)*i+frame_nb] = mda.lib.distances.calc_bonds(ns.aa2cg_trajectory.atoms[bead_id_1].position, ns.aa2cg_trajectory.atoms[bead_id_2].position, backend=ns.mda_backend, box=None) / 10 # retrieved nm
 			frame_nb += 1
 
 	bond_avg_init = round(np.average(bond_values), 3)
@@ -1565,15 +1564,12 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 # calculate angles distribution from AA trajectory
 def get_AA_angles_distrib(ns, beads_ids):
 
-	angle_values_rad = np.empty(len(ns.aa_universe.trajectory) * len(beads_ids))
+	angle_values_rad = np.empty(len(ns.aa2cg_trajectory.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
 		frame_nb = 0
-		for _ in ns.aa_universe.trajectory:
-			pos_1 = ns.mda_beads_atom_grps[bead_id_1].center(ns.mda_weights_atom_grps[bead_id_1], pbc=None, compound='group') # no need for PBC handling, trajectories were made wholes for the molecule
-			pos_2 = ns.mda_beads_atom_grps[bead_id_2].center(ns.mda_weights_atom_grps[bead_id_2], pbc=None, compound='group')
-			pos_3 = ns.mda_beads_atom_grps[bead_id_3].center(ns.mda_weights_atom_grps[bead_id_3], pbc=None, compound='group')
-			angle_values_rad[len(ns.aa_universe.trajectory)*i+frame_nb] = mda.lib.distances.calc_angles(pos_1, pos_2, pos_3, backend=ns.mda_backend, box=None)
+		for _ in ns.aa2cg_trajectory.trajectory:
+			angle_values_rad[len(ns.aa2cg_trajectory.trajectory)*i+frame_nb] = mda.lib.distances.calc_angles(ns.aa2cg_trajectory.atoms[bead_id_1].position, ns.aa2cg_trajectory.atoms[bead_id_2].position, ns.aa2cg_trajectory.atoms[bead_id_3].position, backend=ns.mda_backend, box=None)
 			frame_nb += 1
 
 	angle_values_deg = np.rad2deg(angle_values_rad)
@@ -1586,16 +1582,12 @@ def get_AA_angles_distrib(ns, beads_ids):
 # calculate dihedrals distribution from AA trajectory
 def get_AA_dihedrals_distrib(ns, beads_ids):
 
-	dihedral_values_rad = np.empty(len(ns.aa_universe.trajectory) * len(beads_ids))
+	dihedral_values_rad = np.empty(len(ns.aa2cg_trajectory.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
 		frame_nb = 0
-		for _ in ns.aa_universe.trajectory:
-			pos_1 = ns.mda_beads_atom_grps[bead_id_1].center(ns.mda_weights_atom_grps[bead_id_1], pbc=None, compound='group') # no need for PBC handling, trajectories were made wholes for the molecule
-			pos_2 = ns.mda_beads_atom_grps[bead_id_2].center(ns.mda_weights_atom_grps[bead_id_2], pbc=None, compound='group')
-			pos_3 = ns.mda_beads_atom_grps[bead_id_3].center(ns.mda_weights_atom_grps[bead_id_3], pbc=None, compound='group')
-			pos_4 = ns.mda_beads_atom_grps[bead_id_4].center(ns.mda_weights_atom_grps[bead_id_4], pbc=None, compound='group')
-			dihedral_values_rad[len(ns.aa_universe.trajectory)*i+frame_nb] = mda.lib.distances.calc_dihedrals(pos_1, pos_2, pos_3, pos_4, backend=ns.mda_backend, box=None)
+		for _ in ns.aa2cg_trajectory.trajectory:
+			dihedral_values_rad[len(ns.aa2cg_trajectory.trajectory)*i+frame_nb] = mda.lib.distances.calc_dihedrals(ns.aa2cg_trajectory.atoms[bead_id_1].position, ns.aa2cg_trajectory.atoms[bead_id_2].position, ns.aa2cg_trajectory.atoms[bead_id_3].position, ns.aa2cg_trajectory.atoms[bead_id_4].position, backend=ns.mda_backend, box=None)
 			frame_nb += 1
 
 	dihedral_values_deg = np.rad2deg(dihedral_values_rad)
@@ -1944,6 +1936,12 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		get_atoms_weights_in_beads(ns) # get weights of atoms within beads
 		# for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
 		get_beads_MDA_atomgroups(ns)
+
+		# mapping the trajectory aa2cg
+		print('Initializing the mapped trajectory')
+		scg.initialize_cg_traj(ns)
+		print('Mapping the trajectory from AA to CG representation')
+		scg.map_aa2cg_traj(ns)
 
 		if ns.atom_only:
 			compute_Rg(ns, traj_type='AA')
