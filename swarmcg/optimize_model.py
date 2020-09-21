@@ -187,6 +187,9 @@ def run(ns):
 
     print()
 
+    #Loading the mass of the atom-tpyes in case they are needed
+    scg.fetch_cg_mass_itp(ns)
+
     # read starting CG ITP file
     with open(ns.cg_itp_filename, 'r') as fp:
         itp_lines = fp.read().split('\n')

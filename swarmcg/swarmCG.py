@@ -212,7 +212,7 @@ def verify_handled_functions(geom, func_obj, line_obj):
 def read_cg_itp_file(ns, itp_lines):
 
 	print('Reading Coarse-Grained (CG) ITP file')
-	ns.cg_itp = {'moleculetype': {'molname': '', 'nrexcl': 0}, 'atoms': [], 'constraint': [], 'bond': [], 'angle': [], 'dihedral': [], 'exclusion': [], 'virtual_sitesn': []}
+	ns.cg_itp = {'moleculetype': {'molname': '', 'nrexcl': 0}, 'atoms': [], 'constraint': [], 'bond': [], 'angle': [], 'dihedral': [], 'exclusion': [], 'virtual_sitesn': {}}
 	ns.nb_constraints, ns.nb_bonds, ns.nb_angles, ns.nb_dihedrals = -1, -1, -1, -1
 
 	for i in range(len(itp_lines)):
@@ -239,22 +239,42 @@ def read_cg_itp_file(ns, itp_lines):
 				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, False, False, False, False
 
 			else:
-				sp_itp_line = itp_line.split()
+				#Stripping comments from the input line
+				aux_itp_line = strip(itp_line,";")
+				sp_itp_line = aux_itp_line.split()
 
 				if r_moleculetype:
 
 					ns.cg_itp['moleculetype']['molname'], ns.cg_itp['moleculetype']['nrexcl'] = sp_itp_line[0], int(sp_itp_line[1])
 
 				elif r_atoms:
+					if len(sp_itp_line) == 7:
+						bead_id, bead_type, resnr, residue, atom, cgnr, charge = sp_itp_line[:7]
+						# As the mass is not defined we look into its definition
+						try:
+							mass = ns.cg_atomtypes_mass[bead_type]
+						except:
+							msg = (
+								"The bead_type {}, is not contained into the definition of the "
+								"force field file"
+							).format(bead_type)
+							raise exceptions.MissformattedFile(msg)
 
-					bead_id, bead_type, resnr, residue, atom, cgnr, charge = sp_itp_line[:7]
-					try:
-						mass_and_eol = ' '.join(sp_itp_line[7:])
-						ns.cg_itp['atoms'].append({'bead_id': int(bead_id)-1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue, 'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge), 'mass_and_eol': mass_and_eol}) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
-					except IndexError:
-						ns.cg_itp['atoms'].append({'bead_id': int(bead_id)-1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue, 'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge)}) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
-					#Check if the atom index correspond to the length of the atoms list,
-					# if this check is passed it allow to do direct accesses within the list
+					elif len(sp_itp_line) == 8:
+						bead_id, bead_type, resnr, residue, atom, cgnr, charge, mass = sp_itp_line[:8]
+					else:
+						#
+						msg = (
+						"The atom description form the input itp file: \n\n {} \n\n"
+						"does not contain the correct number of input. Please insert "
+						"the following information: \n\n  bead_id, bead_type, resnr, "
+						"residue, atom, cgnr, charge, [mass] \n\n".format(itp_line)
+						)
+						raise exceptions.MissformattedFile(msg)
+
+					#Assignment of the variables value
+					ns.cg_itp['atoms'].append({'bead_id': int(bead_id) - 1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue,'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge), 'mass': float(mass)})
+
 					if not len(ns.cg_itp['atoms']) == int(bead_id):
 						msg = (
 							"Swarm-CG handles .itp files with atoms indexed consecutively starting from 1.\n"
@@ -426,7 +446,8 @@ def read_cg_itp_file(ns, itp_lines):
 							)
 							raise exceptions.MissformattedFile(msg)
 
-					ns.cg_itp['virutal_sitesn'].append({'bead_id': bead_id, 'vs_type': vs_type, 'atom_list': cg_atomlist)
+					# ns.cg_itp['virutal_sitesn'].append({'bead_id': bead_id, 'vs_type': vs_type, 'atom_list': cg_atomlist})
+					ns.cg_itp['virutal_sitesn'][bead_id] = {'bead_id': bead_id, 'vs_type': vs_type, 'atom_list': cg_atomlist}
 
 
 				elif r_exclusion:
@@ -1343,20 +1364,32 @@ def read_aa_traj(ns):
 
 def initialize_cg_traj(ns):
 	print('Building Coarse-Grained (CG) trajectory', flush=True)
-	with warnings.catch_warnings():
-		warnings.filterwarnings("ignore",
-								category=ImportWarning)  # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
-		ns.cg_universe2 = mda.Universe(ns.gro_input_basename, ns.gro_input_basename, in_memory=True, refresh_offsets=True,
-									  guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default
-		#Here we need to extract the number of atoms, or a more refined method to extract only the elements on which we are interested
-		#We need to assume that the molecule we will study is located at the beginning of the file. This assumptions does not change much, as the atom names and weights can be taken from the itp file
-		sel = ns.cg_universe2.atoms[:len(ns.cg_itp['atoms'])]
-		#I generate a numpy array of the size np.zeros(len(ns.aa_universe.trajectory,len(ns.cg_itp['atoms'])))
-		coord = np.zeros((len(ns.aa_universe.trajectory),len(ns.cg_itp['atoms']),3))
-		np.aa2cg_trajectory = mda.Merge(sel)
-		np.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
+	# with warnings.catch_warnings():
+	# 	warnings.filterwarnings("ignore",
+	# 							category=ImportWarning)  # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
+	# 	ns.cg_universe2 = mda.Universe(ns.gro_input_basename, ns.gro_input_basename, in_memory=True, refresh_offsets=True,
+	# 								  guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default
+	# 	Here we need to extract the number of atoms, or a more refined method to extract only the elements on which we are interested
+	# 	We need to assume that the molecule we will study is located at the beginning of the file. This assumptions does not change much, as the atom names and weights can be taken from the itp file
+		# sel = ns.cg_universe2.atoms[:len(ns.cg_itp['atoms'])]
+		# I generate a numpy array of the size np.zeros(len(ns.aa_universe.trajectory,len(ns.cg_itp['atoms'])))
+		# coord = np.zeros((len(ns.aa_universe.trajectory),len(ns.cg_itp['atoms']),3))
+		# np.aa2cg_trajectory = mda.Merge(sel)
+		# np.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
+	masses = np.array([val['mass'] for val in ns.cg_itp['atoms']])
+	names = np.array([val['atom'] for val in ns.cg_itp['atoms']])
+	resname = np.array([val['residue'] for val in ns.cg_itp['atoms']])
+	resid = np.array([val['resnr'] for val in ns.cg_itp['atoms']])
+	nr = len(list(set([val['resnr'] for val in ns.cg_itp['atoms']])))
+	np.aa2cg_trajectory = mda.Universe.empty(len(ns.cg_itp['atoms']), nr, resindex=resid, trajectory=True)
+	np.aa2cg_trajectory.add_TopologyAttr('masses')
+	np.aa2cg_trajectory._topology.masses.values = np.array(masses)
+	np.aa2cg_trajectory.add_TopologyAttr('name')
+	np.aa2cg_trajectory._topology.names.values = names
+	np.aa2cg_trajectory.add_TopologyAttr('resnames')
+	np.aa2cg_trajectory._topology.resnames.values = resname
 
-	#Assigning to the new universe the masses related to the CG
+#Assigning to the new universe the masses related to the CG
 
 	# if len(ns.aa_universe.trajectory) > 20000:
 	# 	print(config.header_warning+'Your atomistic trajectory contains many frames, which increases computation time\nReasonably reducing the number of frames of your input AA trajectory won\'t affect results quality\n2k to 10k frames is usually enough, as long as behaviour and flexibility of your molecule are correctly described by your atomistic trajectory')
@@ -1368,6 +1401,44 @@ def strip(line,val):
 	return line[:line.find(val)]
 
 def map_aa2cg_traj(ns):
+	# for i in range(len(ns.aa_universe.trajectory)):
+    # I will estimate the coordinates of each bead within all the frames using the iterator of mda and the function center_of_mass()
+	coord = np.zeros((len(ns.aa_universe.trajectory), len(ns.cg_itp['atoms']), 3))
+	for j in range(len(ns.cg_itp['atoms'])):
+	#Check if the atomtype of the cg is related to a VS
+		if ns.cg_itp['atoms'][j]['bead_type'] != 'VS':
+			#The bead is not a VS therefore must be evaluated starting from the AA
+			la = ns.all_beads[j]['atoms_id']
+			sel = ns.aa_universe.atoms[la]
+			traj = []
+			for fr in ns.aa_universe.trajectory:
+				traj.append(sel.center_of_mass())
+			coord[:,j,:] = np.array(traj)
+
+
+	np.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
+
+	for j in range(len(ns.cg_itp['atoms'])):
+		if ns.cg_itp['atoms'][j]['bead_type'] == 'VS':
+			#The bead is a VS, therefore must be evaluated from the coordinates of the previous atoms
+			# [val['atom_list'] for val in ns.cg_itp['virutal_sitesn'] if val['bead_id'] == j][0]
+			la = ns.cg_itp['virutal_sitesn'][j]['atom_list']
+			# VS_TYPE = 1 -> Center of Geometry
+			# VS_TYPE = 2 -> Center of Mass
+			# VS_TYPE = 3 -> Center of Weights (for each atom a weight must be given in the definition of the VS)
+			traj = []
+			sel = ns.aa2cg_trajectory.atoms[la]
+			if ns.cg_itp['virutal_sitesn'][j]['vs_type'] == 1:
+				for fr in ns.aa2cg_trajectory.trajectory:
+					traj.append(sel.center_of_geometry())
+			elif ns.cg_itp['virutal_sitesn'][j]['vs_type'] == 2:
+				for fr in ns.aa2cg_trajectory.trajectory:
+					traj.append(sel.center_of_mass())
+
+			coord[:, j, :] = np.array(traj)
+	#Final CG-coordinates
+	np.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
+
 	return
 
 # use selected whole molecules as MDA atomgroups and make their coordinates whole, inplace, across the complete tAA rajectory
@@ -1843,6 +1914,9 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 	row_wise_ranges = {}
 	row_wise_ranges['max_range_constraints'], row_wise_ranges['max_range_bonds'], row_wise_ranges['max_range_angles'], row_wise_ranges['max_range_dihedrals'] = 0, 0, 0, 0
+
+	#Loading the mass of the atom-tpyes in case they are needed
+	fetch_cg_mass_itp()
 
 	# read ITP file to extract bonds, angles and dihedrals to compare OR get it from the optimization script to avoid re-reading trajectory + calculating hists at each execution
 	# for reading ITP, groups are created by separating bonds/angles/etc lines by a return (\n) or a comment (;)
