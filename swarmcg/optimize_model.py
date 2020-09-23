@@ -88,16 +88,17 @@ def run(ns):
         arg_entry = user_provided_filenames[i]
         if not os.path.isfile(arg_entries[arg_entry]):
             data_folder_path = ns.input_folder+'/'+arg_entries[arg_entry]
-        if ns.input_folder != '.' and os.path.isfile(data_folder_path):
-            arg_entries[arg_entry] = data_folder_path
-        else:
-            if ns.input_folder == '':
-                data_folder_path = arg_entries[arg_entry]
-            msg = (
-                f"Cannot find file for argument - {args_names[i]} "
-                f"(expected at location: {data_folder_path})"
-            )
-            raise FileNotFoundError(msg)
+            if ns.input_folder != '.' and os.path.isfile(data_folder_path):
+                arg_entries[arg_entry] = data_folder_path
+            else:
+                if ns.input_folder == '':
+                    data_folder_path = arg_entries[arg_entry]
+                print(data_folder_path)
+                msg = (
+                    'Cannot find file for argument - {} '
+                    '(expected at location: {})'.format(args_names[i],data_folder_path)
+                )
+                raise FileNotFoundError(msg)
 
     # check that gromacs alias is correct
     with open(os.devnull, 'w') as devnull:

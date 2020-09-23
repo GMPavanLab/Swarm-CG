@@ -214,6 +214,8 @@ def read_cg_itp_file(ns, itp_lines):
 
 	print('Reading Coarse-Grained (CG) ITP file')
 	ns.cg_itp = {'moleculetype': {'molname': '', 'nrexcl': 0}, 'atoms': [], 'constraint': [], 'bond': [], 'angle': [], 'dihedral': [], 'exclusion': [], 'virtual_sitesn': {}}
+	ns.real_beads_ids = []
+	ns.vs_beads_ids = []
 	ns.nb_constraints, ns.nb_bonds, ns.nb_angles, ns.nb_dihedrals = -1, -1, -1, -1
 
 	for i in range(len(itp_lines)):
@@ -272,6 +274,12 @@ def read_cg_itp_file(ns, itp_lines):
 						"residue, atom, cgnr, charge, [mass] \n\n".format(itp_line)
 						)
 						raise exceptions.MissformattedFile(msg)
+
+					#Making real beads and vs list of ids
+					if bead_type == 'VS':
+						ns.vs_beads_ids.append(int(bead_id) - 1)
+					else:
+						ns.real_beads_ids.append(int(bead_id) - 1)
 
 					#Assignment of the variables value
 					ns.cg_itp['atoms'].append({'bead_id': int(bead_id) - 1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue,'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge), 'mass': float(mass)})
@@ -415,7 +423,7 @@ def read_cg_itp_file(ns, itp_lines):
 					# We need to define the function types for the VSn
 
 					#Read VS index, and VS function, list_cg_atoms
-					bead_id, vs_type, cg_atomlist = int(sp_itp_line[0])-1, sp_itp_line[1], [int(bid)-1 for bid in sp_itp_line[2:]]
+					bead_id, vs_type, cg_atomlist = int(sp_itp_line[0])-1, int(sp_itp_line[1]), [int(bid)-1 for bid in sp_itp_line[2:]]
 
 
 					#Check if the bead is defined in the atom list
@@ -529,11 +537,13 @@ def fetch_cg_mass_itp(ns):
 
 	# Checking if the namespaces contains the folder specs.
 	# This is done to distinguish between optimize and evaluate models
-	if hasattr(ns,'exec_folder') and hasattr(config,'input_sim_files_dirname'):
+	print(os.getcwd())
+	if hasattr(ns,'exec_folder') or hasattr(config,'input_sim_files_dirname'):
+		print(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + ns.top_input_basename)
 		with open(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + ns.top_input_basename, 'r') as fp:
 			all_top_lines = fp.read().split('\n')
 	else:
-		with open( ns.top_input_basename, 'r') as fp:
+		with open(ns.top_input_basename, 'r') as fp:
 			all_top_lines = fp.read().split('\n')
 
 	pop_empty_lines(all_top_lines)
@@ -707,11 +717,10 @@ def compute_Rg(ns, traj_type):
 		total_mass = sum([ns.cg_universe.atoms[bead_id].mass for bead_id in range(len(ns.cg_itp['atoms']))])
 		beads_masses = np.array([np.array([ns.cg_universe.atoms[bead_id].mass]) for bead_id in range(len(ns.cg_itp['atoms']))])
 		# print('BEADS MASSES CG for Rg calculation AA-mapped:\n', beads_masses)
-
-		for ts in ns.aa_universe.trajectory:
-			mapped_pos = np.array([ns.mda_beads_atom_grps[bead_id].center(ns.mda_weights_atom_grps[bead_id], pbc=None, compound='group') for bead_id in range(len(ns.cg_itp['atoms']))])
-			com = np.sum(beads_masses * mapped_pos, axis=0) / total_mass
-			mapped_pos_dist_com = mda.lib.distances.distance_array(com, mapped_pos, backend=ns.mda_backend)
+		for ts in ns.aa2cg_trajectory.trajectory:
+			# mapped_pos = np.array([ns.mda_beads_atom_grps[bead_id].center(ns.mda_weights_atom_grps[bead_id], pbc=None, compound='group') for bead_id in range(len(ns.cg_itp['atoms']))])
+			com = np.sum(beads_masses * ts.positions, axis=0) / total_mass
+			mapped_pos_dist_com = mda.lib.distances.distance_array(com, ts.positions, backend=ns.mda_backend)
 			gyr_aa_mapped[ts.frame] = np.sqrt(np.sum(beads_masses.reshape(1,len(beads_masses)) * np.power(mapped_pos_dist_com, 2)) / total_mass)
 		ns.gyr_aa_mapped = round(np.average(gyr_aa_mapped)/10 + ns.aa_rg_offset, 3) # retrieve nm
 		ns.gyr_aa_mapped_std = round(np.std(gyr_aa_mapped)/10, 3) # retrieve nm
@@ -973,17 +982,13 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 			else:
 				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}\n'.format(itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'], itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'], itp_obj['atoms'][i]['resnr']))
 
-		fp.write('\n\n[  ]\n')
-		fp.write('; id type resnr residue   atom  cgnr    charge     mass\n\n')
+		# fp.write('\n\n[  ]\n')
+		# fp.write('; id type resnr residue   atom  cgnr    charge     mass\n\n')
 
 		if len(itp_obj['virtual_sitesn']) > 0:
 			fp.write('\n\n[ virtual_sitesn ]\n')
-			for i in range(len(itp_obj['virtual_sitesn'])):
-
-				fp.write('{0:<4} {1:>4} {}\n'.format(
-					itp_obj['virtual_sitesn'][i]['bead_id'] + 1,
-					itp_obj['virtual_sitesn'][i]['vs_type']),
-					' '.join([str(bid+1) for bid in itp_obj['virtual_sitesn'][i]['atom_list']]))
+			for vsite in itp_obj['virtual_sitesn']:
+				fp.write('{} {} {}\n'.format(str(itp_obj['virtual_sitesn'][vsite]['bead_id'] + 1), str(itp_obj['virtual_sitesn'][vsite]['vs_type']), ' '.join([str(bid+1) for bid in itp_obj['virtual_sitesn'][vsite]['atom_list']])))
 
 		if 'constraint' in print_sections and 'constraint' in itp_obj and len(itp_obj['constraint']) > 0:
 			fp.write('\n\n[ constraints ]\n')
@@ -1538,7 +1543,7 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 		bead_id_1, bead_id_2 = beads_ids[i]
 		# print('bead_id_1:', bead_id_1, 'using atoms:', ns.mda_beads_atom_grps[bead_id_1].atoms, 'with weights:', ns.mda_weights_atom_grps[bead_id_1])
 		# print('bead_id_2:', bead_id_2, 'using atoms:', ns.mda_beads_atom_grps[bead_id_2].atoms, 'with weights:', ns.mda_weights_atom_grps[bead_id_2])
-		# print()
+		# print(beads_ids[i])
 		for ts in ns.aa2cg_trajectory.trajectory:
 			bond_values[len(ns.aa2cg_trajectory.trajectory)*i+ts.frame] = mda.lib.distances.calc_bonds(ns.aa2cg_trajectory.atoms[bead_id_1].position, ns.aa2cg_trajectory.atoms[bead_id_2].position, backend=ns.mda_backend, box=None) / 10 # retrieved nm
 
@@ -1930,8 +1935,6 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	row_wise_ranges = {}
 	row_wise_ranges['max_range_constraints'], row_wise_ranges['max_range_bonds'], row_wise_ranges['max_range_angles'], row_wise_ranges['max_range_dihedrals'] = 0, 0, 0, 0
 
-	#Loading the mass of the atom-tpyes in case they are needed
-	fetch_cg_mass_itp(ns)
 
 	# read ITP file to extract bonds, angles and dihedrals to compare OR get it from the optimization script to avoid re-reading trajectory + calculating hists at each execution
 	# for reading ITP, groups are created by separating bonds/angles/etc lines by a return (\n) or a comment (;)
@@ -1946,8 +1949,8 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				msg = "Cannot read CG ITP, it seems you provided a binary file."
 				raise exceptions.MissformattedFile(msg)
 
-	# if we do not have reference already from the optimization procedure
-	if manual_mode:
+		# Loading the mass of the atom-tpyes in case they are needed
+		fetch_cg_mass_itp(ns)
 
 		# read AA traj + find atom bonds connectivity and atom types (to differentiate heavy/hydrogens)
 		print()
