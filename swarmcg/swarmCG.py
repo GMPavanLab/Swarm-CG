@@ -241,7 +241,7 @@ def read_cg_itp_file(ns, itp_lines):
 
 			else:
 				#Stripping comments from the input line
-				aux_itp_line = strip(itp_line,";")
+				aux_itp_line = strip_comment(itp_line,";")
 				sp_itp_line = aux_itp_line.split()
 
 				if r_moleculetype:
@@ -427,7 +427,7 @@ def read_cg_itp_file(ns, itp_lines):
 						raise exceptions.MissformattedFile(msg)
 					else:
 						#Check if the bead is defined as VS
-					    if ns.cg_itp['atoms'][bead_id]['bead_type'] != 'VS':
+						if ns.cg_itp['atoms'][bead_id]['bead_type'] != 'VS':
 							msg = (
 								"The virtual site {} should be defined with bead type"
 								" VS".format(bead_id+1)
@@ -447,8 +447,8 @@ def read_cg_itp_file(ns, itp_lines):
 							)
 							raise exceptions.MissformattedFile(msg)
 
-					# ns.cg_itp['virutal_sitesn'].append({'bead_id': bead_id, 'vs_type': vs_type, 'atom_list': cg_atomlist})
-					ns.cg_itp['virutal_sitesn'][bead_id] = {'bead_id': bead_id, 'vs_type': vs_type, 'atom_list': cg_atomlist}
+					# ns.cg_itp['virtual_sitesn'].append({'bead_id': bead_id, 'vs_type': vs_type, 'atom_list': cg_atomlist})
+					ns.cg_itp['virtual_sitesn'][bead_id] = {'bead_id': bead_id, 'vs_type': vs_type, 'atom_list': cg_atomlist}
 
 
 				elif r_exclusion:
@@ -459,12 +459,13 @@ def read_cg_itp_file(ns, itp_lines):
 	# TODO: make these messages more clear and CORRECT for the dihedral function handling -- also explain this is the current Opti.CG implementation, function 9 might come in next version
 	# TODO: check what kind of error or processing is done when a correct line is duplicated within a group ?? probably it goes on in a bad way
 
-	msg = (
-		f"In the provided CG ITP file {geom} have been grouped, but {geom} group "
-		f"{str(grp_geom + 1)} holds lines that have different parameters. Parameters should be "
-		f"identical within a group, only CG beads IDs should differ. "
-		f"Please correct the CG ITP file and separate groups using a blank or commented line"
-	)
+
+#	msg = (
+#		f"In the provided CG ITP file {geom} have been grouped, but {geom} group "
+#		f"{str(grp_geom + 1)} holds lines that have different parameters. Parameters should be "
+#		f"identical within a group, only CG beads IDs should differ. "
+#		f"Please correct the CG ITP file and separate groups using a blank or commented line"
+#	)
 	for geom in ['constraint']: # constraints only
 		for grp_geom in range(len(ns.cg_itp[geom])):
 			for var in ['funct', 'value']:
@@ -510,14 +511,33 @@ def read_cg_itp_file(ns, itp_lines):
 
 	return
 
+def pop_empty_lines(file):
+	# Popping out all the empty lines
+	list_idx = [value for value in range(len(file)) if file[value] == '']
+	list_idx.reverse()
+	for idx in list_idx:
+		file.pop(idx)
+
+	return
+
 #This function reads the defaults masses associated to each atomtype loaded into the topology file
 def fetch_cg_mass_itp(ns):
 	#Declaring the ns.cg_atomtypes = {} in order to retreive the mass of each particle whenever is missing by searching the type as arguments
 	ns.cg_atomtypes_mass = {}
 	#Parsing the topology file to find all the .itp included
 	list_itp = []
-	with open(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + ns.top_input_basename, 'r') as fp:
-		all_top_lines = fp.read().split('\n')
+
+	# Checking if the namespaces contains the folder specs.
+	# This is done to distinguish between optimize and evaluate models
+	if hasattr(ns,'exec_folder') and hasattr(config,'input_sim_files_dirname'):
+		with open(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + ns.top_input_basename, 'r') as fp:
+			all_top_lines = fp.read().split('\n')
+	else:
+		with open( ns.top_input_basename, 'r') as fp:
+			all_top_lines = fp.read().split('\n')
+
+	pop_empty_lines(all_top_lines)
+
 	for line in all_top_lines:
 		if line.split()[0] == "#include":
 			#Reading the filename of the loaded .itps
@@ -526,15 +546,20 @@ def fetch_cg_mass_itp(ns):
 
 	#Reading all the atomtypes within each .itp found in the topology file
 	for itp_name in list_itp:
-		with open(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + itp_name, 'r') as fp:
-			itp_file = fp.read().split('\n')
+		if hasattr(ns, 'exec_folder') and hasattr(config, 'input_sim_files_dirname'):
+			with open(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + itp_name, 'r') as fp:
+				itp_file = fp.read().split('\n')
+		else:
+			with open(itp_name, 'r') as fp:
+				itp_file = fp.read().split('\n')
+
 
 		#Stripping all comments from the list of line
 		for i in range(len(itp_file)):
-			itp_file[i] = strip(itp_file[i],";")
+			itp_file[i] = strip_comment(itp_file[i],";")
 
 		#Popping out all the empty lines
-        list_idx = [index for index, value in enumerate(itp_file) if value == ""]
+		list_idx = [value for value in range(len(itp_file)) if itp_file[value] == '']
 		list_idx.reverse()
 		for idx in list_idx:
 			itp_file.pop(idx)
@@ -544,15 +569,20 @@ def fetch_cg_mass_itp(ns):
 
 		#The lines of the file should be now cleaned, therefore it is possible to skip all the checks to monitor empty lines
 		for line in itp_file:
-			words = line.split()
-			if bAtomTypes:
-				ns.cg_atomtypes_mass[words[0]] = float(words[1])
+			if len(line.split()) != 0:
+				words = line.split()
+				#Searching the atomtype keyword
+				if words[0] == "[":
+					if words[1] == "atomtypes":
+						bAtomTypes = True
+					elif words[1] != "atomtypes":
+						bAtomTypes = False
+					continue
+				if bAtomTypes:
+					ns.cg_atomtypes_mass[words[0]] = float(words[1])
+			else:
+				break
 
-			#Searching the atomtype keyword
-			if (words[0] == "[" and words[0] == "atomtypes" and words[0] == "]"):
-				bAtomTypes = True
-			elif words[0] == "[" and words[1] != "atomtypes":
-				bAtomTypes = False
 
 	return
 
@@ -674,17 +704,15 @@ def compute_Rg(ns, traj_type):
 	elif traj_type == 'AA_mapped':
 
 		gyr_aa_mapped = np.empty(len(ns.aa_universe.trajectory))
-		frame_nb = 0
 		total_mass = sum([ns.cg_universe.atoms[bead_id].mass for bead_id in range(len(ns.cg_itp['atoms']))])
 		beads_masses = np.array([np.array([ns.cg_universe.atoms[bead_id].mass]) for bead_id in range(len(ns.cg_itp['atoms']))])
 		# print('BEADS MASSES CG for Rg calculation AA-mapped:\n', beads_masses)
 
-		for _ in ns.aa_universe.trajectory:
+		for ts in ns.aa_universe.trajectory:
 			mapped_pos = np.array([ns.mda_beads_atom_grps[bead_id].center(ns.mda_weights_atom_grps[bead_id], pbc=None, compound='group') for bead_id in range(len(ns.cg_itp['atoms']))])
 			com = np.sum(beads_masses * mapped_pos, axis=0) / total_mass
 			mapped_pos_dist_com = mda.lib.distances.distance_array(com, mapped_pos, backend=ns.mda_backend)
-			gyr_aa_mapped[frame_nb] = np.sqrt(np.sum(beads_masses.reshape(1,len(beads_masses)) * np.power(mapped_pos_dist_com, 2)) / total_mass)
-			frame_nb += 1
+			gyr_aa_mapped[ts.frame] = np.sqrt(np.sum(beads_masses.reshape(1,len(beads_masses)) * np.power(mapped_pos_dist_com, 2)) / total_mass)
 		ns.gyr_aa_mapped = round(np.average(gyr_aa_mapped)/10 + ns.aa_rg_offset, 3) # retrieve nm
 		ns.gyr_aa_mapped_std = round(np.std(gyr_aa_mapped)/10, 3) # retrieve nm
 
@@ -1375,20 +1403,24 @@ def initialize_cg_traj(ns):
 		# sel = ns.cg_universe2.atoms[:len(ns.cg_itp['atoms'])]
 		# I generate a numpy array of the size np.zeros(len(ns.aa_universe.trajectory,len(ns.cg_itp['atoms'])))
 		# coord = np.zeros((len(ns.aa_universe.trajectory),len(ns.cg_itp['atoms']),3))
-		# np.aa2cg_trajectory = mda.Merge(sel)
-		# np.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
+		# ns.aa2cg_trajectory = mda.Merge(sel)
+		# ns.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
 	masses = np.array([val['mass'] for val in ns.cg_itp['atoms']])
 	names = np.array([val['atom'] for val in ns.cg_itp['atoms']])
 	resname = np.array([val['residue'] for val in ns.cg_itp['atoms']])
 	resid = np.array([val['resnr'] for val in ns.cg_itp['atoms']])
 	nr = len(list(set([val['resnr'] for val in ns.cg_itp['atoms']])))
-	np.aa2cg_trajectory = mda.Universe.empty(len(ns.cg_itp['atoms']), nr, resindex=resid, trajectory=True)
-	np.aa2cg_trajectory.add_TopologyAttr('masses')
-	np.aa2cg_trajectory._topology.masses.values = np.array(masses)
-	np.aa2cg_trajectory.add_TopologyAttr('name')
-	np.aa2cg_trajectory._topology.names.values = names
-	np.aa2cg_trajectory.add_TopologyAttr('resnames')
-	np.aa2cg_trajectory._topology.resnames.values = resname
+	print(list(set([val['resnr'] for val in ns.cg_itp['atoms']])))
+	print(nr)
+	ns.aa2cg_trajectory = mda.Universe.empty(len(ns.cg_itp['atoms']),n_residues=nr,atom_resindex=resid,n_segments=1,residue_segindex=np.ones(nr), trajectory=True)
+	# ns.aa2cg_trajectory = mda.Universe.empty(len(ns.cg_itp['atoms']), 1,n_residues=nr,atom_resindex=resid,n_segments=1,residue_segindex=np.ones(nr), trajectory=True)
+	# ns.aa2cg_trajectory = mda.Universe.empty(len(ns.cg_itp['atoms']), nr, resindex=resid, trajectory=True)
+	ns.aa2cg_trajectory.add_TopologyAttr('masses')
+	ns.aa2cg_trajectory._topology.masses.values = np.array(masses)
+	ns.aa2cg_trajectory.add_TopologyAttr('name')
+	ns.aa2cg_trajectory._topology.names.values = names
+	ns.aa2cg_trajectory.add_TopologyAttr('resnames')
+	ns.aa2cg_trajectory._topology.resnames.values = resname
 
 #Assigning to the new universe the masses related to the CG
 
@@ -1398,47 +1430,50 @@ def initialize_cg_traj(ns):
 	return
 
 #Strip the comments from the list
-def strip(line,val):
-	return line[:line.find(val)]
+def strip_comment(line,val):
+	if line.find(val) >= 0:
+		return line[:line.find(val)]
+	else:
+		return line
+
 
 def map_aa2cg_traj(ns):
 	# for i in range(len(ns.aa_universe.trajectory)):
     # I will estimate the coordinates of each bead within all the frames using the iterator of mda and the function center_of_mass()
 	coord = np.zeros((len(ns.aa_universe.trajectory), len(ns.cg_itp['atoms']), 3))
-	for j in range(len(ns.cg_itp['atoms'])):
+	for bead_id in range(len(ns.cg_itp['atoms'])):
 	#Check if the atomtype of the cg is related to a VS
-		if ns.cg_itp['atoms'][j]['bead_type'] != 'VS':
+		if ns.cg_itp['atoms'][bead_id]['bead_type'] != 'VS':
 			#The bead is not a VS therefore must be evaluated starting from the AA
-			la = ns.all_beads[j]['atoms_id']
-			sel = ns.aa_universe.atoms[la]
-			traj = []
-			for fr in ns.aa_universe.trajectory:
-				traj.append(sel.center_of_mass())
-			coord[:,j,:] = np.array(traj)
+			traj = np.empty((len(ns.aa_universe.trajectory),3))
+			for ts in ns.aa_universe.trajectory:
+                # print(ns.mda_beads_atom_grps[bead_id].center(ns.mda_weights_atom_grps[bead_id], pbc=None,
+				# 	compound='group'))
+				traj[ts.frame] = ns.mda_beads_atom_grps[bead_id].center(ns.mda_weights_atom_grps[bead_id], pbc=None,compound='group')  # no need for PBC handling, trajectories were made wholes for the molecule
+			coord[:,bead_id,:] = traj
 
 
-	np.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
+	ns.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
 
 	for j in range(len(ns.cg_itp['atoms'])):
 		if ns.cg_itp['atoms'][j]['bead_type'] == 'VS':
 			#The bead is a VS, therefore must be evaluated from the coordinates of the previous atoms
-			# [val['atom_list'] for val in ns.cg_itp['virutal_sitesn'] if val['bead_id'] == j][0]
-			la = ns.cg_itp['virutal_sitesn'][j]['atom_list']
+			la = ns.cg_itp['virtual_sitesn'][j]['atom_list']
 			# VS_TYPE = 1 -> Center of Geometry
 			# VS_TYPE = 2 -> Center of Mass
 			# VS_TYPE = 3 -> Center of Weights (for each atom a weight must be given in the definition of the VS)
-			traj = []
+			traj = np.empty((len(ns.aa_universe.trajectory),3))
 			sel = ns.aa2cg_trajectory.atoms[la]
-			if ns.cg_itp['virutal_sitesn'][j]['vs_type'] == 1:
-				for fr in ns.aa2cg_trajectory.trajectory:
-					traj.append(sel.center_of_geometry())
-			elif ns.cg_itp['virutal_sitesn'][j]['vs_type'] == 2:
-				for fr in ns.aa2cg_trajectory.trajectory:
-					traj.append(sel.center_of_mass())
+			if ns.cg_itp['virtual_sitesn'][j]['vs_type'] == 1:
+				for ts in ns.aa2cg_trajectory.trajectory:
+					traj[ts.frame] = sel.center_of_geometry(pbc=None)
+			elif ns.cg_itp['virtual_sitesn'][j]['vs_type'] == 2:
+				for ts in ns.aa2cg_trajectory.trajectory:
+					traj[ts.frame] = sel.center_of_mass(pbc=None)
 
-			coord[:, j, :] = np.array(traj)
+			coord[:, j, :] = traj
 	#Final CG-coordinates
-	np.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
+	ns.aa2cg_trajectory.load_new(coord, format=mda.coordinates.memory.MemoryReader)
 
 	return
 
@@ -1504,10 +1539,8 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 		# print('bead_id_1:', bead_id_1, 'using atoms:', ns.mda_beads_atom_grps[bead_id_1].atoms, 'with weights:', ns.mda_weights_atom_grps[bead_id_1])
 		# print('bead_id_2:', bead_id_2, 'using atoms:', ns.mda_beads_atom_grps[bead_id_2].atoms, 'with weights:', ns.mda_weights_atom_grps[bead_id_2])
 		# print()
-		frame_nb = 0
-		for _ in ns.aa2cg_trajectory.trajectory:
-			bond_values[len(ns.aa2cg_trajectory.trajectory)*i+frame_nb] = mda.lib.distances.calc_bonds(ns.aa2cg_trajectory.atoms[bead_id_1].position, ns.aa2cg_trajectory.atoms[bead_id_2].position, backend=ns.mda_backend, box=None) / 10 # retrieved nm
-			frame_nb += 1
+		for ts in ns.aa2cg_trajectory.trajectory:
+			bond_values[len(ns.aa2cg_trajectory.trajectory)*i+ts.frame] = mda.lib.distances.calc_bonds(ns.aa2cg_trajectory.atoms[bead_id_1].position, ns.aa2cg_trajectory.atoms[bead_id_2].position, backend=ns.mda_backend, box=None) / 10 # retrieved nm
 
 	bond_avg_init = round(np.average(bond_values), 3)
 
@@ -1567,10 +1600,8 @@ def get_AA_angles_distrib(ns, beads_ids):
 	angle_values_rad = np.empty(len(ns.aa2cg_trajectory.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
-		frame_nb = 0
-		for _ in ns.aa2cg_trajectory.trajectory:
-			angle_values_rad[len(ns.aa2cg_trajectory.trajectory)*i+frame_nb] = mda.lib.distances.calc_angles(ns.aa2cg_trajectory.atoms[bead_id_1].position, ns.aa2cg_trajectory.atoms[bead_id_2].position, ns.aa2cg_trajectory.atoms[bead_id_3].position, backend=ns.mda_backend, box=None)
-			frame_nb += 1
+		for ts in ns.aa2cg_trajectory.trajectory:
+			angle_values_rad[len(ns.aa2cg_trajectory.trajectory)*i+ts.frame] = mda.lib.distances.calc_angles(ns.aa2cg_trajectory.atoms[bead_id_1].position, ns.aa2cg_trajectory.atoms[bead_id_2].position, ns.aa2cg_trajectory.atoms[bead_id_3].position, backend=ns.mda_backend, box=None)
 
 	angle_values_deg = np.rad2deg(angle_values_rad)
 	angle_avg = round(np.mean(angle_values_deg), 3)
@@ -1585,10 +1616,8 @@ def get_AA_dihedrals_distrib(ns, beads_ids):
 	dihedral_values_rad = np.empty(len(ns.aa2cg_trajectory.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
-		frame_nb = 0
-		for _ in ns.aa2cg_trajectory.trajectory:
-			dihedral_values_rad[len(ns.aa2cg_trajectory.trajectory)*i+frame_nb] = mda.lib.distances.calc_dihedrals(ns.aa2cg_trajectory.atoms[bead_id_1].position, ns.aa2cg_trajectory.atoms[bead_id_2].position, ns.aa2cg_trajectory.atoms[bead_id_3].position, ns.aa2cg_trajectory.atoms[bead_id_4].position, backend=ns.mda_backend, box=None)
-			frame_nb += 1
+		for ts in ns.aa2cg_trajectory.trajectory:
+			dihedral_values_rad[len(ns.aa2cg_trajectory.trajectory)*i+ts.frame] = mda.lib.distances.calc_dihedrals(ns.aa2cg_trajectory.atoms[bead_id_1].position, ns.aa2cg_trajectory.atoms[bead_id_2].position, ns.aa2cg_trajectory.atoms[bead_id_3].position, ns.aa2cg_trajectory.atoms[bead_id_4].position, backend=ns.mda_backend, box=None)
 
 	dihedral_values_deg = np.rad2deg(dihedral_values_rad)
 	dihedral_avg = round(np.mean(dihedral_values_deg), 3)
@@ -1603,10 +1632,8 @@ def get_CG_bonds_distrib(ns, beads_ids, grp_type):
 	bond_values = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2 = beads_ids[i]
-		frame_nb = 0
-		for _ in ns.cg_universe.trajectory: # no need for PBC handling, trajectories were made wholes for the molecule
-			bond_values[len(ns.cg_universe.trajectory)*i+frame_nb] = mda.lib.distances.calc_bonds(ns.cg_universe.atoms[bead_id_1].position, ns.cg_universe.atoms[bead_id_2].position, backend=ns.mda_backend, box=None) / 10 # retrieved nm
-			frame_nb += 1
+		for ts in ns.cg_universe.trajectory: # no need for PBC handling, trajectories were made wholes for the molecule
+			bond_values[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_bonds(ns.cg_universe.atoms[bead_id_1].position, ns.cg_universe.atoms[bead_id_2].position, backend=ns.mda_backend, box=None) / 10 # retrieved nm
 
 	bond_avg = round(np.mean(bond_values), 3)
 	if grp_type == 'constraint':
@@ -1623,10 +1650,8 @@ def get_CG_angles_distrib(ns, beads_ids):
 	angle_values_rad = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
-		frame_nb = 0
-		for _ in ns.cg_universe.trajectory: # no need for PBC handling, trajectories were made wholes for the molecule
-			angle_values_rad[len(ns.cg_universe.trajectory)*i+frame_nb] = mda.lib.distances.calc_angles(ns.cg_universe.atoms[bead_id_1].position, ns.cg_universe.atoms[bead_id_2].position, ns.cg_universe.atoms[bead_id_3].position, backend=ns.mda_backend, box=None)
-			frame_nb += 1
+		for ts in ns.cg_universe.trajectory: # no need for PBC handling, trajectories were made wholes for the molecule
+			angle_values_rad[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_angles(ns.cg_universe.atoms[bead_id_1].position, ns.cg_universe.atoms[bead_id_2].position, ns.cg_universe.atoms[bead_id_3].position, backend=ns.mda_backend, box=None)
 	angle_values_deg = np.rad2deg(angle_values_rad)
 
 	# get group average and histogram non-null values for comparison and display
@@ -1642,10 +1667,8 @@ def get_CG_dihedrals_distrib(ns, beads_ids):
 	dihedral_values_rad = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
-		frame_nb = 0
-		for _ in ns.cg_universe.trajectory: # no need for PBC handling, trajectories were made wholes for the molecule
-			dihedral_values_rad[len(ns.cg_universe.trajectory)*i+frame_nb] = mda.lib.distances.calc_dihedrals(ns.cg_universe.atoms[bead_id_1].position, ns.cg_universe.atoms[bead_id_2].position, ns.cg_universe.atoms[bead_id_3].position, ns.cg_universe.atoms[bead_id_4].position, backend=ns.mda_backend, box=None)
-			frame_nb += 1
+		for ts in ns.cg_universe.trajectory: # no need for PBC handling, trajectories were made wholes for the molecule
+			dihedral_values_rad[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_dihedrals(ns.cg_universe.atoms[bead_id_1].position, ns.cg_universe.atoms[bead_id_2].position, ns.cg_universe.atoms[bead_id_3].position, ns.cg_universe.atoms[bead_id_4].position, backend=ns.mda_backend, box=None)
 	dihedral_values_deg = np.rad2deg(dihedral_values_rad)
 
 	# get group average and histogram non-null values for comparison and display
@@ -1908,7 +1931,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	row_wise_ranges['max_range_constraints'], row_wise_ranges['max_range_bonds'], row_wise_ranges['max_range_angles'], row_wise_ranges['max_range_dihedrals'] = 0, 0, 0, 0
 
 	#Loading the mass of the atom-tpyes in case they are needed
-	fetch_cg_mass_itp()
+	fetch_cg_mass_itp(ns)
 
 	# read ITP file to extract bonds, angles and dihedrals to compare OR get it from the optimization script to avoid re-reading trajectory + calculating hists at each execution
 	# for reading ITP, groups are created by separating bonds/angles/etc lines by a return (\n) or a comment (;)
@@ -1939,9 +1962,9 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 		# mapping the trajectory aa2cg
 		print('Initializing the mapped trajectory')
-		scg.initialize_cg_traj(ns)
+		initialize_cg_traj(ns)
 		print('Mapping the trajectory from AA to CG representation')
-		scg.map_aa2cg_traj(ns)
+		map_aa2cg_traj(ns)
 
 		if ns.atom_only:
 			compute_Rg(ns, traj_type='AA')

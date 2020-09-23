@@ -62,12 +62,12 @@ fct_guess_min_flat_diff_dihedrals_with_mult = 0.20 # flat minimum force constant
 # TODO: handle dihedral function 9 correctly so that different potentials can be stacked
 # TODO: for the same beads -- this is the primary purpose of function 9 !!
 handled_functions = {
-    'contraint': [1],
+    'constraint': [1],
     'bond': [1],
     'angle': [1, 2],
     'dihedral': [1, 2, 4],
-    'dihedral_with_mult': [1, 4]
-    'virtual_sitesn': [1,2]
+    'dihedral_with_mult': [1, 4],
+    'virtual_sitesn': [1,2],
     # these functions use 3 parameters, the last one being multiplicity (if it's omitted gromacs will use 1 by default, we reproduce this behavior)
 }
 

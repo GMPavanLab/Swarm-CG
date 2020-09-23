@@ -120,6 +120,10 @@ SCY     45.0    0.000   A       0.0     0.0 ; backbone bead
 ; PEO and CiEj surfactants
 EO     45.0    0.000   A       0.0     0.0
 
+; VS
+VS      0.0    0.000   V       0.0     0.0
+
+
 
 [ nonbond_params ]
 

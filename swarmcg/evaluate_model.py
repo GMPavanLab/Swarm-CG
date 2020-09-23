@@ -25,6 +25,10 @@ def run(ns):
 
 	# TODO: make it possible to feed a delta for Rg in case the model has scaling ?
 
+	# get basenames for simulation files
+	ns.cg_itp_basename = os.path.basename(ns.cg_itp_filename)
+	ns.top_input_basename = os.path.basename(ns.top_input_filename)
+
 	ns.molname_in = None # TODO: arguments that exist only in the scope of optimization (useless for manual model evaluation) -- but this could be modified to be allowed to evaluate models in mixed membranes, averaging distribs for given molecule name only
 	ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None
 	# ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
@@ -128,6 +132,9 @@ def main():
 							   help='XTC file of your CG trajectory (omit for solo AA inspection)',
 							   type=str, default=config.metavar_cg_traj,
 							   metavar='     ' + scg.par_wrap(config.metavar_cg_traj))
+	required_args.add_argument('-cg_top', dest='top_input_filename',
+									help='TOP file used for iterative simulation', type=str,
+									default='system.top', metavar='        (system.top)')
 	# required_args.add_argument('-figmolname', dest='figmolname', help='TODO REMOVE', type=str, required=True) # TODO: remove, this was just for figures
 
 	optional_args = args_parser.add_argument_group(bullet + 'CG MODEL SCALING')
@@ -202,3 +209,6 @@ def main():
 	print('Command line:', input_cmdline)
 
 	run(ns)
+
+if __name__ == "__main__":
+	main()

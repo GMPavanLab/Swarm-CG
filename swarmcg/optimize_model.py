@@ -745,3 +745,5 @@ def main():
 
     run(ns)
 
+if __name__ == "__main__":
+    main()
