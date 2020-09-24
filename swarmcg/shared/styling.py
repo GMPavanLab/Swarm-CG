@@ -23,12 +23,12 @@ def header_package(module_line):
 |               Swarm-CG is distributed under the terms of the MIT License.                   |
 |                                                                                             |
 |                    Feedback, questions and bug reports are welcome at:                      |
-|                        	{config.github_url}/issues                   |
+|                        {config.github_url}/issues                          |
 |                                                                                             |
 |                 If you found Swarm-CG useful in your research, please cite:                 |
 |              Swarm-CG: Automatic parametrization of bonded terms in CG models               |
 |                        of simple to complex molecules via FST-PSO                           |
-|        Empereur-mot C., Pesce L., Bochicchio D., Perego C., Pavan G.M. ChemRxiv 2020        |
+|   Empereur-mot C., Pesce L., Doni G., Bochicchio D., Perego C., Pavan G.M. ChemRxiv 2020    |
 |                                                                                             |
 |                               Swarm-CG relies on FST-PSO:                                   |
 |          Fuzzy Self-Tuning PSO: A settings-free algorithm for global optimization           |

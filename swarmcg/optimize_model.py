@@ -189,13 +189,10 @@ def run(ns):
     print()
 
     #Loading the mass of the atom-tpyes in case they are needed
-    scg.fetch_cg_mass_itp(ns)
+    # scg.fetch_cg_mass_itp(ns)
 
     # read starting CG ITP file
-    with open(ns.cg_itp_filename, 'r') as fp:
-        itp_lines = fp.read().split('\n')
-        itp_lines = [itp_line.strip() for itp_line in itp_lines]
-        scg.read_cg_itp_file(ns, itp_lines) # loads ITP object that contains our reference atomistic data -- won't ever be modified during execution
+    scg.read_cg_itp_file(ns) # loads ITP object that contains our reference atomistic data -- won't ever be modified during execution
 
     # touch results files to be appended to later
     with open(ns.exec_folder+'/'+config.opti_perf_recap_file, 'w') as fp:

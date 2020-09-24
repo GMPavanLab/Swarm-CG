@@ -21,13 +21,13 @@ matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend sui
 def run(ns):
 
 	from numpy import VisibleDeprecationWarning
-	warnings.filterwarnings("ignore", category=VisibleDeprecationWarning) # filter MDAnalysis + numpy deprecation stuff that is annoying
+	warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)  # filter MDAnalysis + numpy deprecation stuff that is annoying
 
 	# TODO: make it possible to feed a delta for Rg in case the model has scaling ?
 
 	# get basenames for simulation files
 	ns.cg_itp_basename = os.path.basename(ns.cg_itp_filename)
-	ns.top_input_basename = os.path.basename(ns.top_input_filename)
+	# ns.top_input_basename = os.path.basename(ns.top_input_filename)
 
 	ns.molname_in = None # TODO: arguments that exist only in the scope of optimization (useless for manual model evaluation) -- but this could be modified to be allowed to evaluate models in mixed membranes, averaging distribs for given molecule name only
 	ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None
@@ -40,23 +40,26 @@ def run(ns):
 	# TODO: factorize all checks and put them in global lib
 	if not os.path.isfile(ns.aa_tpr_filename):
 		msg = (
-			"Cannot find coordinate file of the atomistic simulation"
-			"(GRO, PDB, or other trajectory formats supported by MDAnalysis)"
+			f"Cannot find topology file of the atomistic simulation at location: {ns.aa_tpr_filename}\n"
+			f"(TPR or other portable topology formats supported by MDAnalysis)"
 		)
 		raise exceptions.MissingCoordinateFile(msg)
 	if not os.path.isfile(ns.aa_traj_filename):
 		msg = (
-			"Cannot find trajectory file of the atomistic simulation"
-			"(XTC, TRR, or other trajectory formats supported by MDAnalysis)"
+			f"Cannot find trajectory file of the atomistic simulation at location: {ns.aa_traj_filename}\n"
+			f"(XTC, TRR, or other trajectory formats supported by MDAnalysis)"
 		)
 		raise exceptions.MissingTrajectoryFile(msg)
 
 	if not os.path.isfile(ns.cg_map_filename):
-		msg = "Cannot find CG beads mapping file (NDX-like file format)"
+		msg = (
+			f"Cannot find CG beads mapping file at location: {ns.cg_map_filename}\n"
+			f"(NDX-like file format)"
+		)
 		raise exceptions.MissingIndexFile(msg)
 
 	if not os.path.isfile(ns.cg_itp_filename):
-		msg = "Cannot find ITP file of the CG model"
+		msg = f"Cannot find ITP file of the CG model at location: {ns.cg_itp_filename}"
 		raise exceptions.MissingItpFile(msg)
 
 	# check bonds scaling arguments conflicts
@@ -132,10 +135,9 @@ def main():
 							   help='XTC file of your CG trajectory (omit for solo AA inspection)',
 							   type=str, default=config.metavar_cg_traj,
 							   metavar='     ' + scg.par_wrap(config.metavar_cg_traj))
-	required_args.add_argument('-cg_top', dest='top_input_filename',
-									help='TOP file used for iterative simulation', type=str,
-									default='system.top', metavar='        (system.top)')
-	# required_args.add_argument('-figmolname', dest='figmolname', help='TODO REMOVE', type=str, required=True) # TODO: remove, this was just for figures
+	# required_args.add_argument('-cg_top', dest='top_input_filename',
+	# 								help='TOP file used for iterative simulation', type=str,
+	# 								default='system.top', metavar='        (system.top)')
 
 	optional_args = args_parser.add_argument_group(bullet + 'CG MODEL SCALING')
 	# optional_args.add_argument('-nb_threads', dest='nb_threads', help='number of threads to use', type=int, default=1, metavar='1') # TODO: does NOT work properly -- modif MDAnalysis code with OpenMP num_threads(n) in the pragma
@@ -204,6 +206,8 @@ def main():
 
 	# arguments handling, display command line if help or no arguments provided
 	ns = args_parser.parse_args()
+	# ns.in_dir = "."
+	# TODO UNSURE: currently it is not allowed to feed arg -in_dir in evaluate_model, like it is the case in optimize_model, but for path handling we still need to define ns.in_dir = "."
 	input_cmdline = ' '.join(map(cmd_quote, sys.argv))
 	print('Working directory:', os.getcwd())
 	print('Command line:', input_cmdline)
