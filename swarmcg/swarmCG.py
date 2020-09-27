@@ -288,7 +288,7 @@ def read_cg_itp_file(ns):
 
 						else:
 							geom_type = str(len(ns.cg_itp['constraint'])+1)
-						ns.cg_itp['constraint'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': [], 'plt_id': []})  # initialize storage for this new group
+						ns.cg_itp['constraint'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': []})  # initialize storage for this new group
 
 					try:
 						ns.cg_itp['constraint'][ns.nb_constraints]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
@@ -302,10 +302,6 @@ def read_cg_itp_file(ns):
 					func = verify_handled_functions('constraint', sp_itp_line[2], i+1)
 					ns.cg_itp['constraint'][ns.nb_constraints]['func'].append(func)
 					ns.cg_itp['constraint'][ns.nb_constraints]['value'].append(float(sp_itp_line[3]))
-					try:
-						ns.cg_itp['constraint'][ns.nb_constraints]['plt_id'].append(sp_itp_line[6])
-					except IndexError:
-						ns.cg_itp['constraint'][ns.nb_constraints]['plt_id'].append('')
 
 				elif section_read['bond']:
 
@@ -316,7 +312,7 @@ def read_cg_itp_file(ns):
 							geom_type = itp_lines[i-1].split()[3]  # if the current CG ITP was generated with our package
 						else:
 							geom_type = str(len(ns.cg_itp['bond'])+1)
-						ns.cg_itp['bond'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': [], 'plt_id': []})  # initialize storage for this new group
+						ns.cg_itp['bond'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': []})  # initialize storage for this new group
 
 					try:
 						ns.cg_itp['bond'][ns.nb_bonds]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
@@ -331,10 +327,6 @@ def read_cg_itp_file(ns):
 					ns.cg_itp['bond'][ns.nb_bonds]['func'].append(func)
 					ns.cg_itp['bond'][ns.nb_bonds]['value'].append(float(sp_itp_line[3]))
 					ns.cg_itp['bond'][ns.nb_bonds]['fct'].append(float(sp_itp_line[4]))
-					try:
-						ns.cg_itp['bond'][ns.nb_bonds]['plt_id'].append(sp_itp_line[7])
-					except IndexError:
-						ns.cg_itp['bond'][ns.nb_bonds]['plt_id'].append('')
 
 				elif section_read['angle']:
 
@@ -345,7 +337,7 @@ def read_cg_itp_file(ns):
 							geom_type = itp_lines[i-1].split()[3]  # if the current CG ITP was generated with our package
 						else:
 							geom_type = str(len(ns.cg_itp['angle'])+1)
-						ns.cg_itp['angle'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': [], 'plt_id': []}) # initialize storage for this new group
+						ns.cg_itp['angle'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': []})  # initialize storage for this new group
 
 					try:
 						ns.cg_itp['angle'][ns.nb_angles]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:3]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
@@ -360,10 +352,6 @@ def read_cg_itp_file(ns):
 					ns.cg_itp['angle'][ns.nb_angles]['func'].append(func)
 					ns.cg_itp['angle'][ns.nb_angles]['value'].append(float(sp_itp_line[4]))
 					ns.cg_itp['angle'][ns.nb_angles]['fct'].append(float(sp_itp_line[5]))
-					try:
-						ns.cg_itp['angle'][ns.nb_angles]['plt_id'].append(sp_itp_line[8])
-					except IndexError:
-						ns.cg_itp['angle'][ns.nb_angles]['plt_id'].append('')
 
 				elif section_read['dihedral']:
 
@@ -374,7 +362,7 @@ def read_cg_itp_file(ns):
 							geom_type = itp_lines[i-1].split()[3]  # if the current CG ITP was generated with our package
 						else:
 							geom_type = str(len(ns.cg_itp['dihedral'])+1)
-						ns.cg_itp['dihedral'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': [], 'plt_id': [], 'mult': []})  # initialize storage for this new group
+						ns.cg_itp['dihedral'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': [], 'mult': []})  # initialize storage for this new group
 
 					try:
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:4]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
@@ -399,11 +387,6 @@ def read_cg_itp_file(ns):
 							ns.cg_itp['dihedral'][ns.nb_dihedrals]['mult'].append(1)
 					else:  # no multiplicity parameter is expected
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['mult'].append(None)
-
-					try:
-						ns.cg_itp['dihedral'][ns.nb_dihedrals]['plt_id'].append(sp_itp_line[9])
-					except IndexError:
-						ns.cg_itp['dihedral'][ns.nb_dihedrals]['plt_id'].append('')
 
 				elif section_read['vs_2'] or section_read['vs_3'] or section_read['vs_4'] or section_read['vs_n']:
 
@@ -441,10 +424,13 @@ def read_cg_itp_file(ns):
 	# TODO: check what kind of error or processing is done when a correct line is duplicated within a group ?? probably it goes on in a bad way
 
 	def msg(geom, grp_geom):
-		return f"In the provided CG ITP file {geom} have been grouped, but {geom} group "
-		f"{str(grp_geom + 1)} holds lines that have different parameters. Parameters should be "
-		f"identical within a group, only CG beads IDs should differ. "
-		f"Please correct the CG ITP file and separate groups using a blank or commented line"
+		str_msg = (
+			f"In the provided CG ITP file {geom}s have been grouped, but {geom}s group "
+			f"{str(grp_geom + 1)} holds lines that have different parameters.\nParameters should be "
+			f"identical within a group, only CG beads IDs should differ.\n"
+			f"Please correct the CG ITP file and separate groups using a blank or commented line."
+		)
+		return str_msg
 
 	for geom in ['constraint']:  # constraints only
 		for grp_geom in range(len(ns.cg_itp[geom])):
@@ -522,9 +508,9 @@ def read_ndx_atoms2beads(ns):
 							#       several lines when reading the file, but we forbid it atm
 							msg = (
 								f"A section of the CG beads mapping (NDX) file has multiple lines, "
-								f"while Swarm-CG accepts only one line per section. Please use a "
+								f"while Swarm-CG accepts only one line per section.\nPlease use a "
 								f"single line for IDs under section {current_section} "
-								f"near line {str(i + 1)}"
+								f"near line {str(i + 1)}."
 							)
 							raise exceptions.MissformattedFile(msg)
 
@@ -564,7 +550,7 @@ def get_atoms_weights_in_beads(ns):
 		for atom_id in beads_atoms_counts:
 			ns.atom_w[bead_id][atom_id] = round(beads_atoms_counts[atom_id] / ns.atoms_occ_total[atom_id], 3)
 			if ns.verbose:
-				print('  Weight ratio is', ns.atom_w[bead_id][atom_id], 'for atom ID', atom_id, 'attributed to CG bead ID', bead_id)
+				print('  CG bead ID', bead_id+1, '-- Atom ID', atom_id+1, 'has weight ratio =', ns.atom_w[bead_id][atom_id])
 	if ns.verbose:
 		print()
 
@@ -827,8 +813,8 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 
 # print coarse-grain ITP
 # here we have a switch for print_sections because we might want to optimize constraints/bonds/angles/dihedrals
-# separately, so we can left some out with the switch and they will be optimized later
-def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond', 'angle', 'dihedral', 'exclusion']):
+# separately, so we can leave some out with the switch and they will be optimized later
+def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond', 'angle', 'dihedral', 'exclusion']):
 
 	with open(out_path_itp, 'w') as fp:
 
@@ -853,7 +839,7 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 				grp_val = itp_obj['constraint'][j]['value']
 
 				for i in range(len(itp_obj['constraint'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}      ; {2} {3}\n'.format(itp_obj['constraint'][j]['func'], grp_val, constraint_type, itp_obj['constraint'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['constraint'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}      ; {2}\n'.format(itp_obj['constraint'][j]['func'], grp_val, constraint_type, beads=[bead_id+1 for bead_id in itp_obj['constraint'][j]['beads'][i]]))
 
 		if 'bond' in print_sections and 'bond' in itp_obj and len(itp_obj['bond']) > 0:
 			fp.write('\n\n[ bonds ]\n')
@@ -866,7 +852,7 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 				grp_val, grp_fct = itp_obj['bond'][j]['value'], itp_obj['bond'][j]['fct']
 
 				for i in range(len(itp_obj['bond'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}  {2:7.2f}           ; {3} {4}\n'.format(itp_obj['bond'][j]['func'], grp_val, grp_fct, bond_type, itp_obj['bond'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['bond'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}  {2:7.2f}           ; {3}\n'.format(itp_obj['bond'][j]['func'], grp_val, grp_fct, bond_type, beads=[bead_id+1 for bead_id in itp_obj['bond'][j]['beads'][i]]))
 
 		if 'angle' in print_sections and 'angle' in itp_obj and len(itp_obj['angle']) > 0:
 			fp.write('\n\n[ angles ]\n')
@@ -879,8 +865,8 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 				grp_val, grp_fct = itp_obj['angle'][j]['value'], itp_obj['angle'][j]['fct']
 
 				for i in range(len(itp_obj['angle'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {0:>7} {1:9.2f}   {2:7.2f}           ; {3} {4}\n'.format(
-						itp_obj['angle'][j]['func'], grp_val, grp_fct, angle_type, itp_obj['angle'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['angle'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {0:>7} {1:9.2f}   {2:7.2f}           ; {3}\n'.format(
+						itp_obj['angle'][j]['func'], grp_val, grp_fct, angle_type, beads=[bead_id+1 for bead_id in itp_obj['angle'][j]['beads'][i]]))
 
 		if 'dihedral' in print_sections and 'dihedral' in itp_obj and len(itp_obj['dihedral']) > 0:
 			fp.write('\n\n[ dihedrals ]\n')
@@ -899,15 +885,14 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 					if multiplicity == None:
 						multiplicity = ''
 
-					# print(itp_obj['dihedral'][j]['func'], grp_val, grp_fct, dihedral_type, itp_obj['dihedral'][j]['plt_id'][i], 'beads', itp_obj['dihedral'][j]['beads'][i])
-					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {beads[3]:>5} {0:>7}    {1:9.2f} {2:7.2f}       {5}     ; {3} {4}\n'.format(
-						itp_obj['dihedral'][j]['func'], grp_val, grp_fct, dihedral_type, itp_obj['dihedral'][j]['plt_id'][i], multiplicity, beads=[bead_id+1 for bead_id in itp_obj['dihedral'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {beads[3]:>5} {0:>7}    {1:9.2f} {2:7.2f}       {4}     ; {3}\n'.format(
+						itp_obj['dihedral'][j]['func'], grp_val, grp_fct, dihedral_type, multiplicity, beads=[bead_id+1 for bead_id in itp_obj['dihedral'][j]['beads'][i]]))
 
 		# here starts 4 almost identical blocks, that differ only by vs_2, vs_3, vs_4, vs_n
 		# but we could still need to write several of these sections (careful if factorizing this)
 		if len(itp_obj['virtual_sites2']) > 0:
 			fp.write('\n\n[ virtual_sites2 ]\n')
-			fp.write(';   i     j     def\n')
+			fp.write(';   i     j      def\n')
 			for bead_id in itp_obj['virtual_sites2']:
 				fp.write('{:>5} {:>5}     {}\n'.format(
 					str(itp_obj['virtual_sites2'][bead_id]['bead_id'] + 1),
@@ -917,7 +902,7 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 
 		if len(itp_obj['virtual_sites3']) > 0:
 			fp.write('\n\n[ virtual_sites3 ]\n')
-			fp.write(';   i     j     def\n')
+			fp.write(';   i     j      def\n')
 			for bead_id in itp_obj['virtual_sites3']:
 				fp.write('{:>5} {:>5}     {}\n'.format(
 					str(itp_obj['virtual_sites3'][bead_id]['bead_id'] + 1),
@@ -927,7 +912,7 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 
 		if len(itp_obj['virtual_sites4']) > 0:
 			fp.write('\n\n[ virtual_sites4 ]\n')
-			fp.write(';   i     j     def\n')
+			fp.write(';   i     j      def\n')
 			for bead_id in itp_obj['virtual_sites4']:
 				fp.write('{:>5} {:>5}     {}\n'.format(
 					str(itp_obj['virtual_sites4'][bead_id]['bead_id'] + 1),
@@ -937,7 +922,7 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 
 		if len(itp_obj['virtual_sitesn']) > 0:
 			fp.write('\n\n[ virtual_sitesn ]\n')
-			fp.write(';   i     j     def\n')
+			fp.write(';   i     j      def\n')
 			for bead_id in itp_obj['virtual_sitesn']:
 				fp.write('{:>5} {:>5}     {}\n'.format(
 					str(itp_obj['virtual_sitesn'][bead_id]['bead_id'] + 1),
@@ -2469,7 +2454,7 @@ def eval_function(parameters_set, ns):
 		print_sections = ['constraint', 'bond', 'angle', 'exclusion']
 	else:
 		print_sections = ['constraint', 'bond', 'angle', 'dihedral', 'exclusion']
-	print_cg_itp_file(ns.out_itp, out_path_itp, print_sections=print_sections)
+	write_cg_itp_file(ns.out_itp, out_path_itp, print_sections=print_sections)
 
 	# enter current evaluation directory and stay there until all sims are finished or failed
 	os.chdir(current_eval_dir)

@@ -1,5 +1,4 @@
 ; This file can replace the one in directory /G1_DATA for testing purposes
-; (using argument -cg_itp for linking this file, don't erase ofc :)
 ; and can be made more "complicated" notably for:
 ;
 ;   -- Adding virtual sites and testing functions
@@ -7,7 +6,12 @@
 ;   -- Checking if virtual sites can be defined in the middle of the [ atoms ] without crashing everything
 ;      (NOT sure this is allowed by MARTINI convention though)
 ;   -- Verify we allow to have 2x [ atoms ] sections for regular/vs beads (this is allowed in MARTINI format)
-
+;
+; However it's not super convenient atm, notably for testing the optimization because we need to modify
+; G1_DATA/system.top to get the correct number of particles for running the simulations, while these
+; should not be modified because they are the DEMO DATA FOR USERS
+;
+; => I will add more data in this directory soon for us to destroy them and test :)
 
 [ moleculetype ]
 ; molname        nrexcl
@@ -28,8 +32,8 @@ G1               1
 9     Nda     1      G1     A9  9      0.00000
 10     N0     1      G1    A10  10     0.00000
 11    Nda     1      G1    A11  11     0.00000
-12     Qd     1      G1    A12  12     1.00000
-13    Nda     1      G1    A13  13     0.00000
+12     Qd     2      G1    A12  12     1.00000
+13    Nda     2      G1    A13  13     0.00000
 14     Qd     1      G1    A14  14     1.00000
 15    Nda     1      G1    A15  15     0.00000
 16     N0     1      G1    A16  16     0.00000
