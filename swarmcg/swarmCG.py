@@ -106,16 +106,16 @@ def verify_handled_functions(geom, func, line_nb):
 		func = int(func)
 	except (ValueError, IndexError):
 		msg = (
-			f"Unexpected error while reading CG ITP file at line {line_nb + 1}, please check this file"
+			f"Unexpected error while reading CG ITP file at line {line_nb}, please check this file."
 		)
 		raise exceptions.MissformattedFile(msg)
 
 	if func not in config.handled_functions[geom]:
 		functions_str = ", ".join(map(str, config.handled_functions[geom]))
 		msg = (
-			f"Error while reading {geom} function in CG ITP file at line {line_nb + 1}. "
-			f"This potential function is not implemented in Swarm-CG at the moment. "
-			f"Please use one of these {geom} potential functions: {functions_str}"
+			f"Error while reading {geom} function in CG ITP file at line {line_nb}. "
+			f"This potential function is not implemented in Swarm-CG at the moment.\n"
+			f"Please use one of these {geom} potential functions: {functions_str}."
 		)
 		raise exceptions.MissformattedFile(msg)
 
@@ -140,7 +140,7 @@ def vs_error_control(ns, bead_id, vs_type, func, vs_params, line_nb):
 	if bead_id >= len(ns.cg_itp['atoms']):
 		msg = (
 			f"A virtual site is defined for ID {bead_id + 1}, while this ID exceeds the number of atoms"
-			f" defined in the CG ITP file"
+			f" defined in the CG ITP file."
 		)
 		raise exceptions.MissformattedFile(msg)
 
@@ -148,14 +148,14 @@ def vs_error_control(ns, bead_id, vs_type, func, vs_params, line_nb):
 		if bid >= len(ns.cg_itp['atoms']):
 			msg = (
 				f"The definition of virtual site ID {bead_id + 1} makes use of ID {bid + 1}, while this ID exceeds"
-				f" the number of atoms defined in the CG ITP file"
+				f" the number of atoms defined in the CG ITP file."
 			)
 			raise exceptions.MissformattedFile(msg)
 
 	if not ns.cg_itp['atoms'][bead_id]['bead_type'].startswith('v'):
 		msg = (
 			f"CG bead number {bead_id + 1} is referenced to as a virtual site, but its bead type"
-			f" does NOT start with letter 'v'"
+			f" does NOT start with letter 'v'."
 		)
 		raise exceptions.MissformattedFile(msg)
 
@@ -294,7 +294,7 @@ def read_cg_itp_file(ns):
 						ns.cg_itp['constraint'][ns.nb_constraints]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						msg = (
-							"Incorrect reading of the CG ITP file within [constraints] section. "
+							"Incorrect reading of the CG ITP file within [constraints] section.\n"
 							"Please check this file."
 						)
 						raise exceptions.MissformattedFile(msg)
@@ -318,7 +318,7 @@ def read_cg_itp_file(ns):
 						ns.cg_itp['bond'][ns.nb_bonds]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						msg = (
-							"Incorrect reading of the CG ITP file within [bonds] section. "
+							"Incorrect reading of the CG ITP file within [bonds] section.\n"
 							"Please check this file."
 						)
 						raise exceptions.MissformattedFile(msg)
@@ -343,7 +343,7 @@ def read_cg_itp_file(ns):
 						ns.cg_itp['angle'][ns.nb_angles]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:3]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						msg = (
-							"Incorrect reading of the CG ITP file within [angles] section. "
+							"Incorrect reading of the CG ITP file within [angles] section.\n"
 							"Please check this file."
 						)
 						raise exceptions.MissformattedFile(msg)
@@ -368,7 +368,7 @@ def read_cg_itp_file(ns):
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:4]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						msg = (
-							"Incorrect reading of the CG ITP file within [ dihedrals ] section. "
+							"Incorrect reading of the CG ITP file within [dihedrals] section.\n"
 							"Please check this file."
 						)
 						raise exceptions.MissformattedFile(msg)
@@ -524,14 +524,14 @@ def read_ndx_atoms2beads(ns):
 					except NameError:
 						msg = (
 							"The CG beads mapping (NDX) file does NOT seem to contain CG beads "
-							"sections. Please verify the input mapping. The expected format is "
+							"sections.\nPlease verify the input mapping. The expected format is "
 							"Gromacs NDX."
 						)
 						raise exceptions.MissformattedFile(msg)
 					except ValueError: # non-integer atom ID provided
 						msg = (
 							f"Incorrect reading of the sections content in the CG beads mapping "
-							f"(NDX) file. Found non-integer values for some IDs at line "
+							f"(NDX) file.\nFound non-integer values for some IDs at line "
 							f"{str(i + 1)} under section {current_section}."
 						)
 						raise exceptions.MissformattedFile(msg)
@@ -568,8 +568,8 @@ def get_beads_MDA_atomgroups(ns):
 		except IndexError as e:
 			msg = (
 				f"An ID present in your mapping (NDX) file could not be found in the AA trajectory. "
-				f"Please check your mapping (NDX) file. See the error below to understand which "
-				f"ID (here 0-indexed) could not be found: {str(e)}"
+				f"Please check your mapping (NDX) file.\nSee the error below to understand which "
+				f"ID (here 0-indexed) could not be found:\n\n{str(e)}"
 			)
 			raise exceptions.MissformattedFile(msg)
 
@@ -732,7 +732,7 @@ def compute_SASA(ns, traj_type):
 
 		if non_zero_return_code:
 			msg = (
-				"There were some errors while calculating SASA for AA-mapped trajectory. "
+				"There were some errors while calculating SASA for AA-mapped trajectory.\n"
 				"Please check the error messages displayed above."
 			)
 			raise exceptions.ComputationError(msg)
@@ -782,7 +782,7 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 		itp_obj = ns.opti_itp
 	else:
 		msg = (
-			f"Code error in function update_cg_itp_obj, please consider opening an issue on GitHub "
+			f"Code error in function update_cg_itp_obj.\nPlease consider opening an issue on GitHub "
 			f"at {config.github_url}."
 		)
 		raise exceptions.InvalidArgument(msg)
@@ -1494,7 +1494,7 @@ def perform_BI(ns):
 
 			if ns.verbose:
 				print()
-				print('Performing Boltzmann Inversion to estimate bonds force constants')
+				print('Performing Direct Boltzmann Inversion (DBI) to estimate bonds force constants')
 
 			for grp_bond in range(ns.opti_cycle['nb_geoms']['bond']):
 
@@ -1629,8 +1629,8 @@ def process_scaling_str(ns):
 		sp_str = ns.bonds_scaling_str.split()
 		if len(sp_str) % 2 != 0:
 			msg = (
-				f"Cannot interpret argument -bonds_scaling_str as provided: {ns.bonds_scaling_str}. "
-				f"Please check your parameters, or help for an example"
+				f"Cannot interpret argument -bonds_scaling_str as provided: {ns.bonds_scaling_str}.\n"
+				f"Please check your parameters, or the help (-h) for an example."
 			)
 			raise exceptions.InvalidArgument(msg)
 
@@ -1773,8 +1773,8 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 			except IndexError:
 				msg = (
 					f"Most probably because you have bonds or constraints that "
-					f"exceed {ns.bonded_max_range} nm. Increase bins range for bonds and "
-					f"constraints and retry! See argument -bonds_max_range."
+					f"exceed {ns.bonded_max_range} nm.\nIncrease bins range for bonds and "
+					f"constraints and retry!\nSee argument -bonds_max_range."
 				)
 				raise ValueError(msg)
 		else:
@@ -1832,8 +1832,8 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 			except IndexError:
 				msg = (
 					f"Most probably because you have bonds or constraints that "
-					f"exceed {ns.bonded_max_range} nm. Increase bins range for bonds and "
-					f"constraints and retry! See argument -bonds_max_range."
+					f"exceed {ns.bonded_max_range} nm.\nIncrease bins range for bonds and "
+					f"constraints and retry!\nSee argument -bonds_max_range."
 				)
 				raise ValueError(msg)
 		else:
@@ -2520,7 +2520,7 @@ def eval_function(parameters_set, ns):
 			f"Gromacs grompp failed at MD minimization step, see its error message above.\n"
 			f"You may also want to check the parameters of the MDP file provided through\n"
 			f"argument -cg_sim_mdp_mini. If you think this is a bug, please consider opening\n"
-			f"an issue on GitHub at {config.github_url}/issues"
+			f"an issue on GitHub at {config.github_url}/issues."
 		)
 		raise exceptions.ComputationError(msg)
 
@@ -2563,7 +2563,7 @@ def eval_function(parameters_set, ns):
 				f"Gromacs grompp failed at MD equilibration step, see its error message above.\n"
 				f"You may also want to check the parameters of the MDP file provided through\n"
 				f"argument -cg_sim_mdp_equi. If you think this is a bug, please consider opening\n"
-				f"an issue on GitHub at {config.github_url}/issues"
+				f"an issue on GitHub at {config.github_url}/issues."
 			)
 			raise exceptions.ComputationError(msg)
 
@@ -2609,7 +2609,7 @@ def eval_function(parameters_set, ns):
 					f"Gromacs grompp failed at MD production step, see its error message above.\n"
 					f"You may also want to check the parameters of the MDP file provided through\n"
 					f"argument -cg_sim_mdp_md. If you think this is a bug, please consider opening\n"
-					f"an issue on GitHub at {config.github_url}/issues"
+					f"an issue on GitHub at {config.github_url}/issues."
 				)
 				raise exceptions.ComputationError(msg)
 
