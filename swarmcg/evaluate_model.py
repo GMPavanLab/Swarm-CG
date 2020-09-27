@@ -27,17 +27,14 @@ def run(ns):
 
 	# get basenames for simulation files
 	ns.cg_itp_basename = os.path.basename(ns.cg_itp_filename)
-	# ns.top_input_basename = os.path.basename(ns.top_input_filename)
 
 	ns.molname_in = None # TODO: arguments that exist only in the scope of optimization (useless for manual model evaluation) -- but this could be modified to be allowed to evaluate models in mixed membranes, averaging distribs for given molecule name only
 	ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None
 	# ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
-	ns.aa_rg_offset = 0
+	ns.aa_rg_offset = 0 # TODO: allow an argument more in evaluate_model, like in optimiwe_model, for adding an offset to Rg
 
 	scg.set_MDA_backend(ns)
 
-	# TODO: add missing checks -- if some are missing
-	# TODO: factorize all checks and put them in global lib
 	if not os.path.isfile(ns.aa_tpr_filename):
 		msg = (
 			f"Cannot find topology file of the atomistic simulation at location: {ns.aa_tpr_filename}\n"
@@ -78,7 +75,7 @@ def run(ns):
 
 	# display parameters for function compare_models
 	if not os.path.isfile(ns.cg_tpr_filename) or not os.path.isfile(ns.cg_traj_filename):
-		# switch to atomistic mapping inspection exclusively (= do NOT use real CG distributions)
+		# switch to atomistic mapping inspection exclusively (= do NOT plot the CG distributions)
 		print('Could not find file(s) for either CG topology or trajectory')
 		print('  Going for inspection of AA-mapped distributions exclusively')
 		print()
@@ -92,7 +89,26 @@ def run(ns):
 	except IndexError as e:
 		ns.plot_filename = ns.plot_filename+'.png'
 
-	scg.create_bins_and_dist_matrices(ns)
+	scg.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
+	scg.read_ndx_atoms2beads(ns)  # read mapping, get atoms accurences in beads
+	scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
+
+	scg.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
+	scg.process_scaling_str(ns)  # process the bonds scaling specified by user
+
+	print()
+	scg.read_aa_traj(ns)  # create universe and read traj
+	scg.load_aa_data(ns)  # read atoms attributes
+	scg.make_aa_traj_whole_for_selected_mols(ns)
+
+	# for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
+	scg.get_beads_MDA_atomgroups(ns)
+
+	print('\nMapping the trajectory from AA to CG representation')
+	scg.initialize_cg_traj(ns)
+	scg.map_aa2cg_traj(ns)
+	print()
+
 	scg.compare_models(ns, manual_mode=True, calc_sasa=False)
 
 
@@ -135,9 +151,6 @@ def main():
 							   help='XTC file of your CG trajectory (omit for solo AA inspection)',
 							   type=str, default=config.metavar_cg_traj,
 							   metavar='     ' + scg.par_wrap(config.metavar_cg_traj))
-	# required_args.add_argument('-cg_top', dest='top_input_filename',
-	# 								help='TOP file used for iterative simulation', type=str,
-	# 								default='system.top', metavar='        (system.top)')
 
 	optional_args = args_parser.add_argument_group(bullet + 'CG MODEL SCALING')
 	# optional_args.add_argument('-nb_threads', dest='nb_threads', help='number of threads to use', type=int, default=1, metavar='1') # TODO: does NOT work properly -- modif MDAnalysis code with OpenMP num_threads(n) in the pragma

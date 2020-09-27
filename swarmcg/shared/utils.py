@@ -40,17 +40,20 @@ def forward_fill(arr, cond_value):
     return arr
 
 
-def sma(x, window_size):
+def sma(interval, window_size):
     """
     Implement simple moving average with convolution operator.
     """
-    return ewma(x, 1, window_size)
+    window = np.ones(int(window_size)) / float(window_size)
+    return np.convolve(interval, window, 'same')
 
 
-def ewma(x, alpha, windowSize):
+def ewma(hist, alpha, windowSize):
     """
     Implement expontential moving average with convolution operator.
     """
     wghts = (1 - alpha) ** np.arange(windowSize)
     wghts = wghts / wghts.sum()
-    return np.convolve(x, wghts, 'same')
+    out = np.full(len(hist), np.nan)
+    out = np.convolve(hist, wghts, 'same')
+    return out

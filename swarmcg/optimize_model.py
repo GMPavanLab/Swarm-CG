@@ -61,11 +61,10 @@ def run(ns):
     ####################
 
     print()
-    print()
     print(swarmcg.shared.styling.sep_close)
     print('| PRE-PROCESSING AND CONTROLS                                                                 |')
     print(swarmcg.shared.styling.sep_close)
-    # print()
+    print()
 
     # TODO: check that at least 10-20% of the simulations of the 1st swarm iteration finished properly, otherwise lower all energies or tell the user he is not writting into the log file regularly enough
     # TODO: test this program with ITP files that contain all the different dihedral functions, angles functions, constraints etc
@@ -88,17 +87,17 @@ def run(ns):
         arg_entry = user_provided_filenames[i]
         if not os.path.isfile(arg_entries[arg_entry]):
             data_folder_path = ns.input_folder+'/'+arg_entries[arg_entry]
-            if ns.input_folder != '.' and os.path.isfile(data_folder_path):
-                arg_entries[arg_entry] = data_folder_path
-            else:
-                if ns.input_folder == '':
-                    data_folder_path = arg_entries[arg_entry]
-                print(data_folder_path)
-                msg = (
-                    'Cannot find file for argument - {} '
-                    '(expected at location: {})'.format(args_names[i],data_folder_path)
-                )
-                raise FileNotFoundError(msg)
+        if ns.input_folder != '.' and os.path.isfile(data_folder_path):
+            arg_entries[arg_entry] = data_folder_path
+        else:
+            if ns.input_folder == '':
+                data_folder_path = arg_entries[arg_entry]
+            print(data_folder_path)
+            msg = (
+                'Cannot find file for argument -{} '
+                '(expected at location: {})'.format(args_names[i], data_folder_path)
+            )
+            raise FileNotFoundError(msg)
 
     # check that gromacs alias is correct
     with open(os.devnull, 'w') as devnull:
@@ -145,8 +144,8 @@ def run(ns):
     # INITIALIZATION #
     ##################
 
-    scg.set_MDA_backend(ns)
-    ns.mda_backend = 'serial' # clusters execution
+    # scg.set_MDA_backend(ns)  # cannot use this properly currently because we cannot limit number of threads
+    ns.mda_backend = 'serial'  # currently force single thread for safe clusters execution
 
     # directory to write all files for current execution of optimizations routines
     os.mkdir(ns.exec_folder)
@@ -178,26 +177,33 @@ def run(ns):
                 nb_includes += 1
         fp.writelines('\n'.join(all_top_lines))
 
-    ns.nb_eval = 0 # global count of evaluation steps
+    ns.nb_eval = 0  # global count of evaluation steps
     ns.start_opti_ts = datetime.now().timestamp()
     ns.total_eval_time, ns.total_gmx_time, ns.total_model_eval_time = 0, 0, 0
 
-    scg.create_bins_and_dist_matrices(ns) # bins for EMD calculations
-    scg.read_ndx_atoms2beads(ns) # read mapping, get atoms accurences in beads
-    scg.get_atoms_weights_in_beads(ns) # get weights of atoms within beads
+    scg.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
+    scg.read_ndx_atoms2beads(ns)  # read mapping, get atoms accurences in beads
+    scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
+
+    scg.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
+    scg.process_scaling_str(ns)  # process the bonds scaling specified by user
 
     print()
+    scg.read_aa_traj(ns)  # create universe and read traj
+    scg.load_aa_data(ns)  # read atoms attributes
+    scg.make_aa_traj_whole_for_selected_mols(ns)
 
-    #Loading the mass of the atom-tpyes in case they are needed
-    # scg.fetch_cg_mass_itp(ns)
+    # for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
+    scg.get_beads_MDA_atomgroups(ns)
 
-    # read starting CG ITP file
-    scg.read_cg_itp_file(ns) # loads ITP object that contains our reference atomistic data -- won't ever be modified during execution
+    print('\nMapping the trajectory from AA to CG representation')
+    scg.initialize_cg_traj(ns)
+    scg.map_aa2cg_traj(ns)
+    print()
 
     # touch results files to be appended to later
     with open(ns.exec_folder+'/'+config.opti_perf_recap_file, 'w') as fp:
         # TODO: print that file has been generated with Swarm-CG etc -- do this for basically all files
-        # TODO: add some info on the opti cycles ??
         fp.write('# nb constraints: '+str(ns.nb_constraints)+'\n')
         fp.write('# nb bonds: '+str(ns.nb_bonds)+'\n')
         fp.write('# nb angles: '+str(ns.nb_angles)+'\n')
@@ -207,70 +213,10 @@ def run(ns):
     with open(ns.exec_folder+'/'+config.opti_pairwise_distances_file, 'w'):
         pass
 
-    # process specific bonds scaling string, if provided
-    ns.bonds_scaling_specific = None
-    if ns.bonds_scaling_str != config.bonds_scaling_str:
-        sp_str = ns.bonds_scaling_str.split()
-        if len(sp_str) % 2 != 0:
-            msg = (
-                f"Cannot interpret argument -bonds_scaling_str as provided: {ns.bonds_scaling_str}. "
-                f"Please check your parameters, or help for an example"
-            )
-            raise exceptions.InvalidArgument(msg)
-
-        ns.bonds_scaling_specific = dict()
-        i = 0
-        try:
-            while i < len(sp_str):
-                geom_id = sp_str[i][1:]
-                if sp_str[i][0].upper() == 'C':
-                    if int(geom_id) > ns.nb_constraints:
-                        info = "A constraint group id exceeds the number of constraints groups defined in the input CG ITP file."
-                        raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
-                    if not 'C'+geom_id in ns.bonds_scaling_specific:
-                        if float(sp_str[i+1]) < 0:
-                            info = "You cannot provide negative values for average distribution length."
-                            raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
-                        ns.bonds_scaling_specific['C'+geom_id] = float(sp_str[i+1])
-                    else:
-                        info = f"A constraint group id is provided multiple times (id: {geom_id})"
-                        raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
-                elif sp_str[i][0].upper() == 'B':
-                    if int(geom_id) > ns.nb_bonds:
-                        info = "A bond group id exceeds the number of bonds groups defined in the input CG ITP file."
-                        raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
-                    if not 'B'+geom_id in ns.bonds_scaling_specific:
-                        if float(sp_str[i+1]) < 0:
-                            info = "You cannot provide negative values for average distribution length."
-                            raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
-                        ns.bonds_scaling_specific['B'+geom_id] = float(sp_str[i+1])
-                    else:
-                        info = f"A bond group id is provided multiple times (id: {geom_id})"
-                        raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
-                i += 2
-        except ValueError:
-            raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str)
-
-    # read atom mapped trajectory + find domains boundaries for values ranges (NOT the force constants, for which it is config/user defined already)
-    print()
-    scg.read_aa_traj(ns)
-    scg.load_aa_data(ns)
-    scg.make_aa_traj_whole_for_selected_mols(ns)
-
-    print('\nCalculating bonds, angles and dihedrals distributions for reference AA-mapped model')
-
-    # for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
-    scg.get_beads_MDA_atomgroups(ns)
-
-    # mapping the trajectory aa2cg
-    print('Initializing the mapped trajectory')
-    scg.initialize_cg_traj(ns)
-    print('Mapping the trajectory from AA to CG representation')
-    scg.map_aa2cg_traj(ns)
-
-
     ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None # will be computed one single time with model evaluation script
     ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None # will be computed one single time with model evaluation script
+
+    print('Calculating bonds, angles and dihedrals distributions in the reference AA-mapped model')
 
     ns.domains_val = {'constraint': [], 'bond': [], 'angle': [], 'dihedral': []}
     ns.data_BI = {'bond': [], 'angle': [], 'dihedral': []} # store hists for BI, std and possibly some other stats
@@ -300,7 +246,7 @@ def run(ns):
         xmin, xmax = xmin-ns.bw_bonds, xmax+ns.bw_bonds
         ns.data_BI['bond'].append([np.histogram(bond_values, range=(xmin, xmax), bins=config.bi_nb_bins)[0], np.std(bond_values), np.mean(bond_values), (xmin, xmax)])
 
-        ns.domains_val['bond'].append([round(np.min(bond_values), 3), round(np.max(bond_values), 3)]) # boundaries of force constats during optimization
+        ns.domains_val['bond'].append([round(np.min(bond_values), 3), round(np.max(bond_values), 3)])  # boundaries of force constats during optimization
 
     # get ref atom hists + find very first values and force constants guesses for angles groups
     for grp_angle in range(ns.nb_angles):
@@ -315,7 +261,7 @@ def run(ns):
         xmin, xmax = xmin+ns.bw_angles/2, xmax-ns.bw_angles/2
         ns.data_BI['angle'].append([np.histogram(angle_values_rad, range=(np.deg2rad(xmin), np.deg2rad(xmax)), bins=config.bi_nb_bins)[0], np.std(angle_values_rad), (xmin, xmax)])
 
-        ns.domains_val['angle'].append([round(np.min(angle_values_deg), 2), round(np.max(angle_values_deg), 2)]) # boundaries of force constats during optimization
+        ns.domains_val['angle'].append([round(np.min(angle_values_deg), 2), round(np.max(angle_values_deg), 2)])  # boundaries of force constants during optimization
 
     # get ref atom hists + find very first values and force constants guesses for dihedrals groups
     for grp_dihedral in range(ns.nb_dihedrals):
@@ -385,7 +331,7 @@ def run(ns):
     # opti_cycles = [['constraint', 'bond', 'angle'], ['dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
     # sim_cycles = [0, 1, 2] # simulations types
 
-    # THIS IS THE CURRENT CHOICE
+    # previous best choice for versatile usage
     # Startegy 4
     # Settings: OPTIMAL / Should be fine with any type of molecule, big or small, as long as the BI keeps yielding close enough results, which should be the case
     # sim_types = {0: {'sim_duration': 10, 'max_swarm_iter': int(5+np.sqrt(ns.nb_constraints+ns.nb_bonds+ns.nb_angles)), 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 1, 'fct_guess_fact': 0.35},
@@ -412,7 +358,7 @@ def run(ns):
     # NOTE: currently, due to an issue in FST-PSO, number of swarm iterations performed is +2 when compared to the numbers we feed
 
     ns.opti_itp = copy.deepcopy(ns.cg_itp) # the ITP object that will be optimized stepwise, at the end of each optimization cycle (geom type wise)
-    ns.eval_nb_geoms = {'constraint': 0, 'bond': 0, 'angle': 0, 'dihedral': 0} # geoms to optimize at each step
+    ns.eval_nb_geoms = {'constraint': 0, 'bond': 0, 'angle': 0, 'dihedral': 0}  # geoms to optimize at each step
 
     # remove dihedrals from cycles if CG ITP file does NOT contain dihedrals
     if ns.nb_dihedrals == 0:
@@ -433,7 +379,7 @@ def run(ns):
     # state variables for the cycles of optimization
     ns.performed_init_BI = {'bond': False, 'angle': False, 'dihedral': False}
     ns.opti_geoms_all = set(geom for opti_cycle_geoms in opti_cycles for geom in opti_cycle_geoms)
-    ns.best_fitness = [np.inf, None] # fitness_score, eval_step_best_score
+    ns.best_fitness = [np.inf, None]  # fitness_score, eval_step_best_score
 
     # storage for best independent set of parameters by geom, for initialization of a (few ?) special particle after 1st opti cycle
     ns.all_best_emd_dist_geoms = {'constraints': {}, 'bonds': {}, 'angles': {}, 'dihedrals': {}}
@@ -487,7 +433,6 @@ def run(ns):
         geoms_display = ' & '.join(geoms_display)
 
         print()
-        print()
         print(swarmcg.shared.styling.sep_close)
         print('| STARTING OPTIMIZATION CYCLE', ns.opti_cycle['nb_cycle'], '                                                              |')
         print('| Optimizing', geoms_display, ' '*(95-16-len(geoms_display)), '|')
@@ -495,10 +440,10 @@ def run(ns):
 
         # actual BI to get the initial guesses of force constants, for all selected geoms at this given optimization step
         # BI is performed:
-        # -- exec_mode 1: all values and force constants
-        # -- exec_mode 2: values are not touched for angles and dihedrals, but all force constants are estimated
-        # -- exec_mode 3: values are not touched for dihedrals, but all force constants are estimated
-        scg.perform_BI(ns) # performed on object ns.out_itp
+        # -- exec_mode 1: all equilibrium values and force constants
+        # -- exec_mode 2: equilibrium values are not touched for angles and dihedrals, but all force constants are estimated
+        # -- exec_mode 3: equilibrium values are not touched for dihedrals, but all force constants are estimated
+        scg.perform_BI(ns)  # performed on object ns.out_itp
 
         # build vector for search space boundaries + create variations around the BI initial guesses
         search_space_boundaries = scg.get_search_space_boundaries(ns)

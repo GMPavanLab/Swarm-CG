@@ -26,8 +26,8 @@ def header_package(module_line):
 |                        {config.github_url}/issues                          |
 |                                                                                             |
 |                 If you found Swarm-CG useful in your research, please cite:                 |
-|              Swarm-CG: Automatic parametrization of bonded terms in CG models               |
-|                        of simple to complex molecules via FST-PSO                           |
+|             Swarm-CG: Automatic parametrization of bonded terms in MARTINI-based            |
+|                    CG models of simple to complex molecules via FST-PSO                     |
 |   Empereur-mot C., Pesce L., Doni G., Bochicchio D., Perego C., Pavan G.M. ChemRxiv 2020    |
 |                                                                                             |
 |                               Swarm-CG relies on FST-PSO:                                   |

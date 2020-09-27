@@ -1,4 +1,5 @@
 ; This file can replace the one in directory /G1_DATA for testing purposes
+; (using argument -cg_itp for linking this file, don't erase ofc :)
 ; and can be made more "complicated" notably for:
 ;
 ;   -- Adding virtual sites and testing functions
@@ -85,11 +86,12 @@ G1               1
    25    26       1        0         0           ; B4
 
 ; bond group 5
-    1    27       1        0         0           ; B5
+   27    28       1        0         0           ; B5
+   29    28       1        0         0           ; B5
 
 
 [ angles ]
-;   i     j     k   funct     angle   force.c.   
+;   i     j     k   funct     angle   force.c.
 
 ; angle group 1
     1     2    15       2       120         0           ; A1
@@ -130,6 +132,9 @@ G1               1
    16    19    20       2       180         0           ; A5
    22    23    24       2       180         0           ; A5
    22    25    26       2       180         0           ; A5
+
+[ virtual_sites2 ]
+;27 1 5 7 0.2
 
 [ virtual_sitesn ]
 27 1 5 6 7 8

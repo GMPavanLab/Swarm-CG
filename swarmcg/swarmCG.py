@@ -20,111 +20,34 @@ from swarmcg.shared import utils, styling
 from swarmcg.shared import exceptions
 from swarmcg.simulations.potentials import (gmx_bonds_func_1, gmx_angles_func_1, gmx_angles_func_2,
 	gmx_dihedrals_func_1, gmx_dihedrals_func_2)
+from swarmcg.simulations.vs_functions import (vs2_func_1, vs2_func_2, vs3_func_1, vs3_func_2, vs3_func_3, vs3_func_4, vs4_func_2, vsn_func_1, vsn_func_2, vsn_func_3)
 
-matplotlib.use('AGG') # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
+matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 warnings.resetwarnings()
 
 # TODO: When provided trajectory file does NOT contain PBC infos (box position and size for each frame, which are present in XTC format for example), we want to stil accept the provided trajectory format (if accepted by MDAnalysis) but we automatically disable the handling of PBC by the code
+
 
 # cast object as string, enclose by parentheses and return a string -- for arguments display in help
 def par_wrap(string):
 	return '('+str(string)+')'
 
+
 # set MDAnalysis backend and number of threads
 def set_MDA_backend(ns):
 
-	# TODO: propagate number of threads to the functions calls of MDAnalysis, which means do a PR on MDAnalysis github
-	# ns.mda_backend = 'serial' # atm force serial in case code is executed on clusters, because MDA will use all threads by default
-
-	if mda.lib.distances.USED_OPENMP: # if MDAnalysis was compiled with OpenMP support
+	if mda.lib.distances.USED_OPENMP:  # if MDAnalysis was compiled with OpenMP support
 		ns.mda_backend = 'OpenMP'
+		# TODO: propagate number of threads to the functions calls of MDAnalysis, which means do a PR on MDAnalysis github for having functions arguments to do that because atm we cannot
 	else:
 		# print('MDAnalysis was compiled without OpenMP support, calculation of bonds/angles/dihedrals distributions will use a single thread')
 		ns.mda_backend = 'serial'
-
-	return
 
 
 # draw random float between given range and apply rounding to given digit
 def draw_float(low, high, dg_rnd):
 
 	return round(random.uniform(low, high), dg_rnd) # low and high included
-
-
-# # read atomistic ITP
-# def read_aa_itp_file(ns):
-
-# 	ns.all_atoms = dict() # atom centered connectivity + atom type + heavy atom boolean + bead(s) to which the atom belongs (can belong to multiple beads depending on mapping)
-# 	all_atom_types = set()
-# 	total_charge = 0
-
-# 	with open(ns.aa_itp_filename, 'r') as fp:
-
-# 		itp_lines = fp.read().split('\n')
-# 		itp_lines = [itp_line.strip().split(';')[0] for itp_line in itp_lines]
-
-# 		# error handling, check if the ITP file unexpectedly has several [bonds] or [atoms] sections
-# 		nb_bonds_sections, nb_atoms_sections = 0, 0
-# 		for itp_line in itp_lines:
-# 			if itp_line != '':
-# 				if bool(re.search('\[.*bonds.*\]', itp_line)):
-# 					nb_bonds_sections += 1
-# 				elif bool(re.search('\[.*atoms.*\]', itp_line)):
-# 					nb_atoms_sections += 1
-
-# 		if nb_bonds_sections != 1:
-# 			sys.exit(config.header_error+'Incorrect number of [bonds] sections in atomistic ITP file ('+str(nb_bonds_sections)+' sections)')
-# 		if nb_atoms_sections != 1:
-# 			sys.exit(config.header_error+'Incorrect number of [atoms] sections in atomistic ITP file ('+str(nb_atoms_sections)+' sections)')
-
-# 		r_atoms, r_bonds = False, False
-
-# 		for itp_line in itp_lines:
-# 			if itp_line != '':
-
-# 				if bool(re.search('\[.*atoms.*\]', itp_line)):
-# 					r_atoms, r_bonds = True, False
-# 				elif bool(re.search('\[.*bonds.*\]', itp_line)):
-# 					r_atoms, r_bonds = False, True
-# 				elif bool(re.search('\[.*\]', itp_line)): # ignore all other sections
-# 					r_atoms, r_bonds = False, False
-# 				else:
-# 					sp_itp_line = itp_line.split()
-
-# 					if r_atoms:
-
-# 						atom_id, atom_type, atom_charge = int(sp_itp_line[0]), sp_itp_line[1][0].upper(), float(sp_itp_line[6])
-# 						# atom_id, atom_type, atom_charge, atom_mass = int(sp_itp_line[0]), sp_itp_line[1][0].upper(), float(sp_itp_line[6]), float(sp_itp_line[7])
-# 						atom_id -= 1 # retrieve indexing from 0 for atoms IDS for MDAnalysis
-# 						total_charge += atom_charge
-
-# 						atom_heavy = True
-# 						if atom_type[0].upper() == 'H':
-# 							atom_heavy = False
-# 						if not atom_id in ns.all_atoms:
-# 							all_atom_types.add(atom_type)
-# 							ns.all_atoms[atom_id] = {'conn': set(), 'atom_type': atom_type, 'heavy': atom_heavy, 'beads_ids': set(), 'beads_types': set(), 'residue_names': set()}
-# 							# ns.all_atoms[atom_id] = {'conn': set(), 'atom_type': atom_type, 'heavy': atom_heavy, 'atom_mass': atom_mass, 'beads_ids': set(), 'beads_types': set(), 'residue_names': set()}
-# 						else:
-# 							ns.all_atoms[atom_id]['atom_type'] = atom_type
-# 							ns.all_atoms[atom_id]['heavy'] = atom_heavy
-# 							# ns.all_atoms[atom_id]['atom_mass'] = atom_mass
-
-# 					elif r_bonds:
-
-# 						atom_id_1, atom_id_2 = int(sp_itp_line[0])-1, int(sp_itp_line[1])-1 # retrieve indexing from 0 for atoms IDS for MDAnalysis
-# 						if not atom_id_1 in ns.all_atoms:
-# 							ns.all_atoms[atom_id_1] = {'conn': set(), 'atom_type': None, 'heavy': None, 'beads_ids': set(), 'beads_types': set(), 'residue_names': set()}
-# 							# ns.all_atoms[atom_id_1] = {'conn': set(), 'atom_type': None, 'heavy': None, 'atom_mass': None, 'beads_ids': set(), 'beads_types': set(), 'residue_names': set()}
-# 						ns.all_atoms[atom_id_1]['conn'].add(atom_id_2)
-# 						if not atom_id_2 in ns.all_atoms:
-# 							ns.all_atoms[atom_id_2] = {'conn': set(), 'atom_type': None, 'heavy': None, 'beads_ids': set(), 'beads_types': set(), 'residue_names': set()}
-# 							# ns.all_atoms[atom_id_2] = {'conn': set(), 'atom_type': None, 'heavy': None, 'atom_mass': None, 'beads_ids': set(), 'beads_types': set(), 'residue_names': set()}
-# 						ns.all_atoms[atom_id_2]['conn'].add(atom_id_1)
-
-# 		print('Net charge in the reference all atom model:', round(total_charge, 4))
-
-# 	return
 
 
 # read one or more molecules from the AA TPR and trajectory
@@ -151,15 +74,7 @@ def load_aa_data(ns):
 			ns.all_atoms[atom_id] = {'conn': set(), 'atom_type': atom_type, 'atom_charge': atom_charge, 'heavy': atom_heavy, 'beads_ids': set(), 'beads_types': set(), 'residue_names': set()}
 			# print(ns.aa_universe.atoms[i].id, ns.aa_universe.atoms[i])
 
-		# bonds
-		for i in range(len(molname_atom_group.bonds)):
-
-			atom_id_1 = molname_atom_group.bonds[i][0].id
-			atom_id_2 = molname_atom_group.bonds[i][1].id
-			ns.all_atoms[atom_id_1]['conn'].add(atom_id_2)
-			ns.all_atoms[atom_id_2]['conn'].add(atom_id_1)			
-
-	# TODO: read multiple instances of give moltype -- for membranes analysis -- USE RESINDEX property or MOLNUM, check for more useful properties
+	# TODO: allow reading multiple instances of a molecule to build the reference distributions, for extended usage with NOT just one flexible molecule in solvent
 	else:
 		pass
 
@@ -179,32 +94,73 @@ def load_aa_data(ns):
 	# 	print("  ", sel.atoms[atom.id].fragment)
 
 	# TODO: print this charge, if it is not null then we need to check for Q-type beads and for the 2 Q-types that have no defined charge value, raise a warning to tell the user he has to edit the file manually
-	net_charge = molname_atom_group.total_charge()
+	# net_charge = molname_atom_group.total_charge()
 	# print('Net charge of the reference all atom model:', round(net_charge, 4))
-
-	return
 
 
 # check if functions present in CG ITP file can be used by this program, if not we throw an error
-# Definitions containted in config.py
-def verify_handled_functions(geom, func_obj, line_obj):
+# authorized functions are defined in config.py (we switch them on in config.py once we have tested them)
+def verify_handled_functions(geom, func, line_nb):
 
 	try:
-		func = int(func_obj)
+		func = int(func)
 	except (ValueError, IndexError):
 		msg = (
-			f"Error while reading CG ITP file at line {line_obj}, please check this file"
+			f"Unexpected error while reading CG ITP file at line {line_nb + 1}, please check this file"
 		)
 		raise exceptions.MissformattedFile(msg)
 
 	if func not in config.handled_functions[geom]:
-		funstions_str = ", ".join(map(str, config.handled_functions[geom]))
+		functions_str = ", ".join(map(str, config.handled_functions[geom]))
 		msg = (
-			f"Error while reading {geom} function in CG ITP file at line {line_obj}. "
+			f"Error while reading {geom} function in CG ITP file at line {line_nb + 1}. "
 			f"This potential function is not implemented in Swarm-CG at the moment. "
-			f"Please use one of these constraint potential functions: {funstions_str}"
+			f"Please use one of these {geom} potential functions: {functions_str}"
 		)
 		raise exceptions.MissformattedFile(msg)
+
+	return func
+
+
+# TODO: the 3 next functions below (section_switch, vs_error_control, read_cg_itp_file) could be isolated in a sort of
+#       "topology reader" class, and next we would include the formats from other MD engines
+
+# sections switch for reading ITP sections
+def section_switch(section_read, section_active):
+
+	for section_current in section_read:
+		section_read[section_current] = False
+	if section_active != None:
+		section_read[section_active] = True
+
+
+# vs_type in [2, 3, 4, n], then they each have specific functions to define their positions
+def vs_error_control(ns, bead_id, vs_type, func, vs_params, line_nb):
+
+	if bead_id >= len(ns.cg_itp['atoms']):
+		msg = (
+			f"A virtual site is defined for ID {bead_id + 1}, while this ID exceeds the number of atoms"
+			f" defined in the CG ITP file"
+		)
+		raise exceptions.MissformattedFile(msg)
+
+	for bid in vs_params:
+		if bid >= len(ns.cg_itp['atoms']):
+			msg = (
+				f"The definition of virtual site ID {bead_id + 1} makes use of ID {bid + 1}, while this ID exceeds"
+				f" the number of atoms defined in the CG ITP file"
+			)
+			raise exceptions.MissformattedFile(msg)
+
+	if not ns.cg_itp['atoms'][bead_id]['bead_type'].startswith('v'):
+		msg = (
+			f"CG bead number {bead_id + 1} is referenced to as a virtual site, but its bead type"
+			f" does NOT start with letter 'v'"
+		)
+		raise exceptions.MissformattedFile(msg)
+
+	vs_type_str = 'virtual_sites' + vs_type
+	func = verify_handled_functions(vs_type_str, func, line_nb)
 
 	return func
 
@@ -213,106 +169,129 @@ def verify_handled_functions(geom, func_obj, line_obj):
 def read_cg_itp_file(ns):
 
 	print('Reading Coarse-Grained (CG) ITP file')
-	ns.cg_itp = {'moleculetype': {'molname': '', 'nrexcl': 0}, 'atoms': [], 'constraint': [], 'bond': [], 'angle': [], 'dihedral': [], 'exclusion': [], 'virtual_sitesn': {}}
-	# ns.real_beads_ids, ns.vs_beads_ids = [], []
+	ns.cg_itp = {'moleculetype': {'molname': '', 'nrexcl': 0}, 'atoms': [], 'constraint': [], 'bond': [], 'angle': [], 'dihedral': [], 'virtual_sites2': {}, 'virtual_sites3': {}, 'virtual_sites4': {}, 'virtual_sitesn': {}, 'exclusion': []}
+	ns.real_beads_ids, ns.vs_beads_ids = [], []
 	ns.nb_constraints, ns.nb_bonds, ns.nb_angles, ns.nb_dihedrals = -1, -1, -1, -1
 
 	with open(ns.cg_itp_filename, 'r') as fp:
 		try:
 			itp_lines = fp.read().split('\n')
 			itp_lines = [itp_line.strip() for itp_line in itp_lines]
-			process_scaling_str(ns)
 		except UnicodeDecodeError:
 			msg = "Cannot read CG ITP, it seems you provided a binary file."
 			raise exceptions.MissformattedFile(msg)
+
+	section_read = {
+		'moleculetype': False,
+		'atom': False,
+		'constraint': False,
+		'bond': False,
+		'angle': False,
+		'dihedral': False,
+		'vs_2': False,
+		'vs_3': False,
+		'vs_4': False,
+		'vs_n': False,
+		'exclusion': False
+	}
 
 	for i in range(len(itp_lines)):
 		itp_line = itp_lines[i]
 		if itp_line != '' and not itp_line.startswith(';'):
 
 			if bool(re.search('\[.*moleculetype.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = True, False, False, False, False, False, False, False
+				section_switch(section_read, 'moleculetype')
 			elif bool(re.search('\[.*atoms.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, True, False, False, False, False, False, False
+				section_switch(section_read, 'atom')
 			elif bool(re.search('\[.*constraint.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, True, False, False, False, False, False
+				section_switch(section_read, 'constraint')
 			elif bool(re.search('\[.*bond.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, True, False, False, False, False
+				section_switch(section_read, 'bond')
 			elif bool(re.search('\[.*angle.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, True, False, False, False
+				section_switch(section_read, 'angle')
 			elif bool(re.search('\[.*dihedral.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, False, True, False, False
-			elif bool(re.search('\[.*exclusion.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, False, False, True, False
+				section_switch(section_read, 'dihedral')
+			elif bool(re.search('\[.*virtual_sites2.*\]', itp_line)):
+				section_switch(section_read, 'vs_2')
+			elif bool(re.search('\[.*virtual_sites3.*\]', itp_line)):
+				section_switch(section_read, 'vs_3')
+			elif bool(re.search('\[.*virtual_sites4.*\]', itp_line)):
+				section_switch(section_read, 'vs_4')
 			elif bool(re.search('\[.*virtual_sitesn.*\]', itp_line)):
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, False, False, False, True
-			elif bool(re.search('\[.*\]', itp_line)): # all other sections
-				r_moleculetype, r_atoms, r_constraints, r_bonds, r_angles, r_dihedrals, r_exclusion, r_virtual = False, False, False, False, False, False, False, False
+				section_switch(section_read, 'vs_n')
+			elif bool(re.search('\[.*exclusion.*\]', itp_line)):
+				section_switch(section_read, 'exclusion')
+			elif bool(re.search('\[.*\]', itp_line)):  # all other sections
+				section_switch(section_read, None)
 
 			else:
 				sp_itp_line = itp_line.split()
 
-				if r_moleculetype:
+				if section_read['moleculetype']:
 
 					ns.cg_itp['moleculetype']['molname'], ns.cg_itp['moleculetype']['nrexcl'] = sp_itp_line[0], int(sp_itp_line[1])
 
-				elif r_atoms:
+				elif section_read['atom']:
 
-					if len(sp_itp_line) == 7:  # in case masses are ABSENT
+					# TODO: test what happens if there are VS in the middle of real CG beads in the [ atoms ] section
+					#       because most probably this won't be OK -- Not sure who does this though, but seems possible
+
+					if len(sp_itp_line) == 7:
 						bead_id, bead_type, resnr, residue, atom, cgnr, charge = sp_itp_line[:7]
-
-						# TODO: get masses from TPR
 						mass = 0
 
-						# As the mass is not defined we look into its definition
-						# try:
-						# 	mass = ns.cg_atomtypes_mass[bead_type]
-						# except:
-						# 	msg = f"The bead type {bead_type} is not defined in the force field file(s)"
-						# 	raise exceptions.MissformattedFile(msg)
+						# In case the masses are ABSENT in the ITP file (probably the most normal case with
+						# MARTINI usage), then we will read the CG masses from the TPR file to avoid having
+						# to look into TOP and potentially multiple ITP files:
+						#  - from evaluate_model.py this means a TPR has been provided already, if the user is not using
+						#    the script for exclusive AA distributions inspection (in which case we don't need the masses
+						#    at all because we will use mapped/splitted weights of the atoms into CG beads exclusively anyway)
+						#  - from optimize_model.py this means we have to wait for a CG TPR to have been generated
+						#    during the iterative simulations, so we will update masses later on (it's OK because we
+						#    do NOT need them before, they are used only for Rg calculation after CG sim. iterations)
 
-					elif len(sp_itp_line) == 8:  # in case masses are PRESENT
+					elif len(sp_itp_line) == 8:
 						bead_id, bead_type, resnr, residue, atom, cgnr, charge, mass = sp_itp_line[:8]
 					else:
-						#
 						msg = (
-						"The atom description form the input itp file: \n\n {} \n\n"
-						"does not contain the correct number of input. Please insert "
+						"The atom description from the input itp file: \n\n {} \n\n"
+						"does not contain the correct number of fields. Please insert "
 						"the following information: \n\n  bead_id, bead_type, resnr, "
 						"residue, atom, cgnr, charge, [mass] \n\n".format(itp_line)
 						)
 						raise exceptions.MissformattedFile(msg)
 
-					# making real beads and vs list of ids
-					# if bead_type == 'VS':
-					# 	ns.vs_beads_ids.append(int(bead_id) - 1)
-					# else:
-					# 	ns.real_beads_ids.append(int(bead_id) - 1)
+					# discriminate between real beads and virtual sites
+					if bead_type.startswith('v'):
+						ns.vs_beads_ids.append(int(bead_id) - 1)
+					else:
+						ns.real_beads_ids.append(int(bead_id) - 1)
 
 					# assignment of the variables value
-					ns.cg_itp['atoms'].append({'bead_id': int(bead_id) - 1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue,'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge), 'mass': float(mass)})
+					ns.cg_itp['atoms'].append({'bead_id': int(bead_id) - 1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue,'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge), 'mass': float(mass), 'vs_type': None})
+					# here there is still MASS and VS_TYPE that are subject to later modification
 
 					if not len(ns.cg_itp['atoms']) == int(bead_id):
 						msg = (
-							"Swarm-CG handles .itp files with atoms indexed consecutively starting from 1.\n"
-							"The atom {} does not follow this formatting.".format(bead_id)
+							f"Swarm-CG handles .itp files with atoms indexed consecutively starting from 1.\n"
+							f"The bead numbered {bead_id + 1} does not follow this formatting."
 						)
 						raise exceptions.MissformattedFile(msg)
 
-				elif r_constraints:
+				elif section_read['constraint']:
 
 					# beginning of a new group
 					if itp_lines[i-1] == '' or itp_lines[i-1].startswith(';') or bool(re.search('\[.*constraint.*\]', itp_lines[i-1])):
 						ns.nb_constraints += 1
 						if itp_lines[i-1].startswith('; constraint type'):
-							geom_type = itp_lines[i-1].split()[3] # if the current CG ITP was generated with our package
+							geom_type = itp_lines[i-1].split()[3]  # if the current CG ITP was generated with our package
 
 						else:
 							geom_type = str(len(ns.cg_itp['constraint'])+1)
-						ns.cg_itp['constraint'].append({'geom_type': geom_type, 'beads': [], 'funct': [], 'value': [], 'fct': [], 'plt_id': []}) # initialize storage for this new group
-				
+						ns.cg_itp['constraint'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': [], 'plt_id': []})  # initialize storage for this new group
+
 					try:
-						ns.cg_itp['constraint'][ns.nb_constraints]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
+						ns.cg_itp['constraint'][ns.nb_constraints]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						msg = (
 							"Incorrect reading of the CG ITP file within [constraints] section. "
@@ -321,26 +300,26 @@ def read_cg_itp_file(ns):
 						raise exceptions.MissformattedFile(msg)
 
 					func = verify_handled_functions('constraint', sp_itp_line[2], i+1)
-					ns.cg_itp['constraint'][ns.nb_constraints]['funct'].append(func)
+					ns.cg_itp['constraint'][ns.nb_constraints]['func'].append(func)
 					ns.cg_itp['constraint'][ns.nb_constraints]['value'].append(float(sp_itp_line[3]))
 					try:
 						ns.cg_itp['constraint'][ns.nb_constraints]['plt_id'].append(sp_itp_line[6])
 					except IndexError:
 						ns.cg_itp['constraint'][ns.nb_constraints]['plt_id'].append('')
 
-				elif r_bonds:
+				elif section_read['bond']:
 
 					# beginning of a new group
 					if itp_lines[i-1] == '' or itp_lines[i-1].startswith(';') or bool(re.search('\[.*bond.*\]', itp_lines[i-1])):
 						ns.nb_bonds += 1
 						if itp_lines[i-1].startswith('; bond type'):
-							geom_type = itp_lines[i-1].split()[3] # if the current CG ITP was generated with our package
+							geom_type = itp_lines[i-1].split()[3]  # if the current CG ITP was generated with our package
 						else:
 							geom_type = str(len(ns.cg_itp['bond'])+1)
-						ns.cg_itp['bond'].append({'geom_type': geom_type, 'beads': [], 'funct': [], 'value': [], 'fct': [], 'plt_id': []}) # initialize storage for this new group
-				
+						ns.cg_itp['bond'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': [], 'plt_id': []})  # initialize storage for this new group
+
 					try:
-						ns.cg_itp['bond'][ns.nb_bonds]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
+						ns.cg_itp['bond'][ns.nb_bonds]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						msg = (
 							"Incorrect reading of the CG ITP file within [bonds] section. "
@@ -349,7 +328,7 @@ def read_cg_itp_file(ns):
 						raise exceptions.MissformattedFile(msg)
 
 					func = verify_handled_functions('bond', sp_itp_line[2], i+1)
-					ns.cg_itp['bond'][ns.nb_bonds]['funct'].append(func)
+					ns.cg_itp['bond'][ns.nb_bonds]['func'].append(func)
 					ns.cg_itp['bond'][ns.nb_bonds]['value'].append(float(sp_itp_line[3]))
 					ns.cg_itp['bond'][ns.nb_bonds]['fct'].append(float(sp_itp_line[4]))
 					try:
@@ -357,17 +336,17 @@ def read_cg_itp_file(ns):
 					except IndexError:
 						ns.cg_itp['bond'][ns.nb_bonds]['plt_id'].append('')
 
-				elif r_angles:
+				elif section_read['angle']:
 
 					# beginning of a new group
 					if itp_lines[i-1] == '' or itp_lines[i-1].startswith(';') or bool(re.search('\[.*angle.*\]', itp_lines[i-1])):
 						ns.nb_angles += 1
 						if itp_lines[i-1].startswith('; angle type'):
-							geom_type = itp_lines[i-1].split()[3] # if the current CG ITP was generated with our package
+							geom_type = itp_lines[i-1].split()[3]  # if the current CG ITP was generated with our package
 						else:
 							geom_type = str(len(ns.cg_itp['angle'])+1)
-						ns.cg_itp['angle'].append({'geom_type': geom_type, 'beads': [], 'funct': [], 'value': [], 'fct': [], 'plt_id': []}) # initialize storage for this new group
-				
+						ns.cg_itp['angle'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': [], 'plt_id': []}) # initialize storage for this new group
+
 					try:
 						ns.cg_itp['angle'][ns.nb_angles]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:3]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
@@ -378,7 +357,7 @@ def read_cg_itp_file(ns):
 						raise exceptions.MissformattedFile(msg)
 
 					func = verify_handled_functions('angle', sp_itp_line[3], i+1)
-					ns.cg_itp['angle'][ns.nb_angles]['funct'].append(func)
+					ns.cg_itp['angle'][ns.nb_angles]['func'].append(func)
 					ns.cg_itp['angle'][ns.nb_angles]['value'].append(float(sp_itp_line[4]))
 					ns.cg_itp['angle'][ns.nb_angles]['fct'].append(float(sp_itp_line[5]))
 					try:
@@ -386,39 +365,39 @@ def read_cg_itp_file(ns):
 					except IndexError:
 						ns.cg_itp['angle'][ns.nb_angles]['plt_id'].append('')
 
-				elif r_dihedrals:
+				elif section_read['dihedral']:
 
 					# beginning of a new group
 					if itp_lines[i-1] == '' or itp_lines[i-1].startswith(';') or bool(re.search('\[.*dihedral.*\]', itp_lines[i-1])):
 						ns.nb_dihedrals += 1
 						if itp_lines[i-1].startswith('; dihedral type'):
-							geom_type = itp_lines[i-1].split()[3] # if the current CG ITP was generated with our package
+							geom_type = itp_lines[i-1].split()[3]  # if the current CG ITP was generated with our package
 						else:
 							geom_type = str(len(ns.cg_itp['dihedral'])+1)
-						ns.cg_itp['dihedral'].append({'geom_type': geom_type, 'beads': [], 'funct': [], 'value': [], 'fct': [], 'plt_id': [], 'mult': []}) # initialize storage for this new group
+						ns.cg_itp['dihedral'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': [], 'plt_id': [], 'mult': []})  # initialize storage for this new group
 
 					try:
-						ns.cg_itp['dihedral'][ns.nb_dihedrals]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:4]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
+						ns.cg_itp['dihedral'][ns.nb_dihedrals]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:4]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						msg = (
-							"Incorrect reading of the CG ITP file within [dihedrals] section. "
+							"Incorrect reading of the CG ITP file within [ dihedrals ] section. "
 							"Please check this file."
 						)
 						raise exceptions.MissformattedFile(msg)
 
 					func = verify_handled_functions('dihedral', sp_itp_line[4], i+1)
-					ns.cg_itp['dihedral'][ns.nb_dihedrals]['funct'].append(func)
-					ns.cg_itp['dihedral'][ns.nb_dihedrals]['value'].append(float(sp_itp_line[5])) # issue happens here for functions that are not handled
+					ns.cg_itp['dihedral'][ns.nb_dihedrals]['func'].append(func)
+					ns.cg_itp['dihedral'][ns.nb_dihedrals]['value'].append(float(sp_itp_line[5]))  # issue happens here for functions that are not handled
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['fct'].append(float(sp_itp_line[6]))
 
 					# handle multiplicity if function assumes multiplicity
 					if func in config.dihedral_func_with_mult:
-						try: # correct read of the provided multiplicity
+						try:  # correct read of the provided multiplicity
 							ns.cg_itp['dihedral'][ns.nb_dihedrals]['mult'].append(int(sp_itp_line[7]))
-						except (IndexError, ValueError): # incorrect read of multiplicity -- or it was expected but not provided
+						except (IndexError, ValueError):  # incorrect read of multiplicity -- or it was expected but not provided
 							print('  Missing multiplicity for dihedral at ITP line '+str(i+1)+', assumed multiplicity 1')
 							ns.cg_itp['dihedral'][ns.nb_dihedrals]['mult'].append(1)
-					else: # no multiplicity parameter is expected
+					else:  # no multiplicity parameter is expected
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['mult'].append(None)
 
 					try:
@@ -426,36 +405,34 @@ def read_cg_itp_file(ns):
 					except IndexError:
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['plt_id'].append('')
 
-				elif r_virtual:
-					# TODO: For user information we need to provide the number of VS.
-					# TODO: We need to define the function types for the VSn
+				elif section_read['vs_2'] or section_read['vs_3'] or section_read['vs_4'] or section_read['vs_n']:
 
-					# Read VS index, and VS function, list_cg_atoms
-					bead_id, vs_type, cg_atomlist = int(sp_itp_line[0])-1, int(sp_itp_line[1]), [int(bid)-1 for bid in sp_itp_line[2:]]
+					bead_id, func = int(sp_itp_line[0])-1, int(sp_itp_line[1])
+					vs_params = []  # contains beads_ids + parameters for the VS definition functions
+					for bid in sp_itp_line[2:]:
+						try:
+							vs_params.append(int(bid)-1)
+						except ValueError:
+							vs_params.append(float(bid))
 
-					# Check if the bead is defined in the atom list
-					for bid in cg_atomlist + [bead_id]:
-						if bid >= len(ns.cg_itp['atoms']):
-							msg = (
-								f"The virtual sites definition(s) make use of index {bid}, which exceeds the number of "
-								f"beads and virtual sites defined"
-							)
-							raise exceptions.MissformattedFile(msg)
-					else:
-						# check if the bead is defined as VS (= must start with letter small "v" by MARTINI convention)
-						if not ns.cg_itp['atoms'][bead_id]['bead_type'].startswith('v'):
-							msg = (
-								f'CG bead number {bead_id+1} is referenced to as a virtual site, but its bead type '
-								f'does NOT start with letter "v"'
-							)
-							raise exceptions.MissformattedFile(msg)
+					if section_read['vs_2']:
+						func = vs_error_control(ns, bead_id, '2', func, vs_params, i)  # i is the line number for error info
+						ns.cg_itp['virtual_sites2'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_params': vs_params}
+						ns.cg_itp['atoms'][bead_id]['vs_type'] = 2
+					elif section_read['vs_3']:
+						func = vs_error_control(ns, bead_id, '3', func, vs_params, i)  # i is the line number for error info
+						ns.cg_itp['virtual_sites3'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_params': vs_params}
+						ns.cg_itp['atoms'][bead_id]['vs_type'] = 3
+					elif section_read['vs_4']:
+						func = vs_error_control(ns, bead_id, '4', func, vs_params, i)  # i is the line number for error info
+						ns.cg_itp['virtual_sites4'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_params': vs_params}
+						ns.cg_itp['atoms'][bead_id]['vs_type'] = 4
+					elif section_read['vs_n']:
+						func = vs_error_control(ns, bead_id, 'n', func, vs_params, i)  # i is the line number for error info
+						ns.cg_itp['virtual_sitesn'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_params': vs_params}
+						ns.cg_itp['atoms'][bead_id]['vs_type'] = 'n'
 
-					func = verify_handled_functions('virtual_sitesn', vs_type, i)
-
-					# ns.cg_itp['virtual_sitesn'].append({'bead_id': bead_id, 'vs_type': vs_type, 'atom_list': cg_atomlist})
-					ns.cg_itp['virtual_sitesn'][bead_id] = {'bead_id': bead_id, 'vs_type': vs_type, 'atom_list': cg_atomlist}
-
-				elif r_exclusion:
+				elif section_read['exclusion']:
 
 					ns.cg_itp['exclusion'].append([int(bead_id)-1 for bead_id in sp_itp_line])
 
@@ -463,135 +440,57 @@ def read_cg_itp_file(ns):
 	# TODO: make these messages more clear and CORRECT for the dihedral function handling -- also explain this is the current Opti.CG implementation, function 9 might come in next version
 	# TODO: check what kind of error or processing is done when a correct line is duplicated within a group ?? probably it goes on in a bad way
 
+	def msg(geom, grp_geom):
+		return f"In the provided CG ITP file {geom} have been grouped, but {geom} group "
+		f"{str(grp_geom + 1)} holds lines that have different parameters. Parameters should be "
+		f"identical within a group, only CG beads IDs should differ. "
+		f"Please correct the CG ITP file and separate groups using a blank or commented line"
 
-#	msg = (
-#		f"In the provided CG ITP file {geom} have been grouped, but {geom} group "
-#		f"{str(grp_geom + 1)} holds lines that have different parameters. Parameters should be "
-#		f"identical within a group, only CG beads IDs should differ. "
-#		f"Please correct the CG ITP file and separate groups using a blank or commented line"
-#	)
-	for geom in ['constraint']: # constraints only
+	for geom in ['constraint']:  # constraints only
 		for grp_geom in range(len(ns.cg_itp[geom])):
-			for var in ['funct', 'value']:
+			for var in ['func', 'value']:
 				var_set = set(ns.cg_itp[geom][grp_geom][var])
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					raise exceptions.MissformattedFile(msg)
+					raise exceptions.MissformattedFile(msg(geom, grp_geom))
 
-	for geom in ['bond', 'angle']: # bonds and angles only
+	for geom in ['bond', 'angle']:  # bonds and angles only
 		for grp_geom in range(len(ns.cg_itp[geom])):
-			for var in ['funct', 'value', 'fct']:
+			for var in ['func', 'value', 'fct']:
 				var_set = set(ns.cg_itp[geom][grp_geom][var])
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					raise exceptions.MissformattedFile(msg)
+					raise exceptions.MissformattedFile(msg(geom, grp_geom))
 
-	for geom in ['dihedral']: # dihedrals only
+	for geom in ['dihedral']:  # dihedrals only
 		for grp_geom in range(len(ns.cg_itp[geom])):
-			for var in ['funct', 'value', 'fct']:
+			for var in ['func', 'value', 'fct']:
 				var_set = set(ns.cg_itp[geom][grp_geom][var])
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					raise exceptions.MissformattedFile(msg)
+					raise exceptions.MissformattedFile(msg(geom, grp_geom))
 
 			for var in ['mult']:
 				var_set = set(ns.cg_itp[geom][grp_geom][var])
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
 				else:
-					raise exceptions.MissformattedFile(msg)
+					raise exceptions.MissformattedFile(msg(geom, grp_geom))
 
 	ns.nb_constraints += 1
 	ns.nb_bonds += 1
 	ns.nb_angles += 1
 	ns.nb_dihedrals += 1
-	print('  Found '+str(ns.nb_constraints)+' constraints groups', flush=True)
-	print('  Found '+str(ns.nb_bonds)+' bonds groups', flush=True)
-	print('  Found '+str(ns.nb_angles)+' angles groups', flush=True)
-	print('  Found '+str(ns.nb_dihedrals)+' dihedrals groups', flush=True)
+	print('  Found ' + str(len(ns.real_beads_ids)) + ' beads')
+	print('  Found ' + str(len(ns.vs_beads_ids)) + ' virtual sites')
+	print('  Found ' + str(ns.nb_constraints) + ' constraints groups')
+	print('  Found ' + str(ns.nb_bonds) + ' bonds groups')
+	print('  Found ' + str(ns.nb_angles) + ' angles groups')
+	print('  Found ' + str(ns.nb_dihedrals) + ' dihedrals groups')
 
-	return
-
-
-def pop_empty_lines(file):
-	# Popping out all the empty lines
-	list_idx = [value for value in range(len(file)) if file[value] == '']
-	list_idx.reverse()
-	for idx in list_idx:
-		file.pop(idx)
-
-	return
-
-# #This function reads the defaults masses associated to each atomtype loaded into the topology file
-# def fetch_cg_mass_itp(ns):
-# 	#Declaring the ns.cg_atomtypes = {} in order to retreive the mass of each particle whenever is missing by searching the type as arguments
-# 	ns.cg_atomtypes_mass = {}
-# 	#Parsing the topology file to find all the .itp included
-# 	list_itp = []
-#
-# 	# Checking if the namespaces contains the folder specs.
-# 	# This is done to distinguish between optimize and evaluate models
-# 	print(os.getcwd())
-# 	if hasattr(ns,'exec_folder') or hasattr(config,'input_sim_files_dirname'):
-# 		print(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + ns.top_input_basename)
-# 		with open(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + ns.top_input_basename, 'r') as fp:
-# 			all_top_lines = fp.read().split('\n')
-# 	else:
-# 		with open(ns.top_input_basename, 'r') as fp:
-# 			all_top_lines = fp.read().split('\n')
-#
-# 	pop_empty_lines(all_top_lines)
-#
-# 	for line in all_top_lines:
-# 		if line.split()[0] == "#include":
-# 			#Reading the filename of the loaded .itps
-# 			aux = line.split()[1]
-# 			list_itp.append(aux[1:len(aux)-1])
-#
-# 	#Reading all the atomtypes within each .itp found in the topology file
-# 	for itp_name in list_itp:
-# 		if hasattr(ns, 'exec_folder') and hasattr(config, 'input_sim_files_dirname'):
-# 			with open(ns.exec_folder + '/' + config.input_sim_files_dirname + '/' + itp_name, 'r') as fp:
-# 				itp_file = fp.read().split('\n')
-# 		else:
-# 			with open(itp_name, 'r') as fp:
-# 				itp_file = fp.read().split('\n')
-#
-#
-# 		#Stripping all comments from the list of line
-# 		for i in range(len(itp_file)):
-# 			itp_file[i] = strip_comment(itp_file[i],";")
-#
-# 		#Popping out all the empty lines
-# 		list_idx = [value for value in range(len(itp_file)) if itp_file[value] == '']
-# 		list_idx.reverse()
-# 		for idx in list_idx:
-# 			itp_file.pop(idx)
-#
-# 		# Here a boolean checking if we are in a atomtypes section
-# 		bAtomTypes = False
-#
-# 		#The lines of the file should be now cleaned, therefore it is possible to skip all the checks to monitor empty lines
-# 		for line in itp_file:
-# 			if len(line.split()) != 0:
-# 				words = line.split()
-# 				#Searching the atomtype keyword
-# 				if words[0] == "[":
-# 					if words[1] == "atomtypes":
-# 						bAtomTypes = True
-# 					elif words[1] != "atomtypes":
-# 						bAtomTypes = False
-# 					continue
-# 				if bAtomTypes:
-# 					ns.cg_atomtypes_mass[words[0]] = float(words[1])
-# 			else:
-# 				break
-#
-#
-# 	return
 
 # load CG beads from NDX-like file
 def read_ndx_atoms2beads(ns):
@@ -599,10 +498,10 @@ def read_ndx_atoms2beads(ns):
 	with open(ns.cg_map_filename, 'r') as fp:
 
 		ndx_lines = fp.read().split('\n')
-		ndx_lines = [ndx_line.strip().split(';')[0] for ndx_line in ndx_lines] # split for comments
+		ndx_lines = [ndx_line.strip().split(';')[0] for ndx_line in ndx_lines]  # split for comments
 
 		ns.atoms_occ_total = collections.Counter()
-		ns.all_beads = dict() # atoms id mapped to each bead
+		ns.all_beads = dict()  # atoms id mapped to each bead
 		bead_id = 0
 		current_section = 'Beginning of file'
 
@@ -619,6 +518,8 @@ def read_ndx_atoms2beads(ns):
 					try:
 						lines_read += 1
 						if lines_read > 1:
+							# TODO: this is incorrect, we should allow the content of a section to be split across
+							#       several lines when reading the file, but we forbid it atm
 							msg = (
 								f"A section of the CG beads mapping (NDX) file has multiple lines, "
 								f"while Swarm-CG accepts only one line per section. Please use a "
@@ -649,28 +550,23 @@ def read_ndx_atoms2beads(ns):
 						)
 						raise exceptions.MissformattedFile(msg)
 
-	return
-
 
 # calculate weight ratio of atom ID in given CG bead
 def get_atoms_weights_in_beads(ns):
 
-	# print('Calculating atoms weights in respect to CG beads mapping')
 	ns.atom_w = dict()
-	# if ns.verbose:
-	# 	print()
+	if ns.verbose:
+		print('Calculating atoms weights ratio within mapped CG beads')
 	for bead_id in ns.all_beads:
 		# print('Weighting bead_id', bead_id)
 		ns.atom_w[bead_id] = dict()
 		beads_atoms_counts = collections.Counter(ns.all_beads[bead_id]['atoms_id'])
 		for atom_id in beads_atoms_counts:
 			ns.atom_w[bead_id][atom_id] = round(beads_atoms_counts[atom_id] / ns.atoms_occ_total[atom_id], 3)
-			# if ns.verbose:
-			# 	print('  Weight ratio is', ns.atom_w[bead_id][atom_id], 'for atom ID', atom_id, 'attributed to CG bead ID', bead_id)
-	# if ns.verbose:
-	# 	print()
-
-	return
+			if ns.verbose:
+				print('  Weight ratio is', ns.atom_w[bead_id][atom_id], 'for atom ID', atom_id, 'attributed to CG bead ID', bead_id)
+	if ns.verbose:
+		print()
 
 
 # for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
@@ -691,63 +587,36 @@ def get_beads_MDA_atomgroups(ns):
 			)
 			raise exceptions.MissformattedFile(msg)
 
-	return
-
 
 # compute average radius of gyration
 def compute_Rg(ns, traj_type):
 
-	if traj_type == 'AA': # currently we do not make use of this block in the scripts, but I let this here for later
+	if traj_type == 'AA':  # currently we do not make use of this block in the scripts, but I let this here for later
 
 		gyr_aa = np.empty(len(ns.aa_universe.trajectory))
-		frame_nb = 0
-
-		for _ in ns.aa_universe.trajectory:
-			gyr_aa[frame_nb] = ns.aa_universe.atoms[:len(ns.all_atoms)].radius_of_gyration(pbc=None, backend=ns.mda_backend)
-			frame_nb += 1
-		ns.gyr_aa = round(np.average(gyr_aa)/10, 3) # retrieve nm
-		ns.gyr_aa_std = round(np.std(gyr_aa)/10, 3) # retrieve nm
+		for ts in ns.aa_universe.trajectory:
+			gyr_aa[ts.frame] = ns.aa_universe.atoms[:len(ns.all_atoms)].radius_of_gyration(pbc=None, backend=ns.mda_backend)
+		ns.gyr_aa = round(np.average(gyr_aa)/10, 3)  # retrieve nm
+		ns.gyr_aa_std = round(np.std(gyr_aa)/10, 3)  # retrieve nm
 
 	elif traj_type == 'AA_mapped':
 
 		gyr_aa_mapped = np.empty(len(ns.aa_universe.trajectory))
-		total_mass = sum([ns.cg_universe.atoms[bead_id].mass for bead_id in range(len(ns.cg_itp['atoms']))])
-		beads_masses = np.array([np.array([ns.cg_universe.atoms[bead_id].mass]) for bead_id in range(len(ns.cg_itp['atoms']))])
-		# print('BEADS MASSES CG for Rg calculation AA-mapped:\n', beads_masses)
 		for ts in ns.aa2cg_universe.trajectory:
-			com = np.sum(beads_masses * ts.positions, axis=0) / total_mass
-			mapped_pos_dist_com = mda.lib.distances.distance_array(com, ts.positions, backend=ns.mda_backend)
-			gyr_aa_mapped[ts.frame] = np.sqrt(np.sum(beads_masses.reshape(1,len(beads_masses)) * np.power(mapped_pos_dist_com, 2)) / total_mass)
-		ns.gyr_aa_mapped = round(np.average(gyr_aa_mapped)/10 + ns.aa_rg_offset, 3) # retrieve nm
-		ns.gyr_aa_mapped_std = round(np.std(gyr_aa_mapped)/10, 3) # retrieve nm
-
-		# FOR PAPER
-		# try:
-		# 	np.savetxt(ns.datamol+'_Rg_AA.npy', gyr_aa_mapped/10)
-		# except AttributeError:
-		# 	pass
+			gyr_aa_mapped[ts.frame] = ns.aa2cg_universe.atoms[:len(ns.cg_itp['atoms'])].radius_of_gyration(pbc=None, backend=ns.mda_backend)
+		ns.gyr_aa_mapped = round(np.average(gyr_aa_mapped)/10 + ns.aa_rg_offset, 3)  # retrieve nm
+		ns.gyr_aa_mapped_std = round(np.std(gyr_aa_mapped)/10, 3)  # retrieve nm
 
 	elif traj_type == 'CG':
 
 		gyr_cg = np.empty(len(ns.cg_universe.trajectory))
-		frame_nb = 0
-
-		for _ in ns.cg_universe.trajectory:
-			gyr_cg[frame_nb] = ns.cg_universe.atoms[:len(ns.cg_itp['atoms'])].radius_of_gyration(pbc=None, backend=ns.mda_backend)
-			frame_nb += 1
-		ns.gyr_cg = round(np.average(gyr_cg)/10, 3) # retrieve nm
-		ns.gyr_cg_std = round(np.std(gyr_cg)/10, 3) # retrieve nm
-
-		# FOR PAPER
-		# try:
-		# 	np.savetxt(ns.datamol+'_Rg_CG.npy', gyr_cg/10)
-		# except AttributeError:
-		# 	pass
+		for ts in ns.cg_universe.trajectory:
+			gyr_cg[ts.frame] = ns.cg_universe.atoms[:len(ns.cg_itp['atoms'])].radius_of_gyration(pbc=None, backend=ns.mda_backend)
+		ns.gyr_cg = round(np.average(gyr_cg)/10, 3)  # retrieve nm
+		ns.gyr_cg_std = round(np.std(gyr_cg)/10, 3)  # retrieve nm
 
 	else:
-		raise RuntimeError('Code error compute_Rg')
-
-	return
+		raise RuntimeError('Unexpected error in function: compute_Rg')
 
 
 # read 1 column of xvg file and return as array
@@ -783,6 +652,7 @@ def compute_SASA(ns, traj_type):
 
 	elif traj_type == 'AA_mapped':
 
+		# TODO: discriminate between real beads and virtual sites
 		nb_beads = len(ns.all_beads)
 
 		# generate an index.ndx file with the number of beads, so we can call SASA on this group even if there are residues in the molecule
@@ -916,15 +786,13 @@ def compute_SASA(ns, traj_type):
 	else:
 		raise exceptions.ComputationError('Code error compute SASA')
 
-	return
-
 
 # update coarse-grain ITP
 def update_cg_itp_obj(ns, parameters_set, update_type):
 
-	if update_type == 1: # intermediary
+	if update_type == 1:  # intermediary
 		itp_obj = ns.out_itp
-	elif update_type == 2: # cycles optimized
+	elif update_type == 2:  # cycles optimized
 		itp_obj = ns.opti_itp
 	else:
 		msg = (
@@ -956,10 +824,10 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 		else:
 		 	itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+ns.opti_cycle['nb_geoms']['angle']+i], 2) # dihedral - force constant
 
-	return
-
 
 # print coarse-grain ITP
+# here we have a switch for print_sections because we might want to optimize constraints/bonds/angles/dihedrals
+# separately, so we can left some out with the switch and they will be optimized later
 def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond', 'angle', 'dihedral', 'exclusion']):
 
 	with open(out_path_itp, 'w') as fp:
@@ -972,63 +840,54 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 		fp.write('; id type resnr residue   atom  cgnr    charge     mass\n\n')
 
 		for i in range(len(itp_obj['atoms'])):
-
-			# TODO: remove mass and EOL, it's not used
-			if 'mass_and_eol' in itp_obj['atoms'][i]:
-				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f} {7}\n'.format(itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'], itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'], itp_obj['atoms'][i]['resnr'], itp_obj['atoms'][i]['mass_and_eol']))
-			else:
-				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}\n'.format(itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'], itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'], itp_obj['atoms'][i]['resnr']))
-
-		if len(itp_obj['virtual_sitesn']) > 0:
-			fp.write('\n\n[ virtual_sitesn ]\n')
-			for vsite in itp_obj['virtual_sitesn']:
-				fp.write('{} {} {}\n'.format(str(itp_obj['virtual_sitesn'][vsite]['bead_id'] + 1), str(itp_obj['virtual_sitesn'][vsite]['vs_type']), ' '.join([str(bid+1) for bid in itp_obj['virtual_sitesn'][vsite]['atom_list']])))
+			fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}\n'.format(itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'], itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'], itp_obj['atoms'][i]['resnr']))
 
 		if 'constraint' in print_sections and 'constraint' in itp_obj and len(itp_obj['constraint']) > 0:
 			fp.write('\n\n[ constraints ]\n')
 			fp.write(';   i     j   funct   length\n')
 
 			for j in range(len(itp_obj['constraint'])):
-				
+
 				constraint_type = itp_obj['constraint'][j]['geom_type']
 				fp.write('\n; constraint type '+constraint_type+'\n')
 				grp_val = itp_obj['constraint'][j]['value']
 
 				for i in range(len(itp_obj['constraint'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}      ; {2} {3}\n'.format(itp_obj['constraint'][j]['funct'], grp_val, constraint_type, itp_obj['constraint'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['constraint'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}      ; {2} {3}\n'.format(itp_obj['constraint'][j]['func'], grp_val, constraint_type, itp_obj['constraint'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['constraint'][j]['beads'][i]]))
 
 		if 'bond' in print_sections and 'bond' in itp_obj and len(itp_obj['bond']) > 0:
 			fp.write('\n\n[ bonds ]\n')
 			fp.write(';   i     j   funct   length   force.c.\n')
 
 			for j in range(len(itp_obj['bond'])):
-				
+
 				bond_type = itp_obj['bond'][j]['geom_type']
 				fp.write('\n; bond type '+bond_type+'\n')
 				grp_val, grp_fct = itp_obj['bond'][j]['value'], itp_obj['bond'][j]['fct']
 
 				for i in range(len(itp_obj['bond'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}  {2:7.2f}           ; {3} {4}\n'.format(itp_obj['bond'][j]['funct'], grp_val, grp_fct, bond_type, itp_obj['bond'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['bond'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}  {2:7.2f}           ; {3} {4}\n'.format(itp_obj['bond'][j]['func'], grp_val, grp_fct, bond_type, itp_obj['bond'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['bond'][j]['beads'][i]]))
 
 		if 'angle' in print_sections and 'angle' in itp_obj and len(itp_obj['angle']) > 0:
 			fp.write('\n\n[ angles ]\n')
 			fp.write(';   i     j     k   funct     angle   force.c.\n')
 
 			for j in range(len(itp_obj['angle'])):
-				
+
 				angle_type = itp_obj['angle'][j]['geom_type']
 				fp.write('\n; angle type '+angle_type+'\n')
 				grp_val, grp_fct = itp_obj['angle'][j]['value'], itp_obj['angle'][j]['fct']
 
 				for i in range(len(itp_obj['angle'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {0:>7} {1:9.2f}   {2:7.2f}           ; {3} {4}\n'.format(itp_obj['angle'][j]['funct'], grp_val, grp_fct, angle_type, itp_obj['angle'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['angle'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {0:>7} {1:9.2f}   {2:7.2f}           ; {3} {4}\n'.format(
+						itp_obj['angle'][j]['func'], grp_val, grp_fct, angle_type, itp_obj['angle'][j]['plt_id'][i], beads=[bead_id+1 for bead_id in itp_obj['angle'][j]['beads'][i]]))
 
 		if 'dihedral' in print_sections and 'dihedral' in itp_obj and len(itp_obj['dihedral']) > 0:
 			fp.write('\n\n[ dihedrals ]\n')
 			fp.write(';   i     j     k     l   funct     dihedral   force.c.   mult.\n')
 
 			for j in range(len(itp_obj['dihedral'])):
-				
+
 				dihedral_type = itp_obj['dihedral'][j]['geom_type']
 				fp.write('\n; dihedral type '+dihedral_type+'\n')
 				grp_val, grp_fct = itp_obj['dihedral'][j]['value'], itp_obj['dihedral'][j]['fct']
@@ -1040,8 +899,51 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 					if multiplicity == None:
 						multiplicity = ''
 
-					# print(itp_obj['dihedral'][j]['funct'], grp_val, grp_fct, dihedral_type, itp_obj['dihedral'][j]['plt_id'][i], 'beads', itp_obj['dihedral'][j]['beads'][i])
-					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {beads[3]:>5} {0:>7}    {1:9.2f} {2:7.2f}       {5}     ; {3} {4}\n'.format(itp_obj['dihedral'][j]['funct'], grp_val, grp_fct, dihedral_type, itp_obj['dihedral'][j]['plt_id'][i], multiplicity, beads=[bead_id+1 for bead_id in itp_obj['dihedral'][j]['beads'][i]]))
+					# print(itp_obj['dihedral'][j]['func'], grp_val, grp_fct, dihedral_type, itp_obj['dihedral'][j]['plt_id'][i], 'beads', itp_obj['dihedral'][j]['beads'][i])
+					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {beads[3]:>5} {0:>7}    {1:9.2f} {2:7.2f}       {5}     ; {3} {4}\n'.format(
+						itp_obj['dihedral'][j]['func'], grp_val, grp_fct, dihedral_type, itp_obj['dihedral'][j]['plt_id'][i], multiplicity, beads=[bead_id+1 for bead_id in itp_obj['dihedral'][j]['beads'][i]]))
+
+		# here starts 4 almost identical blocks, that differ only by vs_2, vs_3, vs_4, vs_n
+		# but we could still need to write several of these sections (careful if factorizing this)
+		if len(itp_obj['virtual_sites2']) > 0:
+			fp.write('\n\n[ virtual_sites2 ]\n')
+			fp.write(';   i     j     def\n')
+			for bead_id in itp_obj['virtual_sites2']:
+				fp.write('{:>5} {:>5}     {}\n'.format(
+					str(itp_obj['virtual_sites2'][bead_id]['bead_id'] + 1),
+					str(itp_obj['virtual_sites2'][bead_id]['func']),
+					' '.join(['{:>4}'.format(bid+1) for bid in itp_obj['virtual_sites2'][bead_id]['vs_params']]))
+				)
+
+		if len(itp_obj['virtual_sites3']) > 0:
+			fp.write('\n\n[ virtual_sites3 ]\n')
+			fp.write(';   i     j     def\n')
+			for bead_id in itp_obj['virtual_sites3']:
+				fp.write('{:>5} {:>5}     {}\n'.format(
+					str(itp_obj['virtual_sites3'][bead_id]['bead_id'] + 1),
+					str(itp_obj['virtual_sites3'][bead_id]['func']),
+					' '.join(['{:>4}'.format(bid+1) for bid in itp_obj['virtual_sites3'][bead_id]['vs_params']]))
+				)
+
+		if len(itp_obj['virtual_sites4']) > 0:
+			fp.write('\n\n[ virtual_sites4 ]\n')
+			fp.write(';   i     j     def\n')
+			for bead_id in itp_obj['virtual_sites4']:
+				fp.write('{:>5} {:>5}     {}\n'.format(
+					str(itp_obj['virtual_sites4'][bead_id]['bead_id'] + 1),
+					str(itp_obj['virtual_sites4'][bead_id]['func']),
+					' '.join(['{:>4}'.format(bid+1) for bid in itp_obj['virtual_sites4'][bead_id]['vs_params']]))
+				)
+
+		if len(itp_obj['virtual_sitesn']) > 0:
+			fp.write('\n\n[ virtual_sitesn ]\n')
+			fp.write(';   i     j     def\n')
+			for bead_id in itp_obj['virtual_sitesn']:
+				fp.write('{:>5} {:>5}     {}\n'.format(
+					str(itp_obj['virtual_sitesn'][bead_id]['bead_id'] + 1),
+					str(itp_obj['virtual_sitesn'][bead_id]['func']),
+					' '.join(['{:>4}'.format(bid+1) for bid in itp_obj['virtual_sitesn'][bead_id]['vs_params']]))
+				)
 
 		if 'exclusion' in print_sections and 'exclusion' in itp_obj and len(itp_obj['exclusion']) > 0:
 			fp.write('\n\n[ exclusions ]\n')
@@ -1052,108 +954,36 @@ def print_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 
 		fp.write('\n\n')
 
-	return
-
-
-# build atomistic graph of the molecule + find if atoms are heavy or not
-# def build_aa_graph_and_find_heavy_atoms(ns):
-
-# 	aa_graph = nx.Graph()
-# 	all_hydrogen_atoms_id, all_heavy_atoms_id = set(), set()
-
-# 	for atom_id_1 in ns.all_atoms:
-# 		if ns.all_atoms[atom_id_1]['heavy']:
-# 			all_heavy_atoms_id.add(atom_id_1)
-# 			aa_graph.add_node(atom_id_1, type=ns.all_atoms[atom_id_1]['atom_type'])
-
-# 			for atom_id_2 in ns.all_atoms[atom_id_1]['conn']:
-# 				if ns.all_atoms[atom_id_2]['heavy']:
-# 					aa_graph.add_edge(atom_id_1, atom_id_2)
-# 		else:
-# 			all_hydrogen_atoms_id.add(atom_id_1)
-
-# 	return aa_graph, all_heavy_atoms_id, all_hydrogen_atoms_id
-
-
-# comparing geoms for identical atomistic content of beads, split into separate groups if atom content is different (atom types and connectivity via graph isomorphism)
-# def compare_atom_content(ns, all_cg_geoms, cg_graph, aa_graph, cg_node_matcher_2, cg_edge_matcher, aa_node_matcher):
-
-# 	same_types_conn_filtered_cg_geoms = dict()
-# 	geoms_types = {'cg_lvl': {}, 'aa_lvl': {}}
-# 	nb_geoms_types = 0
-
-# 	for geom_id in range(len(all_cg_geoms)):
-
-# 		geom = all_cg_geoms[geom_id]
-# 		new_geom_type = cg_graph.subgraph(geom).copy() # CG subgraph of the geom beads as a first filter -- copy since we might remove edges for dihedrals
-# 		if len(geom) == 4: # for dihedrals remove the additional edge within cycles of 4 beads -- dihedrals with rotatable within cycles of 3 beads shall already be discarded from previous steps
-# 			try:
-# 				new_geom_type.remove_edge(geom[0], geom[3])
-# 			except nx.NetworkXError:
-# 				pass # if there was no edge between opposite beads of the dihedral
-# 		cg_geom_with_neighbors = set([conn_bead_id for bead_id in geom for conn_bead_id in ns.all_beads[bead_id]['conn']]) # extend cg graph to n+1 neighbors so atomistic branching will be taken into account + handle case that include the very central bead of a graph/molecule -- this is necessary to handle cyclic cores correctly, especially
-# 		aa_sg_view_new_geom = aa_graph.subgraph([atom_id for bead_id in cg_geom_with_neighbors for atom_id in ns.all_beads[bead_id]['atoms_id']]) # atomistic subgraph of the beads content, specifically for handling/splitting geoms with edges inside atomistic cycles (benzenes, etc.) or case that include the very central bead of a graph/molecule
-# 		# aa_sg_view_new_geom = aa_graph.subgraph([atom_id for bead_id in geom for atom_id in ns.all_beads[bead_id]['atoms_id']]) # atomistic subgraph of the beads content, specifically for handling/splitting geoms with edges inside atomistic cycles (benzenes, etc.) or case that include the very central bead of a graph/molecule
-# 		found_geom_type = False
-
-# 		for known_geom_type in geoms_types['cg_lvl']:
-
-# 			GM = nx.algorithms.isomorphism.GraphMatcher(known_geom_type, new_geom_type, node_match=cg_node_matcher_2, edge_match=cg_edge_matcher)
-# 			if GM.is_isomorphic():
-
-# 				aa_sg_view_known_geom = geoms_types['aa_lvl'][geoms_types['cg_lvl'][known_geom_type]]
-# 				if nx.algorithms.isomorphism.is_isomorphic(aa_sg_view_new_geom, aa_sg_view_known_geom, node_match=aa_node_matcher):
-
-# 					found_geom_type = True
-# 					ref_geom_ids_order = all_cg_geoms[same_types_conn_filtered_cg_geoms[geoms_types['cg_lvl'][known_geom_type]][0]]
-# 					all_cg_geoms[geom_id] = tuple([GM.mapping[bead_id] for bead_id in ref_geom_ids_order]) # get ordering right for identical elements within the reference list of objects
-# 					same_types_conn_filtered_cg_geoms[geoms_types['cg_lvl'][known_geom_type]].append(geom_id)
-# 					break
-
-# 		if not found_geom_type:
-# 			nb_geoms_types += 1
-# 			geoms_types['cg_lvl'][new_geom_type] = nb_geoms_types
-# 			geoms_types['aa_lvl'][nb_geoms_types] = aa_sg_view_new_geom
-# 			same_types_conn_filtered_cg_geoms[nb_geoms_types] = [geom_id]
-
-# 	return same_types_conn_filtered_cg_geoms
-
 
 # set dimensions of the search space according to the type of optimization (= geom type(s) to optimize)
 def get_search_space_boundaries(ns):
-	
+
 	search_space_boundaries = []
 	if ns.opti_cycle['nb_geoms']['constraint'] > 0:
-		search_space_boundaries.extend(ns.domains_val['constraint']) # constraints distances
+		search_space_boundaries.extend(ns.domains_val['constraint'])  # constraints distances
 	if ns.opti_cycle['nb_geoms']['bond'] > 0:
-		search_space_boundaries.extend(ns.domains_val['bond']) # bonds distances and force constants
+		search_space_boundaries.extend(ns.domains_val['bond'])  # bonds distances and force constants
 		search_space_boundaries.extend([[config.default_min_fct_bonds, ns.default_max_fct_bonds_opti]]*ns.opti_cycle['nb_geoms']['bond'])
 
 	if ns.opti_cycle['nb_geoms']['angle'] > 0:
 		if ns.exec_mode == 1 or ns.exec_mode == 3:
-			search_space_boundaries.extend(ns.domains_val['angle']) # angles values
+			search_space_boundaries.extend(ns.domains_val['angle'])  # angles values
 
-		for grp_angle in range(ns.opti_cycle['nb_geoms']['angle']): # angles force constants
-			if ns.cg_itp['angle'][grp_angle]['funct'] == 1:
+		for grp_angle in range(ns.opti_cycle['nb_geoms']['angle']):  # angles force constants
+			if ns.cg_itp['angle'][grp_angle]['func'] == 1:
 				search_space_boundaries.extend([[config.default_min_fct_angles, ns.default_max_fct_angles_opti_f1]])
-			elif ns.cg_itp['angle'][grp_angle]['funct'] == 2:
+			elif ns.cg_itp['angle'][grp_angle]['func'] == 2:
 				search_space_boundaries.extend([[config.default_min_fct_angles, ns.default_max_fct_angles_opti_f2]])
-			else:
-				msg = "Code error in force constants calculations, in the angles block."
-				raise exceptions.InvalidArgument(msg)
 
 	if ns.opti_cycle['nb_geoms']['dihedral'] > 0:
 		if ns.exec_mode == 1:
-			search_space_boundaries.extend(ns.domains_val['dihedral']) # dihedrals values
+			search_space_boundaries.extend(ns.domains_val['dihedral'])  # dihedrals values
 
-		for grp_dihedral in range(ns.opti_cycle['nb_geoms']['dihedral']): # dihedrals force constants
-			if ns.cg_itp['dihedral'][grp_dihedral]['funct'] == 2:
+		for grp_dihedral in range(ns.opti_cycle['nb_geoms']['dihedral']):  # dihedrals force constants
+			if ns.cg_itp['dihedral'][grp_dihedral]['func'] == 2:
 				search_space_boundaries.extend([[config.default_min_fct_dihedrals_func_without_mult, ns.default_max_fct_dihedrals_opti_func_without_mult]])
-			elif ns.cg_itp['dihedral'][grp_dihedral]['funct'] in [1, 4, 9]:
+			elif ns.cg_itp['dihedral'][grp_dihedral]['func'] in [1, 4, 9]:
 				search_space_boundaries.extend([[-ns.default_abs_range_fct_dihedrals_opti_func_with_mult, ns.default_abs_range_fct_dihedrals_opti_func_with_mult]])
-			else:
-				msg = "Code error in force constants calculations, in the dihedrals block."
-				raise exceptions.InvalidArgument(msg)
 
 	return search_space_boundaries
 
@@ -1182,28 +1012,22 @@ def get_initial_guess_list(ns, nb_particles):
 		input_guess.extend([ns.out_itp['angle'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['angle'])]) # angles values
 	fct_angles = []
 	for i in range(ns.opti_cycle['nb_geoms']['angle']):
-		if ns.cg_itp['angle'][i]['funct'] == 1:
+		if ns.cg_itp['angle'][i]['func'] == 1:
 			fct_angles.append(min(max(ns.out_itp['angle'][i]['fct'], config.default_min_fct_angles), ns.default_max_fct_angles_opti_f1)) # angles force constants
-		elif ns.cg_itp['angle'][i]['funct'] == 2:
+		elif ns.cg_itp['angle'][i]['func'] == 2:
 			fct_angles.append(min(max(ns.out_itp['angle'][i]['fct'], config.default_min_fct_angles), ns.default_max_fct_angles_opti_f2)) # angles force constants
-		else:
-			msg = (
-				"Code error during force constants range definition while getting the initial "
-				"guesses from BI."
-			)
-			raise exceptions.InvalidArgument(msg)
-
 	input_guess.extend(fct_angles)
 
 	if ns.exec_mode == 1:
 		input_guess.extend([ns.out_itp['dihedral'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['dihedral'])]) # dihedrals values
 	fct_dihedrals = []
 	for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
-		if ns.cg_itp['dihedral'][i]['funct'] == 2:
+		if ns.cg_itp['dihedral'][i]['func'] == 2:
 			fct_dihedrals.append(min(max(ns.out_itp['dihedral'][i]['fct'], config.default_min_fct_dihedrals_func_without_mult), ns.default_max_fct_dihedrals_opti_func_without_mult)) # dihedrals force constants
 		else:
 			fct_dihedrals.append(min(max(ns.out_itp['dihedral'][i]['fct'], -ns.default_abs_range_fct_dihedrals_opti_func_with_mult), ns.default_abs_range_fct_dihedrals_opti_func_with_mult)) # dihedrals force constants
 	input_guess.extend(fct_dihedrals)
+
 	initial_guess_list.append(input_guess)
 
 	# the second particle is initialized using best EMD score for each geom, and the parameters that yielded these EMD scores
@@ -1267,8 +1091,8 @@ def get_initial_guess_list(ns, nb_particles):
 
 	# for the other particles we generate variations of the input CG ITP, still within defined boundaries for optimization
 	# boundaries are defined:
-	#   for constraints/bonds length and angles/dihedrals values, according to atomistic mapped trajectory and maximum searchable 
-	#   for force constants, according to default or user provided maximal ranges (see config file for defaults)
+	#   - for constraints/bonds length and angles/dihedrals values, according to atomistic mapped trajectory and maximum searchable
+	#   - for force constants, according to default or user provided maximal ranges (see config file for defaults)
 	for i in range(num_particle_random_start, nb_particles):
 		init_guess = []
 
@@ -1320,17 +1144,10 @@ def get_initial_guess_list(ns, nb_particles):
 			except:
 				emd_err_fact = 1
 			draw_low = max(min(ns.out_itp['angle'][j]['fct']*(1-ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']-config.fct_guess_min_flat_diff_angles), config.default_min_fct_angles)
-			if ns.cg_itp['angle'][j]['funct'] == 1:
+			if ns.cg_itp['angle'][j]['func'] == 1:
 				draw_high = min(max(ns.out_itp['angle'][j]['fct']*(1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']+config.fct_guess_min_flat_diff_angles), ns.default_max_fct_angles_opti_f1)
-			elif ns.cg_itp['angle'][j]['funct'] == 2:
+			elif ns.cg_itp['angle'][j]['func'] == 2:
 				draw_high = min(max(ns.out_itp['angle'][j]['fct']*(1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']+config.fct_guess_min_flat_diff_angles), ns.default_max_fct_angles_opti_f2)
-			else:
-				msg = (
-					"Code error during force constants range definition for angles during particles "
-					"initialization guesses from BI."
-				)
-				raise exceptions.InvalidArgument(msg)
-
 			init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# dihedrals values
@@ -1363,7 +1180,7 @@ def get_initial_guess_list(ns, nb_particles):
 				draw_high = ns.out_itp['dihedral'][j]['fct']*(1-ns.fct_guess_fact*emd_err_fact)
 
 			# make sure the minimal variation range is enforced + stay within defined boundaries
-			if ns.cg_itp['dihedral'][j]['funct'] == 2:
+			if ns.cg_itp['dihedral'][j]['func'] == 2:
 				draw_low = max(min(draw_low, ns.out_itp['dihedral'][j]['fct']-config.fct_guess_min_flat_diff_dihedrals_without_mult), config.default_min_fct_dihedrals_func_without_mult)
 				draw_high = min(max(draw_high, ns.out_itp['dihedral'][j]['fct']+config.fct_guess_min_flat_diff_dihedrals_without_mult), ns.default_max_fct_dihedrals_opti_func_without_mult)
 			else:
@@ -1378,16 +1195,12 @@ def get_initial_guess_list(ns, nb_particles):
 
 # read atomistic trajectory
 def read_aa_traj(ns):
-	
-	print('Reading All Atom (AA) trajectory', flush=True)
+
+	print('Reading All Atom (AA) trajectory')
 	with warnings.catch_warnings():
 		warnings.filterwarnings("ignore", category=ImportWarning) # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
-		ns.aa_universe = mda.Universe(ns.aa_tpr_filename, ns.aa_traj_filename, in_memory=True, refresh_offsets=True, guess_bonds=False) # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default
-	print('  Found', len(ns.aa_universe.trajectory), 'frames in AA trajectory file', flush=True)
-	# if len(ns.aa_universe.trajectory) > 20000:
-	# 	print(config.header_warning+'Your atomistic trajectory contains many frames, which increases computation time\nReasonably reducing the number of frames of your input AA trajectory won\'t affect results quality\n2k to 10k frames is usually enough, as long as behaviour and flexibility of your molecule are correctly described by your atomistic trajectory')
-
-	return
+		ns.aa_universe = mda.Universe(ns.aa_tpr_filename, ns.aa_traj_filename, in_memory=True, refresh_offsets=True, guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default in some MDA versions
+	print('  Found', len(ns.aa_universe.trajectory), 'frames')
 
 
 def initialize_cg_traj(ns):
@@ -1397,11 +1210,8 @@ def initialize_cg_traj(ns):
 	resname = np.array([val['residue'] for val in ns.cg_itp['atoms']])
 	resid = np.array([val['resnr'] for val in ns.cg_itp['atoms']])
 	nr = len(list(set([val['resnr'] for val in ns.cg_itp['atoms']])))
-	# print(list(set([val['resnr'] for val in ns.cg_itp['atoms']])))
-	# print(nr)
+
 	ns.aa2cg_universe = mda.Universe.empty(len(ns.cg_itp['atoms']), n_residues=nr, atom_resindex=resid, n_segments=1, residue_segindex=np.ones(nr), trajectory=True)
-	# ns.aa2cg_universe = mda.Universe.empty(len(ns.cg_itp['atoms']), 1,n_residues=nr,atom_resindex=resid,n_segments=1,residue_segindex=np.ones(nr), trajectory=True)
-	# ns.aa2cg_universe = mda.Universe.empty(len(ns.cg_itp['atoms']), nr, resindex=resid, trajectory=True)
 	ns.aa2cg_universe.add_TopologyAttr('masses')
 	ns.aa2cg_universe._topology.masses.values = np.array(masses)
 	ns.aa2cg_universe.add_TopologyAttr('name')
@@ -1412,15 +1222,6 @@ def initialize_cg_traj(ns):
 	# if len(ns.aa_universe.trajectory) > 20000:
 	# 	print(config.header_warning+'Your atomistic trajectory contains many frames, which increases computation time\nReasonably reducing the number of frames of your input AA trajectory won\'t affect results quality\n2k to 10k frames is usually enough, as long as behaviour and flexibility of your molecule are correctly described by your atomistic trajectory')
 
-	return
-
-#Strip the comments from the list
-def strip_comment(line,val):
-	if line.find(val) >= 0:
-		return line[:line.find(val)]
-	else:
-		return line
-
 
 def map_aa2cg_traj(ns):
 
@@ -1430,37 +1231,61 @@ def map_aa2cg_traj(ns):
 		if not ns.cg_itp['atoms'][bead_id]['bead_type'].startswith('v'):  # bead is NOT a virtual site
 			traj = np.empty((len(ns.aa_universe.trajectory), 3))
 			for ts in ns.aa_universe.trajectory:
-				traj[ts.frame] = ns.mda_beads_atom_grps[bead_id].center(ns.mda_weights_atom_grps[bead_id], pbc=None, compound='group')  # no need for PBC handling, trajectories were made wholes for the molecule
+				traj[ts.frame] = ns.mda_beads_atom_grps[bead_id].center(
+					ns.mda_weights_atom_grps[bead_id], pbc=None, compound='group'
+				)  # no need for PBC handling, trajectories were made wholes for the molecule
 			coord[:, bead_id, :] = traj
 
 	ns.aa2cg_universe.load_new(coord, format=mda.coordinates.memory.MemoryReader)
 
 	# virtual sites are mapped using previously defined regular beads positions and appropriate virtual sites functions
+	# it is also possible to use a VS for defining another VS position, if the VS used for definition is defined before
+	# no need to check if the functions used for VS definition are correct here, this has been done already
 	for bead_id in range(len(ns.cg_itp['atoms'])):
 		if ns.cg_itp['atoms'][bead_id]['bead_type'].startswith('v'):
-			la = ns.cg_itp['virtual_sitesn'][bead_id]['atom_list']
-			# VS_TYPE = 1 -> Center of Geometry
-			# VS_TYPE = 2 -> Center of Mass
-			# VS_TYPE = 3 -> Center of Weights (for each atom a weight must be given in the definition of the VS)
+
 			traj = np.empty((len(ns.aa2cg_universe.trajectory), 3))
-			sel = ns.aa2cg_universe.atoms[la]
 
-			if ns.cg_itp['virtual_sitesn'][bead_id]['vs_type'] == 1:
-				for ts in ns.aa2cg_universe.trajectory:
-					traj[ts.frame] = sel.center_of_geometry(pbc=None)
+			if ns.cg_itp['atoms'][bead_id]['vs_type'] == 2:
+				vs_params = ns.cg_itp['virtual_sites2'][bead_id]['vs_params']
 
-			# TODO: Here there wil be a RunTimeWarning: Divide by 0 if function 2 is used exclusively with VS because there will be no masses
-			# TODO: actually for function 2 we should verify AND ENFORCE that all beads should have masses != 0
-			elif ns.cg_itp['virtual_sitesn'][bead_id]['vs_type'] == 2:
-				for ts in ns.aa2cg_universe.trajectory:
-					traj[ts.frame] = sel.center_of_mass(pbc=None)
+				if ns.cg_itp['virtual_sites2'][bead_id]['func'] == 1:
+					vs2_func_1(ns, traj, vs_params, bead_id)
+				elif ns.cg_itp['virtual_sites2'][bead_id]['func'] == 2:
+					vs2_func_2(ns, traj, vs_params, bead_id)
+
+			if ns.cg_itp['atoms'][bead_id]['vs_type'] == 3:
+				vs_params = ns.cg_itp['virtual_sites3'][bead_id]['vs_params']
+
+				if ns.cg_itp['virtual_sites3'][bead_id]['func'] == 1:
+					vs3_func_1(ns, traj, vs_params)
+				elif ns.cg_itp['virtual_sites3'][bead_id]['func'] == 2:
+					vs3_func_2(ns, traj, vs_params, bead_id)
+				elif ns.cg_itp['virtual_sites3'][bead_id]['func'] == 3:
+					vs3_func_3(ns, traj, vs_params)
+				elif ns.cg_itp['virtual_sites3'][bead_id]['func'] == 4:
+					vs3_func_4(ns, traj, vs_params)
+
+			# here it's normal there is only function 2, that's the only one that exists in gromacs for some reason
+			if ns.cg_itp['atoms'][bead_id]['vs_type'] == 4:
+				vs_params = ns.cg_itp['virtual_sites4'][bead_id]['vs_params']
+
+				if ns.cg_itp['virtual_sites4'][bead_id]['func'] == 2:
+					vs4_func_2(ns, traj, vs_params)
+
+			if ns.cg_itp['atoms'][bead_id]['vs_type'] == 'n':
+				vs_params = ns.cg_itp['virtual_sitesn'][bead_id]['vs_params']
+
+				if ns.cg_itp['virtual_sitesn'][bead_id]['func'] == 1:
+					vsn_func_1(ns, traj, vs_params)
+				elif ns.cg_itp['virtual_sitesn'][bead_id]['func'] == 2:
+					vsn_func_2(ns, traj, vs_params, bead_id)
+				elif ns.cg_itp['virtual_sitesn'][bead_id]['func'] == 3:
+					vsn_func_3(ns, traj, vs_params)
 
 			coord[:, bead_id, :] = traj
 
-	# Final CG-coordinates
 	ns.aa2cg_universe.load_new(coord, format=mda.coordinates.memory.MemoryReader)
-
-	return
 
 
 # use selected whole molecules as MDA atomgroups and make their coordinates whole, inplace, across the complete tAA rajectory
@@ -1470,8 +1295,6 @@ def make_aa_traj_whole_for_selected_mols(ns):
 	for _ in ns.aa_universe.trajectory:
 		for aa_mol in ns.all_aa_mols:
 			mda.lib.mdamath.make_whole(aa_mol, inplace=True)
-
-	return
 
 
 # build gromacs command with arguments
@@ -1509,8 +1332,6 @@ def create_bins_and_dist_matrices(ns, constraints=True):
 	bins_dihedrals_reshape = np.array(ns.bins_dihedrals).reshape(-1,1)
 	bins_dihedrals_dist_matrix = cdist(bins_dihedrals_reshape, bins_dihedrals_reshape) # 'classical' distance matrix
 	ns.bins_dihedrals_dist_matrix = np.where(bins_dihedrals_dist_matrix > max(bins_dihedrals_dist_matrix[0])/2, max(bins_dihedrals_dist_matrix[0])-bins_dihedrals_dist_matrix, bins_dihedrals_dist_matrix) # periodic distance matrix
-
-	return
 
 
 # calculate bonds distribution from AA trajectory
@@ -1666,7 +1487,7 @@ def perform_BI(ns):
 	# TODO: If the first opti run of BI fails, lower force constants by 10% and retry, again and again until it works, or tell the user something is very wrong after 20 tries with 50% of the force constants that all did NOT work 
 
 	with warnings.catch_warnings():
-		warnings.filterwarnings("ignore", category=RuntimeWarning) # ignore the warning "divide by 0 encountered in true_divide" while calculating sigma
+		warnings.filterwarnings("ignore", category=RuntimeWarning)  # ignore the warning "divide by 0 encountered in true_divide" while calculating sigma
 
 		if not ns.performed_init_BI['bond'] and ns.opti_cycle['nb_geoms']['bond'] > 0:
 
@@ -1688,7 +1509,7 @@ def perform_BI(ns):
 				x = np.linspace(bi_xrange[0], bi_xrange[1], config.bi_nb_bins, endpoint=True)
 				k = config.kB * ns.temp / std_grp_bond / std_grp_bond * 100 / 2
 
-				params_guess = [k, avg_grp_bond*10, min(y)] # multiply for amgstrom for BI
+				params_guess = [k, avg_grp_bond*10, min(y)]  # multiply for amgstrom for BI
 
 				# calculate derivative to use as sigma for fitting
 				y_forward_shift = collections.deque(y)
@@ -1705,10 +1526,10 @@ def perform_BI(ns):
 				deriv = 1/deriv
 				sigma = np.where(y < max(y), deriv, np.inf)
 				
-				popt, pcov = curve_fit(gmx_bonds_func_1, x * 10, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False) # multiply for amgstrom for BI
+				popt, pcov = curve_fit(gmx_bonds_func_1, x * 10, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)  # multiply for amgstrom for BI
 
 				# here we just update the force constant, bond length is already set to the average of distribution
-				ns.out_itp['bond'][grp_bond]['fct'] = min(max(popt[0]*100, config.default_min_fct_bonds), config.default_max_fct_bonds_bi) # stay within specified range for force constants
+				ns.out_itp['bond'][grp_bond]['fct'] = min(max(popt[0]*100, config.default_min_fct_bonds), config.default_max_fct_bonds_bi)  # stay within specified range for force constants
 				if ns.verbose:
 					print('  Bond group', grp_bond+1, 'estimated force constant:', round(ns.out_itp['bond'][grp_bond]['fct'], 2))
 
@@ -1727,33 +1548,26 @@ def perform_BI(ns):
 				x = np.linspace(np.deg2rad(bi_xrange[0]), np.deg2rad(bi_xrange[1]), config.bi_nb_bins, endpoint=True)
 				k = config.kB * ns.temp / std_rad_grp_angle / std_rad_grp_angle * 100 / 2
 
-				sigma = np.where(y < max(y), 0.1, np.inf) # this is definitely better when angles have bimodal distributions
+				sigma = np.where(y < max(y), 0.1, np.inf)  # this is definitely better when angles have bimodal distributions
 
 				# use appropriate angle function
-				func = ns.cg_itp['angle'][grp_angle]['funct']
+				func = ns.cg_itp['angle'][grp_angle]['func']
 
 				if func == 1:
 					params_guess = [k, std_rad_grp_angle, min(y)]
 					popt, pcov = curve_fit(gmx_angles_func_1, x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
-					popt[0] = abs(popt[0]) # just to be safe, in case the fit yielded negative fct values but this is very unlikely since we provide good starting parameters for the fit
+					popt[0] = abs(popt[0])  # just to be safe, in case the fit yielded negative fct values but this is very unlikely since we provide good starting parameters for the fit
 
 				elif func == 2:
 					params_guess = [max(y)-min(y), std_rad_grp_angle, min(y)]
 					try:
 						popt, pcov = curve_fit(gmx_angles_func_2, x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
-						if popt[0] < 0: # correct the negative force constant that can result from the fit of stiff angles at values close to 180
+						if popt[0] < 0:  # correct the negative force constant that can result from the fit of stiff angles at values close to 180
 							popt[0] = config.default_max_fct_angles_bi * 0.8 # stiff is most probably max fct value, so get close to it
 						elif bi_xrange[1] == 180 - ns.bw_angles/2:
 							popt[0] += 10
-					except RuntimeError: # curve fit did not converge
+					except RuntimeError:  # curve fit did not converge
 						popt[0] = 30
-
-				else:
-					msg = (
-						"Code error, we should never arrive here because functions have been "
-						"checked during CG ITP file reading."
-					)
-					raise exceptions.InvalidArgument(msg)
 
 				# here we just update the force constant, angle value is already set to the average of distribution
 				ns.out_itp['angle'][grp_angle]['fct'] = min(max(popt[0], config.default_min_fct_angles), config.default_max_fct_angles_bi) # stay within specified range for force constants
@@ -1778,7 +1592,7 @@ def perform_BI(ns):
 				sigma = np.where(y < max(y), 0.1, np.inf)
 				
 				# use appropriate dihedral function
-				func = ns.cg_itp['dihedral'][grp_dihedral]['funct']
+				func = ns.cg_itp['dihedral'][grp_dihedral]['func']
 				
 				if func in config.dihedral_func_with_mult:
 					multiplicity = ns.cg_itp['dihedral'][grp_dihedral]['mult'] # multiplicity stays the same as in input CG ITP, it's only during model_prep that we could compare between different multiplicities
@@ -1788,14 +1602,7 @@ def perform_BI(ns):
 				elif func == 2:
 					params_guess = [k, avg_rad_grp_dihedral, min(y)]
 					popt, pcov = curve_fit(gmx_dihedrals_func_2, x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
-					popt[0] = abs(popt[0]) # just to be safe, in case the fit yielded negative fct values but this is very unlikely since we provide good starting parameters for the fit
-
-				else:
-					msg = (
-						"Code error, we should never arrive here because functions have been checked "
-						"during CG ITP file reading."
-					)
-					raise exceptions.InvalidArgument(msg)
+					popt[0] = abs(popt[0])  # just to be safe, in case the fit yielded negative fct values but this is very unlikely since we provide good starting parameters for the fit
 
 				if ns.exec_mode == 1:
 					ns.out_itp['dihedral'][grp_dihedral]['value'] = np.rad2deg(popt[1])
@@ -1812,10 +1619,7 @@ def perform_BI(ns):
 
 			ns.performed_init_BI['dihedral'] = True
 
-	return
 
-
-# TODO: use this function from optimize_model, where this block is repeated currently
 def process_scaling_str(ns):
 
 	# process specific bonds scaling string, if provided
@@ -1825,9 +1629,9 @@ def process_scaling_str(ns):
 		if len(sp_str) % 2 != 0:
 			msg = (
 				f"Cannot interpret argument -bonds_scaling_str as provided: {ns.bonds_scaling_str}. "
-				f"Please check your parameters, or look for help in an example."
+				f"Please check your parameters, or help for an example"
 			)
-			raise ValueError(msg)
+			raise exceptions.InvalidArgument(msg)
 
 		ns.bonds_scaling_specific = dict()
 		i = 0
@@ -1836,67 +1640,31 @@ def process_scaling_str(ns):
 				geom_id = sp_str[i][1:]
 				if sp_str[i][0].upper() == 'C':
 					if int(geom_id) > ns.nb_constraints:
-						info = (
-							f"A constraint group id exceeds the number of "
-							f"constraints groups defined in the input CG ITP file. "
-						)
-						raise exceptions.InvalidArgument(
-							'bonds_scaling_str', ns.bonds_scaling_str, info
-						)
-
+						info = "A constraint group id exceeds the number of constraints groups defined in the input CG ITP file."
+						raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
 					if not 'C' + geom_id in ns.bonds_scaling_specific:
 						if float(sp_str[i + 1]) < 0:
-							info = (
-								f"You cannot provide negative values for average distribution length."
-							)
-							raise exceptions.InvalidArgument(
-								'bonds_scaling_str', ns.bonds_scaling_str, info
-							)
-
-						ns.bonds_scaling_specific['C'+ geom_id] = float(sp_str[i + 1])
+							info = "You cannot provide negative values for average distribution length."
+							raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
+						ns.bonds_scaling_specific['C' + geom_id] = float(sp_str[i + 1])
 					else:
-						info = (
-							f"A constraint group id is provided multiple "
-							f"times (id: { str(geom_id)}."
-						)
-						raise exceptions.InvalidArgument(
-							'bonds_scaling_str', ns.bonds_scaling_str, info
-						)
-
+						info = f"A constraint group id is provided multiple times (id: {geom_id})"
+						raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
 				elif sp_str[i][0].upper() == 'B':
 					if int(geom_id) > ns.nb_bonds:
-						info = (
-							f"A bond group id exceeds the number of bonds groups defined in the "
-							f"input CG ITP file."
-						)
-						raise exceptions.InvalidArgument(
-							'bonds_scaling_str', ns.bonds_scaling_str, info
-						)
-
+						info = "A bond group id exceeds the number of bonds groups defined in the input CG ITP file."
+						raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
 					if not 'B' + geom_id in ns.bonds_scaling_specific:
 						if float(sp_str[i + 1]) < 0:
-							info = (
-								f"You cannot provide negative values for average distribution "
-								f"length."
-							)
-							raise exceptions.InvalidArgument(
-								'bonds_scaling_str', ns.bonds_scaling_str, info
-							)
-
-						ns.bonds_scaling_specific['B'+geom_id] = float(sp_str[i+1])
+							info = "You cannot provide negative values for average distribution length."
+							raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
+						ns.bonds_scaling_specific['B' + geom_id] = float(sp_str[i + 1])
 					else:
-						info = (
-							f"A bond group id is provided multiple times (id: {str(geom_id)})."
-						)
-						raise exceptions.InvalidArgument(
-							'bonds_scaling_str', ns.bonds_scaling_str, info
-						)
+						info = f"A bond group id is provided multiple times (id: {geom_id})"
+						raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
 				i += 2
-
 		except ValueError:
-			raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, '')
-
-	return
+			raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str)
 
 
 # compare 2 models -- atomistic and CG models with plotting
@@ -1910,55 +1678,33 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	row_wise_ranges = {}
 	row_wise_ranges['max_range_constraints'], row_wise_ranges['max_range_bonds'], row_wise_ranges['max_range_angles'], row_wise_ranges['max_range_dihedrals'] = 0, 0, 0, 0
 
-
-	# read ITP file to extract bonds, angles and dihedrals to compare OR get it from the optimization script to avoid re-reading trajectory + calculating hists at each execution
-	# for reading ITP, groups are created by separating bonds/angles/etc lines by a return (\n) or a comment (;)
-	if manual_mode:
-
-		read_cg_itp_file(ns)
-
-		# Loading the mass of the atom-tpyes in case they are needed
-		# fetch_cg_mass_itp(ns)
-
-		# read AA traj + find atom bonds connectivity and atom types (to differentiate heavy/hydrogens)
-		print()
-		read_aa_traj(ns)
-		load_aa_data(ns)
-		make_aa_traj_whole_for_selected_mols(ns)
-
-		read_ndx_atoms2beads(ns) # read mapping, get atoms occurences in beads
-		get_atoms_weights_in_beads(ns) # get weights of atoms within beads
-		# for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
-		get_beads_MDA_atomgroups(ns)
-
-		# mapping the trajectory aa2cg
-		print()
-		print('Mapping the trajectory from AA to CG representation')
-		initialize_cg_traj(ns)
-		map_aa2cg_traj(ns)
-
-		if ns.atom_only:
-			compute_Rg(ns, traj_type='AA')
-			print()
-			print('Radius of gyration (AA reference, NOT CG-mapped):', ns.gyr_aa, 'nm')
+	if ns.atom_only:
+		compute_Rg(ns, traj_type='AA')
+		print('Radius of gyration (AA reference, NOT CG-mapped):', ns.gyr_aa, 'nm')
 
 	# proceed with CG data
 	if not ns.atom_only:
 
 		print('Reading CG trajectory')
 		ns.cg_universe = mda.Universe(ns.cg_tpr_filename, ns.cg_traj_filename, in_memory=True, refresh_offsets=True, guess_bonds=False)
-		print('  Found', len(ns.cg_universe.trajectory), 'frames in CG trajectory file', flush=True)
+		print('  Found', len(ns.cg_universe.trajectory), 'frames')
+
+		# here we read the CG beads masses + actualize the mapped trajectory object
+		for bead_id in range(len(ns.cg_itp['atoms'])):
+			ns.cg_itp['atoms'][bead_id]['mass'] = ns.cg_universe.atoms[bead_id].mass
+		masses = np.array([val['mass'] for val in ns.cg_itp['atoms']])
+		ns.aa2cg_universe._topology.masses.values = np.array(masses)
 
 		# select the whole molecule as an MDA atomgroup and make its coordinates whole, inplace, across the complete trajectory
 		cg_mol = mda.AtomGroup([bead_id for bead_id in ns.all_beads], ns.cg_universe)
-		for _ in ns.cg_universe.trajectory:
+		for ts in ns.cg_universe.trajectory:
 			mda.lib.mdamath.make_whole(cg_mol, inplace=True)
 
 		# this requires CG data for mapping -- especially, masses are taken from the CG TPR but the CG ITP is also used atm
 		if ns.gyr_aa_mapped == None:
 			compute_Rg(ns, traj_type='AA_mapped')
 			print()
-			print('Radius of gyration (AA reference, no scaling, CG-mapped):', ns.gyr_aa_mapped, '+/-', ns.gyr_aa_mapped_std, 'nm')
+			print('Radius of gyration (AA reference, CG-mapped, no bonds scaling):', ns.gyr_aa_mapped, '+/-', ns.gyr_aa_mapped_std, 'nm')
 
 		compute_Rg(ns, traj_type='CG')
 		print('Radius of gyration (CG model):', ns.gyr_cg, '+/-', ns.gyr_cg_std, 'nm')
@@ -2227,9 +1973,9 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	else:
 		print()
 		if not ns.mismatch_order:
-			print('Distributions groups will be displayed using the CG ITP file groups ordering', flush=True)
+			print('Distributions groups will be displayed using the CG ITP file groups ordering')
 		else:
-			print('Distributions groups will be displayed using ranked mismatch score between pairwise AA-mapped and CG distributions', flush=True)
+			print('Distributions groups will be displayed using ranked mismatch score between pairwise AA-mapped and CG distributions')
 	nrows -= sum([ns.nb_constraints == 0, ns.nb_bonds == 0, ns.nb_angles == 0, ns.nb_dihedrals == 0])
 
 	# fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols*3, nrows*3), squeeze=False) # this fucking line was responsible of the big memory leak (figures were not closing)
@@ -2266,10 +2012,10 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 						ax[nrow][i].fill_between(constraints[grp_constraint]['CG']['x'], constraints[grp_constraint]['CG']['y'], color=config.cg_color, alpha=config.fill_alpha)
 					ax[nrow][i].plot(constraints[grp_constraint]['CG']['avg'], 0, color=config.cg_color, marker='D')
 					# if ns.verbose:
-					print('Constraint '+str(grp_constraint+1)+' -- AA Avg: '+str(round(constraints[grp_constraint]['AA']['avg'], 3))+' nm -- CG Avg: '+str(round(constraints[grp_constraint]['CG']['avg'], 3))+' nm', flush=True)
+					print('Constraint '+str(grp_constraint+1)+' -- AA Avg: '+str(round(constraints[grp_constraint]['AA']['avg'], 3))+' nm -- CG Avg: '+str(round(constraints[grp_constraint]['CG']['avg'], 3))+' nm')
 				else:
 					ax[nrow][i].set_title('Constraint grp '+str(grp_constraint+1)+' - Avg '+str(round(avg_diff_grp_constraints[grp_constraint], 3))+' nm')
-					print('Constraint '+str(grp_constraint+1)+' -- AA Avg: '+str(round(constraints[grp_constraint]['AA']['avg'], 3)), flush=True)
+					print('Constraint '+str(grp_constraint+1)+' -- AA Avg: '+str(round(constraints[grp_constraint]['AA']['avg'], 3)))
 				ax[nrow][i].grid(zorder=0.5)
 				# ax[nrow][i].set_ylim(bottom=0)
 				if ns.row_x_scaling:
@@ -2310,10 +2056,10 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 						ax[nrow][i].fill_between(bonds[grp_bond]['CG']['x'], bonds[grp_bond]['CG']['y'], color=config.cg_color, alpha=config.fill_alpha)
 					ax[nrow][i].plot(bonds[grp_bond]['CG']['avg'], 0, color=config.cg_color, marker='D')
 					# if ns.verbose:
-					print('Bond '+str(grp_bond+1)+' -- AA Avg: '+str(round(bonds[grp_bond]['AA']['avg'], 3))+' nm -- CG Avg: '+str(round(bonds[grp_bond]['CG']['avg'], 3))+' nm', flush=True)
+					print('Bond '+str(grp_bond+1)+' -- AA Avg: '+str(round(bonds[grp_bond]['AA']['avg'], 3))+' nm -- CG Avg: '+str(round(bonds[grp_bond]['CG']['avg'], 3))+' nm')
 				else:
 					ax[nrow][i].set_title('Bond grp '+str(grp_bond+1)+' - Avg '+str(round(avg_diff_grp_bonds[grp_bond], 3))+' nm')
-					print('Bond '+str(grp_bond+1)+' -- AA Avg: '+str(round(bonds[grp_bond]['AA']['avg'], 3)), flush=True)
+					print('Bond '+str(grp_bond+1)+' -- AA Avg: '+str(round(bonds[grp_bond]['AA']['avg'], 3)))
 				ax[nrow][i].grid(zorder=0.5)
 				# ax[nrow][i].set_ylim(bottom=0)
 				if ns.row_x_scaling:
@@ -2354,10 +2100,10 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 						ax[nrow][i].fill_between(angles[grp_angle]['CG']['x'], angles[grp_angle]['CG']['y'], color=config.cg_color, alpha=config.fill_alpha)
 					ax[nrow][i].plot(angles[grp_angle]['CG']['avg'], 0, color=config.cg_color, marker='D')
 					# if ns.verbose:
-					print('Angle '+str(grp_angle+1)+' -- AA Avg: '+str(round(angles[grp_angle]['AA']['avg'], 1))+'° -- CG Avg: '+str(round(angles[grp_angle]['CG']['avg'], 1))+'°', flush=True)
+					print('Angle '+str(grp_angle+1)+' -- AA Avg: '+str(round(angles[grp_angle]['AA']['avg'], 1))+'° -- CG Avg: '+str(round(angles[grp_angle]['CG']['avg'], 1))+'°')
 				else:
 					ax[nrow][i].set_title('Angle grp '+str(grp_angle+1)+' - Avg '+str(round(avg_diff_grp_angles[grp_angle], 1))+'°')
-					print('Angle '+str(grp_angle+1)+' -- AA Avg: '+str(round(angles[grp_angle]['AA']['avg'], 1)), flush=True)
+					print('Angle '+str(grp_angle+1)+' -- AA Avg: '+str(round(angles[grp_angle]['AA']['avg'], 1)))
 				ax[nrow][i].grid(zorder=0.5)
 				# ax[nrow][i].set_ylim(bottom=0)
 				if ns.row_x_scaling:
@@ -2398,10 +2144,10 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 						ax[nrow][i].fill_between(dihedrals[grp_dihedral]['CG']['x'], dihedrals[grp_dihedral]['CG']['y'], color=config.cg_color, alpha=config.fill_alpha)
 					ax[nrow][i].plot(dihedrals[grp_dihedral]['CG']['avg'], 0, color=config.cg_color, marker='D')
 					# if ns.verbose:
-					print('Dihedral '+str(grp_dihedral+1)+' -- AA Avg: '+str(round(dihedrals[grp_dihedral]['AA']['avg'], 1))+'° -- CG Avg: '+str(round(dihedrals[grp_dihedral]['CG']['avg'], 1))+'°', flush=True)
+					print('Dihedral '+str(grp_dihedral+1)+' -- AA Avg: '+str(round(dihedrals[grp_dihedral]['AA']['avg'], 1))+'° -- CG Avg: '+str(round(dihedrals[grp_dihedral]['CG']['avg'], 1))+'°')
 				else:
 					ax[nrow][i].set_title('Dihedral grp '+str(grp_dihedral+1)+' - Avg '+str(round(avg_diff_grp_dihedrals[grp_dihedral], 1))+'°')
-					print('Dihedral '+str(grp_dihedral+1)+' -- AA Avg: '+str(round(dihedrals[grp_dihedral]['AA']['avg'], 1)), flush=True)
+					print('Dihedral '+str(grp_dihedral+1)+' -- AA Avg: '+str(round(dihedrals[grp_dihedral]['AA']['avg'], 1)))
 				ax[nrow][i].grid(zorder=0.5)
 				# ax[nrow][i].set_ylim(bottom=0)
 				if ns.row_x_scaling:
@@ -2520,12 +2266,6 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		print('  Bonds/Constraints constribution to fitness score:', fit_score_constraints_bonds, flush=True)
 		print('  Angles constribution to fitness score:', fit_score_angles, flush=True)
 		print('  Dihedrals constribution to fitness score:', fit_score_dihedrals, flush=True)
-
-		# FOR PAPER
-		# try:
-		# 	np.save(ns.datamol+'_Bonded_fitness.npy', np.array([fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals]))
-		# except AttributeError:
-		# 	pass
 
 		plt.tight_layout(rect=[0, 0, 1, 0.9])
 		# plt.suptitle('FITNESS SCORE\nTotal: '+str(fit_score_total)+' -- Constraints/Bonds: '+str(fit_score_constraints_bonds)+' -- Angles: '+str(fit_score_angles)+' -- Dihedrals: '+str(fit_score_dihedrals))
@@ -2682,8 +2422,6 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 		for mdp_line in mdp_lines_in:
 			fp.write(mdp_line+'\n')
 
-	return
-
 
 # execute command and return output
 def cmdline(command):
@@ -2704,8 +2442,6 @@ def print_stdout_forced(*args, **kwargs):
 	with contextlib.redirect_stdout(sys.__stdout__):
 		print(*args, **kwargs, flush=True)
 
-	return
-
 
 # evaluation function to be optimized using FST-PSO
 def eval_function(parameters_set, ns):
@@ -2716,8 +2452,7 @@ def eval_function(parameters_set, ns):
 	print_stdout_forced()
 	# TODO: this should use logging
 	print_stdout_forced(
-		f"Starting iteration {ns.nb_eval} at {time.strftime('%H:%M:%S')} "
-		f"on {time.strftime('%d-%m-%Y')}"
+		f"Starting iteration {ns.nb_eval} at {time.strftime('%H:%M:%S')} on {time.strftime('%d-%m-%Y')}"
 	)
 
 	# enter the execution directory
@@ -2772,7 +2507,7 @@ def eval_function(parameters_set, ns):
 					else:
 						log_file_size = last_log_file_size # minimization is stuck if the process was not able to create log file at start
 					if log_file_size == last_log_file_size: # minimization is stuck if the process is not writing to log file anymore
-						os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL) # kill all processes of process group
+						os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL)  # kill all processes of process group
 						mini_killed = True
 					else:
 						last_log_file_size = log_file_size
@@ -2780,10 +2515,11 @@ def eval_function(parameters_set, ns):
 
 	else:
 		msg = (
-			f"Gmx grompp failed at minimisation step, see gmx error message above. Please check "
-			f"the parameters of the MDP file provided through argument -cg_sim_mdp_mini. If you "
-			f"think this is a bug, please consider opening an issue on GitHub "
-			f"at {config.github_url}"
+			f"{gmx_out}\n\n"
+			f"Gromacs grompp failed at MD minimization step, see its error message above.\n"
+			f"You may also want to check the parameters of the MDP file provided through\n"
+			f"argument -cg_sim_mdp_mini. If you think this is a bug, please consider opening\n"
+			f"an issue on GitHub at {config.github_url}/issues"
 		)
 		raise exceptions.ComputationError(msg)
 
@@ -2822,10 +2558,11 @@ def eval_function(parameters_set, ns):
 
 		else:
 			msg = (
-				f"Gmx grompp failed at equilibration step, see gmx error message above. Please check "
-				f"the parameters of the MDP file provided through argument -cg_sim_mdp_equi. If you "
-				f"think this is a bug, please consider opening an issue on GitHub "
-				f"at {config.github_url }"
+				f"{gmx_out}\n\n"
+				f"Gromacs grompp failed at MD equilibration step, see its error message above.\n"
+				f"You may also want to check the parameters of the MDP file provided through\n"
+				f"argument -cg_sim_mdp_equi. If you think this is a bug, please consider opening\n"
+				f"an issue on GitHub at {config.github_url}/issues"
 			)
 			raise exceptions.ComputationError(msg)
 
@@ -2867,10 +2604,11 @@ def eval_function(parameters_set, ns):
 
 			else:
 				msg = (
-					f"Gmx grompp failed at MD step, see gmx error message above. Please check "
-					f"the parameters of the MDP file provided through argument -cg_sim_mdp_prod. If you "
-					f"think this is a bug, please consider opening an issue on GitHub "
-					f"at {config.github_url}"
+					f"{gmx_out}\n\n"
+					f"Gromacs grompp failed at MD production step, see its error message above.\n"
+					f"You may also want to check the parameters of the MDP file provided through\n"
+					f"argument -cg_sim_mdp_md. If you think this is a bug, please consider opening\n"
+					f"an issue on GitHub at {config.github_url}/issues"
 				)
 				raise exceptions.ComputationError(msg)
 
@@ -3049,8 +2787,6 @@ def eval_function(parameters_set, ns):
 		# print_stdout_forced('  Opti context mismatch score:', round(eval_score, 3))
 		print_stdout_forced('  Rg CG: ', ' '+str(round(ns.gyr_cg, 2)), 'nm   (Error abs.', str(round(abs(1-ns.gyr_cg/ns.gyr_aa_mapped)*100, 1))+'% -- Reference Rg AA-mapped:', str(ns.gyr_aa_mapped)+' nm)')
 		print_stdout_forced('  SASA CG:', ns.sasa_cg, 'nm2   (Error abs.', str(round(abs(1-ns.sasa_cg/ns.sasa_aa_mapped)*100, 1))+'% -- Reference SASA AA-mapped:', str(ns.sasa_aa_mapped)+' nm2)')
-		# if ns.opti_cycle['nb_geoms']['dihedral'] == 0:
-		# 	print_stdout_forced('  Dihedrals currently ignored')
 
 	current_total_time = round((datetime.now().timestamp() - ns.start_opti_ts) / (60 * 60), 2)
 	current_eval_time = datetime.now().timestamp() - start_eval_ts
@@ -3080,7 +2816,7 @@ def eval_function(parameters_set, ns):
 		recap_line += str(current_eval_time)+' '+str(current_total_time)
 		fp.write(recap_line+'\n')
 
-	os.chdir('..') # exit the execution directory
+	os.chdir('..')  # exit the execution directory
 
 	return eval_score
 
