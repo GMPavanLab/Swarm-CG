@@ -826,7 +826,17 @@ def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 		fp.write('; id type resnr residue   atom  cgnr    charge     mass\n\n')
 
 		for i in range(len(itp_obj['atoms'])):
-			fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}\n'.format(itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'], itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'], itp_obj['atoms'][i]['resnr']))
+			# if the ITP did NOT contain masses, they are set at 0 in this field during ITP reading
+			if itp_obj['atoms'][i]['mass'] != 0:
+				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}     {7:<5.2f}\n'.format(
+					itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'],
+					itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'],
+					itp_obj['atoms'][i]['resnr'], itp_obj['atoms'][i]['mass']))
+			else:
+				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}\n'.format(
+					itp_obj['atoms'][i]['bead_id'] + 1, itp_obj['atoms'][i]['bead_type'],
+					itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i + 1, itp_obj['atoms'][i]['charge'],
+					itp_obj['atoms'][i]['resnr']))
 
 		if 'constraint' in print_sections and 'constraint' in itp_obj and len(itp_obj['constraint']) > 0:
 			fp.write('\n\n[ constraints ]\n')
@@ -839,7 +849,9 @@ def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 				grp_val = itp_obj['constraint'][j]['value']
 
 				for i in range(len(itp_obj['constraint'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}      ; {2}\n'.format(itp_obj['constraint'][j]['func'], grp_val, constraint_type, beads=[bead_id+1 for bead_id in itp_obj['constraint'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}      ; {2}\n'.format(
+						itp_obj['constraint'][j]['func'], grp_val, constraint_type,
+						beads=[bead_id+1 for bead_id in itp_obj['constraint'][j]['beads'][i]]))
 
 		if 'bond' in print_sections and 'bond' in itp_obj and len(itp_obj['bond']) > 0:
 			fp.write('\n\n[ bonds ]\n')
@@ -852,7 +864,9 @@ def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 				grp_val, grp_fct = itp_obj['bond'][j]['value'], itp_obj['bond'][j]['fct']
 
 				for i in range(len(itp_obj['bond'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}  {2:7.2f}           ; {3}\n'.format(itp_obj['bond'][j]['func'], grp_val, grp_fct, bond_type, beads=[bead_id+1 for bead_id in itp_obj['bond'][j]['beads'][i]]))
+					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}  {2:7.2f}           ; {3}\n'.format(
+						itp_obj['bond'][j]['func'], grp_val, grp_fct, bond_type,
+						beads=[bead_id+1 for bead_id in itp_obj['bond'][j]['beads'][i]]))
 
 		if 'angle' in print_sections and 'angle' in itp_obj and len(itp_obj['angle']) > 0:
 			fp.write('\n\n[ angles ]\n')
@@ -866,7 +880,8 @@ def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 
 				for i in range(len(itp_obj['angle'][j]['beads'])):
 					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {0:>7} {1:9.2f}   {2:7.2f}           ; {3}\n'.format(
-						itp_obj['angle'][j]['func'], grp_val, grp_fct, angle_type, beads=[bead_id+1 for bead_id in itp_obj['angle'][j]['beads'][i]]))
+						itp_obj['angle'][j]['func'], grp_val, grp_fct, angle_type,
+						beads=[bead_id+1 for bead_id in itp_obj['angle'][j]['beads'][i]]))
 
 		if 'dihedral' in print_sections and 'dihedral' in itp_obj and len(itp_obj['dihedral']) > 0:
 			fp.write('\n\n[ dihedrals ]\n')
@@ -886,7 +901,8 @@ def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 						multiplicity = ''
 
 					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {beads[3]:>5} {0:>7}    {1:9.2f} {2:7.2f}       {4}     ; {3}\n'.format(
-						itp_obj['dihedral'][j]['func'], grp_val, grp_fct, dihedral_type, multiplicity, beads=[bead_id+1 for bead_id in itp_obj['dihedral'][j]['beads'][i]]))
+						itp_obj['dihedral'][j]['func'], grp_val, grp_fct, dihedral_type, multiplicity,
+						beads=[bead_id+1 for bead_id in itp_obj['dihedral'][j]['beads'][i]]))
 
 		# here starts 4 almost identical blocks, that differ only by vs_2, vs_3, vs_4, vs_n
 		# but we could still need to write several of these sections (careful if factorizing this)
