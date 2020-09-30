@@ -49,21 +49,22 @@ fct_guess_min_flat_diff_dihedrals_with_mult = 0.20  # flat minimum force constan
 
 # gromacs functions that are properly treated at the moment
 # if we find a function that is not handled, program will exit with an appropriate error message
-# TODO: handle dihedral function 9 correctly so that different potentials can be stacked for the same beads -- this is the primary purpose of function 9 !!
+# TODO: handle dihedral function 9 correctly so that different potentials can be stacked for the same beads
+#       this is the primary purpose of function 9 !!
 handled_functions = {
     'constraint': [1],
     'bond': [1],
     'angle': [1, 2],
     'dihedral': [1, 2, 4],
     'dihedral_with_mult': [1, 4],  # these functions use 3 parameters, the last one being multiplicity
-    'virtual_sites2': [1, 2],
-    'virtual_sites3': [1, 2, 3],
+    'virtual_sites2': [1],
+    'virtual_sites3': [1],   #[1, 2, 3],
     'virtual_sites4': [],
     'virtual_sitesn': [1, 2, 3]
 }
 
 # plots display parameters
-use_hists = False  # hists are not implemented in a way that they will be displayed with left and right borders, as it is already the case for bonds
+use_hists = False  # hists are not implemented in a way that they will be displayed with left and right bold borders atm
 line_alpha = 0.6  # line alpha for the density plots
 fill_alpha = 0.35  # fill alpha for the density plots
 cg_color = '#1f77b4'

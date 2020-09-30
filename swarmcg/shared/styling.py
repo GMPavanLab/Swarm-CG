@@ -20,7 +20,7 @@ def header_package(module_line):
              ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝   v {swarmcg.__version__ }
             {module_line}
 {sep_close}
-|               Swarm-CG is distributed under the terms of the MIT License.                   |
+|                 Swarm-CG is distributed under the terms of the MIT License.                 |
 |                                                                                             |
 |                    Feedback, questions and bug reports are welcome at:                      |
 |                        {config.github_url}/issues                          |

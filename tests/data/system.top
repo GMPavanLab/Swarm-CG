@@ -1,0 +1,14 @@
+; Include forcefield parameters
+#include "martini_v2.0_PEO_PS_CNP.itp"
+#include "martini_v2.0_ions.itp"
+#include "cg_model.itp"
+
+[ system ]
+; Name
+G1 (PAMAM) in water
+
+[ molecules ]
+; Compound        #mols
+G1                1
+W                 1243
+CL-               8

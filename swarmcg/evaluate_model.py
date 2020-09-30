@@ -23,15 +23,17 @@ def run(ns):
 	from numpy import VisibleDeprecationWarning
 	warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)  # filter MDAnalysis + numpy deprecation stuff that is annoying
 
-	# TODO: make it possible to feed a delta for Rg in case the model has scaling ?
+	# TODO: make it possible to feed a delta/offset for Rg in case the model has bonds scaling ?
 
 	# get basenames for simulation files
 	ns.cg_itp_basename = os.path.basename(ns.cg_itp_filename)
 
-	ns.molname_in = None # TODO: arguments that exist only in the scope of optimization (useless for manual model evaluation) -- but this could be modified to be allowed to evaluate models in mixed membranes, averaging distribs for given molecule name only
+	# NOTE: some arguments exist only in the scope of optimization (optimize_model.py) or only in the scope of model
+	#       evaluation (evaluate_mode.py), so they need to be defined here
+	ns.molname_in = None
 	ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None
-	# ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
-	ns.aa_rg_offset = 0 # TODO: allow an argument more in evaluate_model, like in optimiwe_model, for adding an offset to Rg
+	ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
+	ns.aa_rg_offset = 0  # TODO: allow an argument more in evaluate_model, like in optimiwe_model, for adding an offset to Rg
 
 	scg.set_MDA_backend(ns)
 
@@ -169,8 +171,6 @@ def main():
 							   help=config.help_bonds2angles_scoring_factor, type=float,
 							   default=config.bonds2angles_scoring_factor,
 							   metavar='      ' + scg.par_wrap(config.bonds2angles_scoring_factor))
-	# ONLY FOR PAPER FIGURES
-	# optional_args.add_argument('-datamol', dest='datamol', help='Save bonded score and Rg values for each frame across simulation', type=str, default='MOL_EXEC_MODE')
 
 	graphical_args = args_parser.add_argument_group(bullet + 'FIGURE DISPLAY')
 	graphical_args.add_argument('-mismatch_ordering', dest='mismatch_order',
@@ -219,8 +219,6 @@ def main():
 
 	# arguments handling, display command line if help or no arguments provided
 	ns = args_parser.parse_args()
-	# ns.in_dir = "."
-	# TODO UNSURE: currently it is not allowed to feed arg -in_dir in evaluate_model, like it is the case in optimize_model, but for path handling we still need to define ns.in_dir = "."
 	input_cmdline = ' '.join(map(cmd_quote, sys.argv))
 	print('Working directory:', os.getcwd())
 	print('Command line:', input_cmdline)

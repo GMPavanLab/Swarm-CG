@@ -40,12 +40,12 @@ def run(ns):
     ns.mismatch_order = False
     ns.row_x_scaling = True
     ns.row_y_scaling = True
-    ns.ncols_max = 0 # 0 to display all
+    ns.ncols_max = 0  # 0 to display all
     # ns.atom_only = False
-    ns.molname_in = None # if None the first found using TPR atom ordering will be used
-    ns.process_alive_time_sleep = 10 # nb of seconds between process alive check cycles
-    ns.process_alive_nb_cycles_dead = int(ns.sim_kill_delay / ns.process_alive_time_sleep) # nb of cycles without .log file bytes size changes to determine that the MD run is stuck
-    ns.bonds_rescaling_performed = False # for user information display
+    ns.molname_in = None  # if None the first found using TPR atom ordering will be used
+    ns.process_alive_time_sleep = 10  # nb of seconds between process alive check cycles
+    ns.process_alive_nb_cycles_dead = int(ns.sim_kill_delay / ns.process_alive_time_sleep)  # nb of cycles without .log file bytes size changes to determine that the MD run is stuck
+    ns.bonds_rescaling_performed = False  # for user information display
 
     # get basenames for simulation files
     ns.cg_itp_basename = os.path.basename(ns.cg_itp_filename)
@@ -79,25 +79,34 @@ def run(ns):
         raise exceptions.AvoidOverwritingFolder(msg)
 
     # check if we can find files at user-provided location(s)
-    arg_entries = vars(ns) # dict view of the arguments namespace
+    # here the order of the args in the 2 lists below is important, be very careful if changing this or adding args
+    arg_entries = vars(ns)  # dict view of the arguments namespace
     user_provided_filenames = ['aa_tpr_filename', 'aa_traj_filename', 'cg_map_filename', 'cg_itp_filename', 'gro_input_filename', 'top_input_filename', 'mdp_minimization_filename', 'mdp_equi_filename', 'mdp_md_filename']
-    args_names = ['aa_tpr', 'aa_traj', 'cg_map', 'cg_itp', 'cg_sim_gro', 'cg_sim_top', 'cg_sim_mdp_mini', 'cg_sim_mdp_equi', 'cg_sim_mdp_md']
+    args_names = ['aa_tpr', 'aa_traj', 'cg_map', 'cg_itp', 'cg_gro', 'cg_top', 'cg_mdp_mini', 'cg_mdp_equi', 'cg_mdp_md']
 
     for i in range(len(user_provided_filenames)):
-        arg_entry = user_provided_filenames[i]
-        if not os.path.isfile(arg_entries[arg_entry]):
-            data_folder_path = ns.input_folder+'/'+arg_entries[arg_entry]
-        if ns.input_folder != '.' and os.path.isfile(data_folder_path):
-            arg_entries[arg_entry] = data_folder_path
-        else:
-            if ns.input_folder == '':
-                data_folder_path = arg_entries[arg_entry]
-            print(data_folder_path)
-            msg = (
-                'Cannot find file for argument -{} '
-                '(expected at location: {})'.format(args_names[i], data_folder_path)
-            )
-            raise FileNotFoundError(msg)
+        filename_out_directory = arg_entries[user_provided_filenames[i]]
+
+        if not os.path.isfile(filename_out_directory):
+
+            # if an input folder is specified (because '.' is the default input_folder)
+            if ns.input_folder != '.':
+                filename_in_directory = ns.input_folder+'/'+arg_entries[user_provided_filenames[i]]
+                if not os.path.isfile(filename_in_directory):
+                    msg = (
+                        'Cannot find file for argument -{} '
+                        '(expected at location: {})'.format(args_names[i], filename_in_directory)
+                    )
+                    raise FileNotFoundError(msg)
+                else:
+                    arg_entries[user_provided_filenames[i]] = filename_in_directory
+
+            else:
+                msg = (
+                    'Cannot find file for argument -{} '
+                    '(expected at location: {})'.format(args_names[i], filename_out_directory)
+                )
+                raise FileNotFoundError(msg)
 
     # check that gromacs alias is correct
     with open(os.devnull, 'w') as devnull:
@@ -113,19 +122,18 @@ def run(ns):
     # check that ITP filename for the model to optimize is indeed included in the TOP file of the simulation directory
     # then find all TOP includes for copying files for simulations at each iteration
     top_includes_filenames = []
-    with open(ns.top_input_filename, 'r') as fp:
+    with open(arg_entries[user_provided_filenames[5]], 'r') as fp:
         all_top_lines = fp.read()
         if ns.cg_itp_basename not in all_top_lines:
             msg = "The CG ITP model filename you provided is not included in your TOP file."
             raise exceptions.MDSimulationInputError(msg)
 
         top_lines = all_top_lines.split('\n')
-        top_lines = [top_line.strip().split(';')[0] for top_line in top_lines] # split for comments
+        top_lines = [top_line.strip().split(';')[0] for top_line in top_lines]  # the split removes comments
         for top_line in top_lines:
             if top_line.startswith('#include'):
-                top_include = top_line.split()[1].replace('"', '').replace("'", '') # remove potential single and double quotes
-                top_includes_filenames.append(top_include)
-    # TODO: VERIFY THE PRESENCE OF ALLLLLLLLL TOP FILES, NOT ONLY THE CG MODEL'S
+                top_include = top_line.split()[1].replace('"', '').replace("'", '')  # remove potential single and double quotes around filenames
+                top_includes_filenames.append(os.path.dirname(arg_entries[user_provided_filenames[5]]) + '/' + top_include)
 
     # check gmx arguments conflicts
     if ns.gmx_args_str != '' and (ns.nb_threads != 0 or ns.gpu_id != ''):
@@ -157,14 +165,15 @@ def run(ns):
 
     # prepare a directory to be copied at each iteration of the optimization, to run the new simulation
     os.mkdir(ns.exec_folder+'/'+config.input_sim_files_dirname)
-    user_provided_sim_files = ['cg_itp_filename', 'gro_input_filename', 'top_input_filename', 'mdp_minimization_filename', 'mdp_equi_filename', 'mdp_md_filename']
-
-    for sim_file in user_provided_sim_files:
-        shutil.copy(arg_entries[sim_file], ns.exec_folder+'/'+config.input_sim_files_dirname)
 
     # get all TOP file includes copied into input simulation directory
     for top_include in top_includes_filenames:
-        shutil.copy(ns.input_folder+'/'+top_include, ns.exec_folder+'/'+config.input_sim_files_dirname)
+        shutil.copy(top_include, ns.exec_folder + '/' + config.input_sim_files_dirname)
+
+    # copy all other simulation files
+    user_provided_sim_files = ['cg_itp_filename', 'gro_input_filename', 'top_input_filename', 'mdp_minimization_filename', 'mdp_equi_filename', 'mdp_md_filename']
+    for sim_file in user_provided_sim_files:
+        shutil.copy(arg_entries[sim_file], ns.exec_folder+'/'+config.input_sim_files_dirname)
 
     # modify the TOP file to adapt includes paths
     with open(ns.exec_folder+'/'+config.input_sim_files_dirname+'/'+ns.top_input_basename, 'r') as fp:
@@ -196,6 +205,32 @@ def run(ns):
     # for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
     scg.get_beads_MDA_atomgroups(ns)
 
+    # get CG beads weights from ITP includes present in the TOP file
+    # but do NOT erase the masses found in the ITP of the CG MODEL provided via arg -cg_itp
+    for top_include in top_includes_filenames:
+
+        with open(top_include, 'r') as fp:
+            try:
+                itp_lines = fp.read().split('\n')
+                itp_lines = [itp_line.split(';')[0].strip() for itp_line in itp_lines]
+            except UnicodeDecodeError:
+                msg = "Cannot read CG ITP, it seems you provided a binary file."
+                raise exceptions.MissformattedFile(msg)
+
+            for itp_line in itp_lines:
+                if itp_line != '':
+
+                    try:  # look for beads and VS masses: try to find the format, this is exigent enough to be unique
+                        sp_itp_line = itp_line.split()
+                        b_type, b_mass, b_sitetype = sp_itp_line[0], float(sp_itp_line[1]), sp_itp_line[3]
+                        if b_sitetype in ['A', 'V', 'D']:  # atom, virtual site, dummy (old virtual site)
+                            for bead_id in range(len(ns.cg_itp['atoms'])):
+                                if ns.cg_itp['atoms'][bead_id]['bead_type'] == b_type:
+                                    if ns.cg_itp['atoms'][bead_id]['mass'] == 0:
+                                        ns.cg_itp['atoms'][bead_id]['mass'] = b_mass
+                    except (IndexError, ValueError):
+                        pass
+
     print('\nMapping the trajectory from AA to CG representation')
     scg.initialize_cg_traj(ns)
     scg.map_aa2cg_traj(ns)
@@ -213,13 +248,13 @@ def run(ns):
     with open(ns.exec_folder+'/'+config.opti_pairwise_distances_file, 'w'):
         pass
 
-    ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None # will be computed one single time with model evaluation script
-    ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None # will be computed one single time with model evaluation script
+    ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None  # will be computed one single time with model evaluation script
+    ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None  # will be computed one single time with model evaluation script
 
     print('Calculating bonds, angles and dihedrals distributions in the reference AA-mapped model')
 
     ns.domains_val = {'constraint': [], 'bond': [], 'angle': [], 'dihedral': []}
-    ns.data_BI = {'bond': [], 'angle': [], 'dihedral': []} # store hists for BI, std and possibly some other stats
+    ns.data_BI = {'bond': [], 'angle': [], 'dihedral': []}  # store hists for BI, std and possibly some other stats
 
     # create all ref atom histograms to be used for pairwise distributions comparisons + find average geoms values as first guesses (without BI at this point)
     # get ref atom hists + find very first distances guesses for constraints groups
@@ -570,8 +605,11 @@ def main():
                               default=config.gmx_path,
                               metavar='                  ' + scg.par_wrap(config.gmx_path))
     optional_args1.add_argument('-nt', dest='nb_threads',
-                              help='Number of threads to use, forwarded to gmx mdrun -nt', type=int,
+                              help="Nb of threads to use, forwarded to 'gmx mdrun -nt'", type=int,
                               default=0, metavar='                     (0)')
+    optional_args1.add_argument('-mpi', dest='mpi_tasks',
+                                help="Nb of mpi programs (X), triggers 'mpirun -np X gmx'", type=int,
+                                default=0, metavar='')
     optional_args1.add_argument('-gpu_id', dest='gpu_id',
                               help='String (use quotes) space-separated list of GPU device IDs',
                               type=str, default='', metavar='')
@@ -621,10 +659,10 @@ def main():
                               metavar='            ' + scg.par_wrap(config.bw_bonds))
     optional_args5.add_argument('-bw_angles', dest='bw_angles', help=config.help_bw_angles,
                               type=float, default=config.bw_angles,
-                              metavar='              ' + scg.par_wrap(config.bw_angles))
+                              metavar='            ' + scg.par_wrap(config.bw_angles))
     optional_args5.add_argument('-bw_dihedrals', dest='bw_dihedrals', help=config.help_bw_dihedrals,
                               type=float, default=config.bw_dihedrals,
-                              metavar='           ' + scg.par_wrap(config.bw_dihedrals))
+                              metavar='         ' + scg.par_wrap(config.bw_dihedrals))
     optional_args5.add_argument('-bonds_max_range', dest='bonded_max_range',
                               help=config.help_bonds_max_range, type=float,
                               default=config.bonds_max_range,

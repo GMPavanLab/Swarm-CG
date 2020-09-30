@@ -20,7 +20,7 @@ from swarmcg.shared import utils, styling
 from swarmcg.shared import exceptions
 from swarmcg.simulations.potentials import (gmx_bonds_func_1, gmx_angles_func_1, gmx_angles_func_2,
 	gmx_dihedrals_func_1, gmx_dihedrals_func_2)
-from swarmcg.simulations.vs_functions import (vs2_func_1, vs2_func_2, vs3_func_1, vs3_func_2, vs3_func_3, vs3_func_4, vs4_func_2, vsn_func_1, vsn_func_2, vsn_func_3)
+import swarmcg.simulations.vs_functions as vsf
 
 matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 warnings.resetwarnings()
@@ -74,7 +74,8 @@ def load_aa_data(ns):
 			ns.all_atoms[atom_id] = {'conn': set(), 'atom_type': atom_type, 'atom_charge': atom_charge, 'heavy': atom_heavy, 'beads_ids': set(), 'beads_types': set(), 'residue_names': set()}
 			# print(ns.aa_universe.atoms[i].id, ns.aa_universe.atoms[i])
 
-	# TODO: allow reading multiple instances of a molecule to build the reference distributions, for extended usage with NOT just one flexible molecule in solvent
+	# TODO: allow reading multiple instances of a molecule to build the reference distributions,
+	#       for extended usage with NOT just one flexible molecule in solvent
 	else:
 		pass
 
@@ -112,6 +113,8 @@ def verify_handled_functions(geom, func, line_nb):
 
 	if func not in config.handled_functions[geom]:
 		functions_str = ", ".join(map(str, config.handled_functions[geom]))
+		if functions_str == '':
+			functions_str = 'None'
 		msg = (
 			f"Error while reading {geom} function in CG ITP file at line {line_nb}. "
 			f"This potential function is not implemented in Swarm-CG at the moment.\n"
@@ -135,7 +138,7 @@ def section_switch(section_read, section_active):
 
 
 # vs_type in [2, 3, 4, n], then they each have specific functions to define their positions
-def vs_error_control(ns, bead_id, vs_type, func, vs_params, line_nb):
+def vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, line_nb):
 
 	if bead_id >= len(ns.cg_itp['atoms']):
 		msg = (
@@ -144,7 +147,7 @@ def vs_error_control(ns, bead_id, vs_type, func, vs_params, line_nb):
 		)
 		raise exceptions.MissformattedFile(msg)
 
-	for bid in vs_params:
+	for bid in vs_def_beads_ids:
 		if bid >= len(ns.cg_itp['atoms']):
 			msg = (
 				f"The definition of virtual site ID {bead_id + 1} makes use of ID {bid + 1}, while this ID exceeds"
@@ -159,7 +162,7 @@ def vs_error_control(ns, bead_id, vs_type, func, vs_params, line_nb):
 		)
 		raise exceptions.MissformattedFile(msg)
 
-	vs_type_str = 'virtual_sites' + vs_type
+	vs_type_str = 'virtual_sites' + str(vs_type)
 	func = verify_handled_functions(vs_type_str, func, line_nb)
 
 	return func
@@ -176,7 +179,7 @@ def read_cg_itp_file(ns):
 	with open(ns.cg_itp_filename, 'r') as fp:
 		try:
 			itp_lines = fp.read().split('\n')
-			itp_lines = [itp_line.strip() for itp_line in itp_lines]
+			itp_lines = [itp_line.split(';')[0].strip() for itp_line in itp_lines]
 		except UnicodeDecodeError:
 			msg = "Cannot read CG ITP, it seems you provided a binary file."
 			raise exceptions.MissformattedFile(msg)
@@ -197,7 +200,7 @@ def read_cg_itp_file(ns):
 
 	for i in range(len(itp_lines)):
 		itp_line = itp_lines[i]
-		if itp_line != '' and not itp_line.startswith(';'):
+		if itp_line != '':
 
 			if bool(re.search('\[.*moleculetype.*\]', itp_line)):
 				section_switch(section_read, 'moleculetype')
@@ -243,12 +246,12 @@ def read_cg_itp_file(ns):
 						# In case the masses are ABSENT in the ITP file (probably the most normal case with
 						# MARTINI usage), then we will read the CG masses from the TPR file to avoid having
 						# to look into TOP and potentially multiple ITP files:
+						#
 						#  - from evaluate_model.py this means a TPR has been provided already, if the user is not using
 						#    the script for exclusive AA distributions inspection (in which case we don't need the masses
 						#    at all because we will use mapped/splitted weights of the atoms into CG beads exclusively anyway)
-						#  - from optimize_model.py this means we have to wait for a CG TPR to have been generated
-						#    during the iterative simulations, so we will update masses later on (it's OK because we
-						#    do NOT need them before, they are used only for Rg calculation after CG sim. iterations)
+						#  - from optimize_model.py all the ITP included in the TOP file are read to find
+						#    appropriate masses
 
 					elif len(sp_itp_line) == 8:
 						bead_id, bead_type, resnr, residue, atom, cgnr, charge, mass = sp_itp_line[:8]
@@ -388,32 +391,58 @@ def read_cg_itp_file(ns):
 					else:  # no multiplicity parameter is expected
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['mult'].append(None)
 
-				elif section_read['vs_2'] or section_read['vs_3'] or section_read['vs_4'] or section_read['vs_n']:
+				elif section_read['vs_2']:
 
-					bead_id, func = int(sp_itp_line[0])-1, int(sp_itp_line[1])
-					vs_params = []  # contains beads_ids + parameters for the VS definition functions
-					for bid in sp_itp_line[2:]:
-						try:
-							vs_params.append(int(bid)-1)
-						except ValueError:
-							vs_params.append(float(bid))
+					vs_type = 2
+					bead_id = int(sp_itp_line[0])-1
+					vs_def_beads_ids = [int(bid)-1 for bid in sp_itp_line[1:3]]
+					func = sp_itp_line[3]  # will be casted to int in the verification below (for factorizing checks)
+					func = vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, i)  # i is the line number
+					vs_params = float(sp_itp_line[4])
+					ns.cg_itp['atoms'][bead_id]['vs_type'] = vs_type
+					ns.cg_itp['virtual_sites2'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_def_beads_ids': vs_def_beads_ids, 'vs_params': vs_params}
 
-					if section_read['vs_2']:
-						func = vs_error_control(ns, bead_id, '2', func, vs_params, i)  # i is the line number for error info
-						ns.cg_itp['virtual_sites2'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_params': vs_params}
-						ns.cg_itp['atoms'][bead_id]['vs_type'] = 2
-					elif section_read['vs_3']:
-						func = vs_error_control(ns, bead_id, '3', func, vs_params, i)  # i is the line number for error info
-						ns.cg_itp['virtual_sites3'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_params': vs_params}
-						ns.cg_itp['atoms'][bead_id]['vs_type'] = 3
-					elif section_read['vs_4']:
-						func = vs_error_control(ns, bead_id, '4', func, vs_params, i)  # i is the line number for error info
-						ns.cg_itp['virtual_sites4'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_params': vs_params}
-						ns.cg_itp['atoms'][bead_id]['vs_type'] = 4
-					elif section_read['vs_n']:
-						func = vs_error_control(ns, bead_id, 'n', func, vs_params, i)  # i is the line number for error info
-						ns.cg_itp['virtual_sitesn'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_params': vs_params}
-						ns.cg_itp['atoms'][bead_id]['vs_type'] = 'n'
+				elif section_read['vs_3']:
+
+					vs_type = 3
+					bead_id = int(sp_itp_line[0])-1
+					vs_def_beads_ids = [int(bid)-1 for bid in sp_itp_line[1:4]]
+					func = sp_itp_line[4]  # will be casted to int in the verification below (for factorizing checks)
+					func = vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, i)  # i is the line number
+					if func in [1, 2, 3]:
+						vs_params = [float(param) for param in sp_itp_line[5:7]]
+					elif func == 4:
+						vs_params = [float(param) for param in sp_itp_line[5:8]]
+					ns.cg_itp['atoms'][bead_id]['vs_type'] = vs_type
+					ns.cg_itp['virtual_sites3'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_def_beads_ids': vs_def_beads_ids, 'vs_params': vs_params}
+
+				elif section_read['vs_4']:
+
+					vs_type = 4
+					bead_id = int(sp_itp_line[0]) - 1
+					vs_def_beads_ids = [int(bid) - 1 for bid in sp_itp_line[1:5]]
+					func = sp_itp_line[5]  # will be casted to int in the verification below (for factorizing checks)
+					func = vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, i)  # i is the line number
+					vs_params = [float(param) for param in sp_itp_line[6:9]]
+					ns.cg_itp['atoms'][bead_id]['vs_type'] = vs_type
+					ns.cg_itp['virtual_sites4'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_def_beads_ids': vs_def_beads_ids, 'vs_params': vs_params}
+
+				elif section_read['vs_n']:
+
+					vs_type = 'n'
+					bead_id = int(sp_itp_line[0])-1
+					func = sp_itp_line[1]  # will be casted to int in verification below (for factorizing checks)
+					# here we do the check in 2 steps, because the reading of beads_ids depends on the function
+					func = vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, i)  # i is the line number
+					if func == 3:
+						vs_def_beads_ids = [int(sp_itp_line[2:][i])-1 for i in range(0, len(sp_itp_line[2:]), 2)]
+						vs_params = [float(sp_itp_line[2:][i]) for i in range(1, len(sp_itp_line[2:]), 2)]
+					else:
+						vs_def_beads_ids = [int(bid) - 1 for bid in sp_itp_line[2:]]
+						vs_params = None
+					func = vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, i)  # i is the line number
+					ns.cg_itp['atoms'][bead_id]['vs_type'] = vs_type
+					ns.cg_itp['virtual_sitesn'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_def_beads_ids': vs_def_beads_ids, 'vs_params': vs_params}
 
 				elif section_read['exclusion']:
 
@@ -564,7 +593,7 @@ def get_beads_MDA_atomgroups(ns):
 			# print('Created bead_id', bead_id, 'using atoms', [atom_id for atom_id in ns.atom_w[bead_id]])
 			ns.mda_beads_atom_grps[bead_id] = mda.AtomGroup([atom_id for atom_id in ns.atom_w[bead_id]], ns.aa_universe)
 			ns.mda_weights_atom_grps[bead_id] = np.array([ns.atom_w[bead_id][atom_id]*ns.aa_universe.atoms[atom_id].mass for atom_id in ns.atom_w[bead_id]])
-			# ns.mda_weights_atom_grps[bead_id] = np.array([ns.atom_w[bead_id][atom_id]*ns.all_atoms[atom_id]['atom_mass'] for atom_id in ns.atom_w[bead_id]])
+
 		except IndexError as e:
 			msg = (
 				f"An ID present in your mapping (NDX) file could not be found in the AA trajectory. "
@@ -577,29 +606,29 @@ def get_beads_MDA_atomgroups(ns):
 # compute average radius of gyration
 def compute_Rg(ns, traj_type):
 
-	if traj_type == 'AA':  # currently we do not make use of this block in the scripts, but I let this here for later
+	if traj_type == 'AA':
 
 		gyr_aa = np.empty(len(ns.aa_universe.trajectory))
 		for ts in ns.aa_universe.trajectory:
 			gyr_aa[ts.frame] = ns.aa_universe.atoms[:len(ns.all_atoms)].radius_of_gyration(pbc=None, backend=ns.mda_backend)
-		ns.gyr_aa = round(np.average(gyr_aa)/10, 3)  # retrieve nm
-		ns.gyr_aa_std = round(np.std(gyr_aa)/10, 3)  # retrieve nm
+		ns.gyr_aa = round(np.average(gyr_aa) / 10, 3)  # retrieve nm
+		ns.gyr_aa_std = round(np.std(gyr_aa) / 10, 3)  # retrieve nm
 
 	elif traj_type == 'AA_mapped':
 
 		gyr_aa_mapped = np.empty(len(ns.aa_universe.trajectory))
 		for ts in ns.aa2cg_universe.trajectory:
 			gyr_aa_mapped[ts.frame] = ns.aa2cg_universe.atoms[:len(ns.cg_itp['atoms'])].radius_of_gyration(pbc=None, backend=ns.mda_backend)
-		ns.gyr_aa_mapped = round(np.average(gyr_aa_mapped)/10 + ns.aa_rg_offset, 3)  # retrieve nm
-		ns.gyr_aa_mapped_std = round(np.std(gyr_aa_mapped)/10, 3)  # retrieve nm
+		ns.gyr_aa_mapped = round(np.average(gyr_aa_mapped) / 10 + ns.aa_rg_offset, 3)  # retrieve nm
+		ns.gyr_aa_mapped_std = round(np.std(gyr_aa_mapped) / 10, 3)  # retrieve nm
 
 	elif traj_type == 'CG':
 
 		gyr_cg = np.empty(len(ns.cg_universe.trajectory))
 		for ts in ns.cg_universe.trajectory:
 			gyr_cg[ts.frame] = ns.cg_universe.atoms[:len(ns.cg_itp['atoms'])].radius_of_gyration(pbc=None, backend=ns.mda_backend)
-		ns.gyr_cg = round(np.average(gyr_cg)/10, 3)  # retrieve nm
-		ns.gyr_cg_std = round(np.std(gyr_cg)/10, 3)  # retrieve nm
+		ns.gyr_cg = round(np.average(gyr_cg) / 10, 3)  # retrieve nm
+		ns.gyr_cg_std = round(np.std(gyr_cg) / 10, 3)  # retrieve nm
 
 	else:
 		raise RuntimeError('Unexpected error in function: compute_Rg')
@@ -623,109 +652,68 @@ def exec_gmx(gmx_cmd):
 	with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
 		gmx_out = gmx_process.communicate()[1].decode()
 		gmx_process.kill()
-	# print_stdout_forced('Return code:', gmx_process.returncode)
 	if gmx_process.returncode != 0:
 		print_stdout_forced('NON-ZERO EXIT CODE FOR COMMAND:', gmx_cmd, '\n\nCOMMAND OUTPUT:\n\n', gmx_out, '\n\n')
 	return gmx_process.returncode
 
 
 # compute average SASA
-# this works with calls to GMX because only MDTraj can compute SASA (not MDAnalysis) but I don't have time to look into using MDTraj
+# NOTE: currently this is just COM mappping via GMX to get the SASA, so it's approximative but that's OK
+#       this works with calls to GMX because only library MDTraj can compute SASA (not MDAnalysis)
+# TODO: MDA is working on it, keep an eye on this: https://github.com/MDAnalysis/mdanalysis/issues/2439
 def compute_SASA(ns, traj_type):
+
+	probe_radius = 0.26  # nm
 
 	if traj_type == 'AA':
 		raise exceptions.InvalidArgument('Compute_SASA not implemented for AA atm')
 
 	elif traj_type == 'AA_mapped':
 
-		# TODO: discriminate between real beads and virtual sites
-		nb_beads = len(ns.all_beads)
+		# NOTE: here we assume the VS all come after the real beads in the ITP [ atoms ] field
+		#       we generate a new truncated TPR so that we can use GMX sasa, this is shit but no choice atm
+		nb_beads_real = len(ns.real_beads_ids)
 
-		# generate an index.ndx file with the number of beads, so we can call SASA on this group even if there are residues in the molecule
+		# generate an index.ndx file with the number of beads,
+		# so we can call SASA on this group and we will have exactly the content we want
 		ns.cg_ndx_filename = '../'+config.input_sim_files_dirname+'/cg_index.ndx'
 		with open(ns.cg_ndx_filename, 'w') as fp:
-			beads_id_str = ''
-			for i in range(nb_beads):
-				beads_id_str += str(i+1)+' '
-			fp.write('[' +ns.cg_itp['moleculetype']['molname']+' ]\n'+beads_id_str+'\n')
+			beads_ids_str = ' '.join(map(str, list(range(1, nb_beads_real+1))))  # includes VS if present
+			fp.write('[' + ns.cg_itp['moleculetype']['molname'] + ' ]\n' + beads_ids_str + '\n')
 
-		# TODO. all these paths need to be fixed to allow for SASA calculation within evaluate_model.py -- but ideally we would use a library instead of external calls to gmx sasa !
+		# TODO: all these paths need to be fixed to allow for SASA calculation within evaluate_model.py
+		#       that's why it's disabled atm
 
 		ns.aa_traj_whole_filename = '../'+config.input_sim_files_dirname+'/aa_traj_whole.xtc'
-		ns.aa_frame_whole_filename = '../'+config.input_sim_files_dirname+'/aa_frame_whole.gro'
 		ns.aa_mapped_traj_whole_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_traj_whole.xtc'
-		ns.aa_mapped_frame_whole_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_frame_whole.gro'
 		ns.aa_mapped_sasa_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_sasa.xvg'
 		ns.aa_mapped_tpr_sasa_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_tpr_sasa.tpr'
 
 		non_zero_return_code = False
 
 		# first make traj whole
-		gmx_cmd = 'seq 0 1 | '+ns.gmx_path+' trjconv -s ../../'+ns.aa_tpr_filename+' -f ../../'+ns.aa_traj_filename+' -pbc mol -o '+ns.aa_traj_whole_filename
+		gmx_cmd = f'seq 0 1 | {ns.gmx_path} trjconv -s ../../{ns.aa_tpr_filename} -f ../../{ns.aa_traj_filename} -pbc mol -o {ns.aa_traj_whole_filename}'
 		return_code = exec_gmx(gmx_cmd)
 		if return_code != 0:
 			non_zero_return_code = True
 
-		# dump an AA frame, only to generate mapped TPR
-		if not non_zero_return_code:
-			gmx_cmd = 'seq 0 1 | '+ns.gmx_path+' trjconv -s ../../'+ns.aa_tpr_filename+' -f '+ns.aa_traj_whole_filename+' -dump 0 -o '+ns.aa_frame_whole_filename
-			return_code = exec_gmx(gmx_cmd)
-			if return_code != 0:
-				non_zero_return_code = True
-
 		# then map AA traj
 		if not non_zero_return_code:
-			gmx_cmd = 'seq 0 '+str(nb_beads-1)+' | '+ns.gmx_path+' traj -f '+ns.aa_traj_whole_filename+' -s ../../'+ns.aa_tpr_filename+' -oxt '+ns.aa_mapped_traj_whole_filename+' -n ../../'+ns.cg_map_filename+' -com -ng '+str(nb_beads)
+			gmx_cmd = f'seq 0 {nb_beads_real - 1} | {ns.gmx_path} traj -f {ns.aa_traj_whole_filename} -s ../../{ns.aa_tpr_filename} -oxt {ns.aa_mapped_traj_whole_filename} -n ../../{ns.cg_map_filename} -com -ng {nb_beads_real}'
 			return_code = exec_gmx(gmx_cmd)
 			if return_code != 0:
 				non_zero_return_code = True
 
-		# map AA frame
+		# truncate the CG TPR to get only real beads
 		if not non_zero_return_code:
-			gmx_cmd = 'seq 0 '+str(nb_beads-1)+' | '+ns.gmx_path+' traj -f '+ns.aa_frame_whole_filename+' -s ../../'+ns.aa_tpr_filename+' -oxt '+ns.aa_mapped_frame_whole_filename+' -n ../../'+ns.cg_map_filename+' -com -ng '+str(nb_beads)
+			gmx_cmd = f'{ns.gmx_path} convert-tpr -s md.tpr -n {ns.cg_ndx_filename} -o {ns.aa_mapped_tpr_sasa_filename}'
 			return_code = exec_gmx(gmx_cmd)
 			if return_code != 0:
 				non_zero_return_code = True
-
-		# # NOTE: currently if CG TOP file does NOT end with section [ molecules ] it will most probably crash everything
-
-		# # create new CG TOP file that contains only the molecule of interest
-		# if not non_zero_return_code:
-		# 	ns.modified_top_input_filename = '../'+config.input_sim_files_dirname+'/auto_modified_system_for_sasa.top'
-		# 	# we keep only the first non-commented occurence in section [ molecules ]
-		# 	with open('../'+config.input_sim_files_dirname+'/'+ns.top_input_basename, 'r') as fp:
-		# 		top_lines = fp.read().split('\n')
-		# 	with open(ns.modified_top_input_filename, 'w') as fp:
-		# 		uncommented_occ = 0
-		# 		readmol = False
-		# 		for top_line in top_lines:
-		# 			# print_stdout_forced('CURRENT LINE:', top_line)
-		# 			if re.match('\[.*molecules.*\]', top_line):
-		# 				readmol = True
-		# 				# print_stdout_forced('READMOL TRUE')
-		# 			if readmol:
-		# 				top_line.strip()
-		# 				if not top_line.startswith(';'):
-		# 					uncommented_occ += 1
-		# 					# print_stdout_forced('occ counter:', uncommented_occ)
-		# 			if uncommented_occ <= 2:
-		# 				fp.write(top_line+'\n')
-		# 				# print_stdout_forced('WRITE NORMAL')
-		# 			else:
-		# 				fp.write('; '+top_line+'\n')
-		# 				# print_stdout_forced('WRITE COMMENTED')
-
-		# # create mapped TPR
-		# if not non_zero_return_code:
-		# 	gmx_cmd = ns.gmx_path+' grompp -c '+ns.aa_mapped_frame_whole_filename+' -p '+ns.modified_top_input_filename+' -f ../../'+ns.mdp_md_filename+' -o '+ns.aa_mapped_tpr_sasa_filename+' -maxwarn 1'
-		# 	return_code = exec_gmx(gmx_cmd)
-		# 	if return_code != 0:
-		# 		non_zero_return_code = True
 
 		# finally get sasa
 		if not non_zero_return_code:
-			# gmx_cmd = ns.gmx_path+' sasa -s '+ns.aa_mapped_tpr_sasa_filename+' -f '+ns.aa_mapped_traj_whole_filename+' -n '+ns.cg_ndx_filename+' -surface 0 -o '+ns.aa_mapped_sasa_filename+' -probe '+str(ns.probe_radius) # surface to choose the index group, 2 is the molecule even when there are ions (0 and 1 are System and Others)
-			gmx_cmd = ns.gmx_path+' sasa -s md.tpr -f '+ns.aa_mapped_traj_whole_filename+' -n '+ns.cg_ndx_filename+' -surface 0 -o '+ns.aa_mapped_sasa_filename+' -probe '+str(ns.probe_radius) # surface to choose the index group, 2 is the molecule even when there are ions (0 and 1 are System and Others) # SWITCHED TO USING THE MD TPR AND ASSUMING THE MOLECULE IS THE FIRST ONE IN TPR
+			gmx_cmd = f'{ns.gmx_path} sasa -s {ns.aa_mapped_tpr_sasa_filename} -f {ns.aa_mapped_traj_whole_filename} -n {ns.cg_ndx_filename} -surface 0 -o {ns.aa_mapped_sasa_filename} -probe {probe_radius}'
 			return_code = exec_gmx(gmx_cmd)
 			if return_code != 0:
 				non_zero_return_code = True
@@ -748,26 +736,25 @@ def compute_SASA(ns, traj_type):
 		non_zero_return_code = False
 
 		# first make traj whole
-		gmx_cmd = 'seq 0 1 | '+ns.gmx_path+' trjconv -s '+ns.cg_tpr_filename+' -f '+ns.cg_traj_filename+' -pbc mol -o '+ns.cg_traj_whole_filename
+		gmx_cmd = f'seq 0 1 | {ns.gmx_path} trjconv -s {ns.cg_tpr_filename} -f {ns.cg_traj_filename} -pbc mol -o {ns.cg_traj_whole_filename}'
 		return_code = exec_gmx(gmx_cmd)
 		if return_code != 0:
 			non_zero_return_code = True
 
 		# then compute SASA
 		if not non_zero_return_code:
-			gmx_cmd = ns.gmx_path+' sasa -s '+ns.cg_tpr_filename+' -f '+ns.cg_traj_whole_filename+' -n '+ns.cg_ndx_filename+' -surface 0 -o '+ns.cg_sasa_filename+' -probe '+str(ns.probe_radius) # surface to choose the index group, 2 is the molecule even when there are ions (0 and 1 are System and Others)
+			# surface to choose the index group, 2 is the molecule even when there are ions (0 and 1 are System and Others)
+			gmx_cmd = f'{ns.gmx_path} sasa -s {ns.cg_tpr_filename} -f {ns.cg_traj_whole_filename} -n {ns.cg_ndx_filename} -surface 0 -o {ns.cg_sasa_filename} -probe {probe_radius}'
 			return_code = exec_gmx(gmx_cmd)
 			if return_code != 0:
 				non_zero_return_code = True
 
-		if non_zero_return_code or not os.path.isfile(ns.cg_sasa_filename): # extra security
-			# print_stdout_forced('There were some errors while calculating SASA for AA-mapped trajectory, please check the error messages displayed above')
+		if non_zero_return_code or not os.path.isfile(ns.cg_sasa_filename):  # extra security
 			ns.sasa_cg, ns.sasa_cg_std = None, None
 		else:
 			sasa_cg_per_frame = read_xvg_col(ns.cg_sasa_filename, 1)
 			ns.sasa_cg = round(np.mean(sasa_cg_per_frame), 2)
 			ns.sasa_cg_std = round(np.std(sasa_cg_per_frame), 2)
-			# print_stdout_forced('COMPUTED CG SASA:', ns.sasa_cg)
 
 	else:
 		raise exceptions.ComputationError('Code error compute SASA')
@@ -908,42 +895,51 @@ def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 		# but we could still need to write several of these sections (careful if factorizing this)
 		if len(itp_obj['virtual_sites2']) > 0:
 			fp.write('\n\n[ virtual_sites2 ]\n')
-			fp.write(';   i     j      def\n')
+			fp.write(';  vs     i     j  func   param\n')
 			for bead_id in itp_obj['virtual_sites2']:
-				fp.write('{:>5} {:>5}     {}\n'.format(
+				fp.write('{0:>5} {beads[0]:>5} {beads[1]:>5} {1:>5}   {2}\n'.format(
 					str(itp_obj['virtual_sites2'][bead_id]['bead_id'] + 1),
 					str(itp_obj['virtual_sites2'][bead_id]['func']),
-					' '.join(['{:>4}'.format(bid+1) for bid in itp_obj['virtual_sites2'][bead_id]['vs_params']]))
+					itp_obj['virtual_sites2'][bead_id]['vs_params'],
+					beads=[bid+1 for bid in itp_obj['virtual_sites2'][bead_id]['vs_def_beads_ids']])
 				)
 
 		if len(itp_obj['virtual_sites3']) > 0:
 			fp.write('\n\n[ virtual_sites3 ]\n')
-			fp.write(';   i     j      def\n')
+			fp.write(';  vs     i     j     k  func   params\n')
 			for bead_id in itp_obj['virtual_sites3']:
-				fp.write('{:>5} {:>5}     {}\n'.format(
+				fp.write('{0:>5} {beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {1:>5}   {2}\n'.format(
 					str(itp_obj['virtual_sites3'][bead_id]['bead_id'] + 1),
 					str(itp_obj['virtual_sites3'][bead_id]['func']),
-					' '.join(['{:>4}'.format(bid+1) for bid in itp_obj['virtual_sites3'][bead_id]['vs_params']]))
+					'  '.join(map(str, itp_obj['virtual_sites3'][bead_id]['vs_params'])),
+					beads=[bid+1 for bid in itp_obj['virtual_sites3'][bead_id]['vs_def_beads_ids']])
 				)
 
 		if len(itp_obj['virtual_sites4']) > 0:
 			fp.write('\n\n[ virtual_sites4 ]\n')
-			fp.write(';   i     j      def\n')
+			fp.write(';  vs     i     j     k     l  func   params\n')
 			for bead_id in itp_obj['virtual_sites4']:
-				fp.write('{:>5} {:>5}     {}\n'.format(
+				fp.write('{0:>5} {beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {beads[3]:>5} {1:>5}   {2}\n'.format(
 					str(itp_obj['virtual_sites4'][bead_id]['bead_id'] + 1),
 					str(itp_obj['virtual_sites4'][bead_id]['func']),
-					' '.join(['{:>4}'.format(bid+1) for bid in itp_obj['virtual_sites4'][bead_id]['vs_params']]))
+					'  '.join(map(str, itp_obj['virtual_sites4'][bead_id]['vs_params'])),
+					beads=[bid+1 for bid in itp_obj['virtual_sites4'][bead_id]['vs_def_beads_ids']])
 				)
 
 		if len(itp_obj['virtual_sitesn']) > 0:
 			fp.write('\n\n[ virtual_sitesn ]\n')
-			fp.write(';   i     j      def\n')
+			fp.write(';  vs  func     def\n')
 			for bead_id in itp_obj['virtual_sitesn']:
-				fp.write('{:>5} {:>5}     {}\n'.format(
-					str(itp_obj['virtual_sitesn'][bead_id]['bead_id'] + 1),
-					str(itp_obj['virtual_sitesn'][bead_id]['func']),
-					' '.join(['{:>4}'.format(bid+1) for bid in itp_obj['virtual_sitesn'][bead_id]['vs_params']]))
+				params = []
+				if itp_obj['virtual_sitesn'][bead_id]['func'] == 3:
+					for i in range(len(itp_obj['virtual_sitesn'][bead_id]['vs_def_beads_ids'])):
+						params.append('{:>4} {:>4}'.format(itp_obj['virtual_sitesn'][bead_id]['vs_def_beads_ids'][i]+1, itp_obj['virtual_sitesn'][bead_id]['vs_params'][i]))
+				else:
+					params = ' '.join(['{:>4}'.format(bid + 1) for bid in itp_obj['virtual_sitesn'][bead_id]['vs_def_beads_ids']])
+				fp.write('{:>5} {:>5}   {}\n'.format(
+					itp_obj['virtual_sitesn'][bead_id]['bead_id'] + 1,
+					itp_obj['virtual_sitesn'][bead_id]['func'],
+					params)
 				)
 
 		if 'exclusion' in print_sections and 'exclusion' in itp_obj and len(itp_obj['exclusion']) > 0:
@@ -1220,9 +1216,6 @@ def initialize_cg_traj(ns):
 	ns.aa2cg_universe.add_TopologyAttr('resnames')
 	ns.aa2cg_universe._topology.resnames.values = resname
 
-	# if len(ns.aa_universe.trajectory) > 20000:
-	# 	print(config.header_warning+'Your atomistic trajectory contains many frames, which increases computation time\nReasonably reducing the number of frames of your input AA trajectory won\'t affect results quality\n2k to 10k frames is usually enough, as long as behaviour and flexibility of your molecule are correctly described by your atomistic trajectory')
-
 
 def map_aa2cg_traj(ns):
 
@@ -1248,45 +1241,49 @@ def map_aa2cg_traj(ns):
 			traj = np.empty((len(ns.aa2cg_universe.trajectory), 3))
 
 			if ns.cg_itp['atoms'][bead_id]['vs_type'] == 2:
+				vs_def_beads_ids = ns.cg_itp['virtual_sites2'][bead_id]['vs_def_beads_ids']
 				vs_params = ns.cg_itp['virtual_sites2'][bead_id]['vs_params']
 
 				if ns.cg_itp['virtual_sites2'][bead_id]['func'] == 1:
-					vs2_func_1(ns, traj, vs_params, bead_id)
+					vsf.vs2_func_1(ns, traj, vs_def_beads_ids, vs_params, bead_id)
 				elif ns.cg_itp['virtual_sites2'][bead_id]['func'] == 2:
-					vs2_func_2(ns, traj, vs_params, bead_id)
+					vsf.vs2_func_2(ns, traj, vs_def_beads_ids, vs_params, bead_id)
 
 			if ns.cg_itp['atoms'][bead_id]['vs_type'] == 3:
+				vs_def_beads_ids = ns.cg_itp['virtual_sites3'][bead_id]['vs_def_beads_ids']
 				vs_params = ns.cg_itp['virtual_sites3'][bead_id]['vs_params']
 
 				if ns.cg_itp['virtual_sites3'][bead_id]['func'] == 1:
-					vs3_func_1(ns, traj, vs_params)
+					vsf.vs3_func_1(ns, traj, vs_def_beads_ids, vs_params)
 				elif ns.cg_itp['virtual_sites3'][bead_id]['func'] == 2:
-					vs3_func_2(ns, traj, vs_params, bead_id)
+					vsf.vs3_func_2(ns, traj, vs_def_beads_ids, vs_params, bead_id)
 				elif ns.cg_itp['virtual_sites3'][bead_id]['func'] == 3:
-					vs3_func_3(ns, traj, vs_params)
+					vsf.vs3_func_3(ns, traj, vs_def_beads_ids, vs_params)
 				elif ns.cg_itp['virtual_sites3'][bead_id]['func'] == 4:
-					vs3_func_4(ns, traj, vs_params)
+					vsf.vs3_func_4(ns, traj, vs_def_beads_ids, vs_params)
 
 			# here it's normal there is only function 2, that's the only one that exists in gromacs for some reason
 			if ns.cg_itp['atoms'][bead_id]['vs_type'] == 4:
+				vs_def_beads_ids = ns.cg_itp['virtual_sites4'][bead_id]['vs_def_beads_ids']
 				vs_params = ns.cg_itp['virtual_sites4'][bead_id]['vs_params']
 
 				if ns.cg_itp['virtual_sites4'][bead_id]['func'] == 2:
-					vs4_func_2(ns, traj, vs_params)
+					vsf.vs4_func_2(ns, traj, vs_def_beads_ids, vs_params)
 
 			if ns.cg_itp['atoms'][bead_id]['vs_type'] == 'n':
+				vs_def_beads_ids = ns.cg_itp['virtual_sitesn'][bead_id]['vs_def_beads_ids']
 				vs_params = ns.cg_itp['virtual_sitesn'][bead_id]['vs_params']
 
 				if ns.cg_itp['virtual_sitesn'][bead_id]['func'] == 1:
-					vsn_func_1(ns, traj, vs_params)
+					vsf.vsn_func_1(ns, traj, vs_def_beads_ids)
 				elif ns.cg_itp['virtual_sitesn'][bead_id]['func'] == 2:
-					vsn_func_2(ns, traj, vs_params, bead_id)
+					vsf.vsn_func_2(ns, traj, vs_def_beads_ids, bead_id)
 				elif ns.cg_itp['virtual_sitesn'][bead_id]['func'] == 3:
-					vsn_func_3(ns, traj, vs_params)
+					vsf.vsn_func_3(ns, traj, vs_def_beads_ids, vs_params)
 
 			coord[:, bead_id, :] = traj
 
-	ns.aa2cg_universe.load_new(coord, format=mda.coordinates.memory.MemoryReader)
+		ns.aa2cg_universe.load_new(coord, format=mda.coordinates.memory.MemoryReader)
 
 
 # use selected whole molecules as MDA atomgroups and make their coordinates whole, inplace, across the complete tAA rajectory
@@ -1299,15 +1296,18 @@ def make_aa_traj_whole_for_selected_mols(ns):
 
 
 # build gromacs command with arguments
-def gmx_args(gmx_cmd, nb_threads, gpu_id, gmx_args_str):
+def gmx_args(ns, gmx_cmd, mpi=True):
 
-	if gmx_args_str != '':
-		gmx_cmd += ' '+gmx_args_str
+	gmx_cmd = f"{ns.gmx_path} {gmx_cmd}"
+	if ns.gmx_args_str != '':
+		gmx_cmd = f"{gmx_cmd} {ns.gmx_args_str}"
 	else:
-		if nb_threads > 0:
-			gmx_cmd += ' -nt '+str(nb_threads)
-		if len(gpu_id) > 0:
-			gmx_cmd += ' -gpu_id '+str(gpu_id)
+		if ns.nb_threads > 0:
+			gmx_cmd = f"{gmx_cmd} -nt {ns.nb_threads}"
+		if len(ns.gpu_id) > 0:
+			gmx_cmd = f"{gmx_cmd} -gpu_id {ns.gpu_id}"
+	if mpi and ns.mpi_tasks > 1:
+		gmx_cmd = f"mpirun -np {ns.mpi_tasks} {ns.gmx_cmd}"
 
 	return gmx_cmd
 
@@ -1690,11 +1690,12 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		ns.cg_universe = mda.Universe(ns.cg_tpr_filename, ns.cg_traj_filename, in_memory=True, refresh_offsets=True, guess_bonds=False)
 		print('  Found', len(ns.cg_universe.trajectory), 'frames')
 
-		# here we read the CG beads masses + actualize the mapped trajectory object
-		for bead_id in range(len(ns.cg_itp['atoms'])):
-			ns.cg_itp['atoms'][bead_id]['mass'] = ns.cg_universe.atoms[bead_id].mass
-		masses = np.array([val['mass'] for val in ns.cg_itp['atoms']])
-		ns.aa2cg_universe._topology.masses.values = np.array(masses)
+		if manual_mode:
+			# here we read the CG beads masses + actualize the mapped trajectory object
+			for bead_id in range(len(ns.cg_itp['atoms'])):
+				ns.cg_itp['atoms'][bead_id]['mass'] = ns.cg_universe.atoms[bead_id].mass
+			masses = np.array([val['mass'] for val in ns.cg_itp['atoms']])
+			ns.aa2cg_universe._topology.masses.values = np.array(masses)
 
 		# select the whole molecule as an MDA atomgroup and make its coordinates whole, inplace, across the complete trajectory
 		cg_mol = mda.AtomGroup([bead_id for bead_id in ns.all_beads], ns.cg_universe)
@@ -1712,20 +1713,17 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 		if calc_sasa:
 
-			ns.probe_radius = 0.26 # nm
-
 			if ns.sasa_aa_mapped == None:
 				compute_SASA(ns, traj_type='AA_mapped')
-				# print_stdout_forced('SASA (AA reference, no scaling, CG-mapped, probe radius', str(ns.probe_radius)+'):', ns.sasa_aa_mapped)
-			
+
 			compute_SASA(ns, traj_type='CG')
 			print()
-			# print_stdout_forced('  All SASA computed fine')
-			# print_stdout_forced('SASA (CG model, probe radius', str(ns.probe_radius)+'):', ns.sasa_cg)
 
-			if ns.sasa_cg == None: # this line checks that gmx trjconv could read the md.xtc trajectory from the opti
-			                       # this is to catch bugged simulation that actually finished and produced the files, but the .gro is a 2D bugged file for example, or trjactory is unreadable by gmx 
-				return 0, 0, 0, 0, 0, None # ns.sasa_cg == None will be checked in eval_function and worst score will be attributed
+			# this line checks that gmx trjconv could read the md.xtc trajectory from the opti
+			# this is to catch bugged simulation that actually finished and produced the files,
+			# but the .gro is a 2D bugged file for example, or trjactory is unreadable by gmx
+			if ns.sasa_cg == None:
+				return 0, 0, 0, 0, 0, None  # ns.sasa_cg == None will be checked in eval_function and worst score will be attributed
 
 	print()
 	print(styling.sep_close, flush=True)
@@ -2492,22 +2490,22 @@ def eval_function(parameters_set, ns):
 
 	if gmx_process.returncode == 0:
 		# mdrun -- minimization
-		gmx_cmd = gmx_args(ns.gmx_path+' mdrun -deffnm mini', ns.nb_threads, ns.gpu_id, ns.gmx_args_str)
+		gmx_cmd = gmx_args(ns, 'mdrun -deffnm mini', mpi=False)
 		with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process: # create a process group for the minimization run
 
 			# check if minimization run is stuck because of instabilities
 			cycles_check = 0
 			last_log_file_size = 0
-			while gmx_process.poll() is None: # while process is alive
+			while gmx_process.poll() is None:  # while process is alive
 				time.sleep(ns.process_alive_time_sleep)
 				cycles_check += 1
 
-				if cycles_check % ns.process_alive_nb_cycles_dead == 0: # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
+				if cycles_check % ns.process_alive_nb_cycles_dead == 0:  # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
 					if os.path.isfile(current_eval_dir+'/mini.log'):
-						log_file_size = os.path.getsize(current_eval_dir+'/mini.log') # get size of .log file in bytes, as a mean of detecting the minimization run is stuck
+						log_file_size = os.path.getsize(current_eval_dir+'/mini.log')  # get size of .log file in bytes, as a mean of detecting the minimization run is stuck
 					else:
-						log_file_size = last_log_file_size # minimization is stuck if the process was not able to create log file at start
-					if log_file_size == last_log_file_size: # minimization is stuck if the process is not writing to log file anymore
+						log_file_size = last_log_file_size  # minimization is stuck if the process was not able to create log file at start
+					if log_file_size == last_log_file_size:  # minimization is stuck if the process is not writing to log file anymore
 						os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL)  # kill all processes of process group
 						mini_killed = True
 					else:
@@ -2535,23 +2533,23 @@ def eval_function(parameters_set, ns):
 
 		if gmx_process.returncode == 0:
 			# mdrun -- EQUI
-			gmx_cmd = gmx_args(ns.gmx_path+' mdrun -deffnm equi', ns.nb_threads, ns.gpu_id, ns.gmx_args_str)
+			gmx_cmd = gmx_args(ns, 'mdrun -deffnm equi')
 			with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process: # create a process group for the EQUI run
 
 				# check if EQUI run is stuck because of instabilities
 				cycles_check = 0
 				last_log_file_size = 0
-				while gmx_process.poll() is None: # while process is alive
+				while gmx_process.poll() is None:  # while process is alive
 					time.sleep(ns.process_alive_time_sleep)
 					cycles_check += 1
 
-					if cycles_check % ns.process_alive_nb_cycles_dead == 0: # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
+					if cycles_check % ns.process_alive_nb_cycles_dead == 0:  # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
 						if os.path.isfile(current_eval_dir+'/equi.log'):
-							log_file_size = os.path.getsize(current_eval_dir+'/equi.log') # get size of .log file in bytes, as a mean of detecting the EQUI run is stuck
+							log_file_size = os.path.getsize(current_eval_dir+'/equi.log')  # get size of .log file in bytes, as a mean of detecting the EQUI run is stuck
 						else:
-							log_file_size = last_log_file_size # EQUI is stuck if the process was not able to create log file at start
-						if log_file_size == last_log_file_size: # EQUI is stuck if the process is not writing to log file anymore
-							os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL) # kill all processes of process group
+							log_file_size = last_log_file_size  # EQUI is stuck if the process was not able to create log file at start
+						if log_file_size == last_log_file_size:  # EQUI is stuck if the process is not writing to log file anymore
+							os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL)  # kill all processes of process group
 							equi_killed = True
 						else:
 							last_log_file_size = log_file_size
@@ -2571,7 +2569,7 @@ def eval_function(parameters_set, ns):
 		if os.path.isfile('equi.gro'):
 
 			# adapt duration of the simulation
-			modify_mdp(mdp_filename=ns.mdp_md_basename, sim_time=ns.prod_sim_time) # TODO: check that everything still make sense
+			modify_mdp(mdp_filename=ns.mdp_md_basename, sim_time=ns.prod_sim_time)
 
 			# grompp -- MD
 			gmx_cmd = ns.gmx_path+' grompp -c equi.gro -p '+ns.top_input_basename+' -f '+ns.mdp_md_basename+' -o md'
@@ -2581,23 +2579,23 @@ def eval_function(parameters_set, ns):
 
 			if gmx_process.returncode == 0:
 				# mdrun -- MD
-				gmx_cmd = gmx_args(ns.gmx_path+' mdrun -deffnm md', ns.nb_threads, ns.gpu_id, ns.gmx_args_str)
-				with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process: # create a process group for the MD run
+				gmx_cmd = gmx_args(ns, 'mdrun -deffnm md')
+				with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process:  # create a process group for the MD run
 
 					# check if MD run is stuck because of instabilities
 					cycles_check = 0
 					last_log_file_size = 0
-					while gmx_process.poll() is None: # while process is alive
+					while gmx_process.poll() is None:  # while process is alive
 						time.sleep(ns.process_alive_time_sleep)
 						cycles_check += 1
 
-						if cycles_check % ns.process_alive_nb_cycles_dead == 0: # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
+						if cycles_check % ns.process_alive_nb_cycles_dead == 0:  # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
 							if os.path.isfile('md.log'):
-								log_file_size = os.path.getsize('md.log') # get size of .log file in bytes, as a mean of detecting the MD run is stuck
+								log_file_size = os.path.getsize('md.log')  # get size of .log file in bytes, as a mean of detecting the MD run is stuck
 							else:
-								log_file_size = last_log_file_size # MD run is stuck if the process was not able to create log file at start
-							if log_file_size == last_log_file_size: # MD run is stuck if the process is not writing to log file anymore
-								os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL) # kill all processes of process group
+								log_file_size = last_log_file_size  # MD run is stuck if the process was not able to create log file at start
+							if log_file_size == last_log_file_size:  # MD run is stuck if the process is not writing to log file anymore
+								os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL)  # kill all processes of process group
 								md_run_killed = True
 							else:
 								last_log_file_size = log_file_size
@@ -2650,37 +2648,6 @@ def eval_function(parameters_set, ns):
 						global_score += fit_score_angles
 					if 'dihedral' in ns.opti_geoms_all:
 						global_score += fit_score_dihedrals
-					
-					# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, ns.gyr_cg)
-					# ns.all_fitness_last_cycle = np.append(ns.all_fitness_last_cycle, global_score_with_dihedrals)
-			
-					# rg_mask = np.where(ns.all_rg_last_cycle != None)[0] # mask values from runs that did not finish
-					# regular_eval = False # select between model selection based on bonded fitness exclusively or mixed with Rg
-
-					# # new final model selection based on both the Rg and the bonded fitness, having ranges normalized within each cycle
-					# # using median to get rid of outliers big scores of Rg/fitness
-					# if len(rg_mask) > 1:
-					# 	try:							
-					# 		dist_rg_abs = abs(ns.all_rg_last_cycle[rg_mask] - ns.gyr_aa_mapped)
-					# 		all_delta_rg = (dist_rg_abs - np.amin(dist_rg_abs)) / (np.amax(dist_rg_abs) - np.amin(dist_rg_abs))
-					# 		all_delta_fitness = (ns.all_fitness_last_cycle[rg_mask] - np.amin(ns.all_fitness_last_cycle[rg_mask])) / (np.amax(ns.all_fitness_last_cycle[rg_mask]) - np.amin(ns.all_fitness_last_cycle[rg_mask]))
-
-					# 		# get index of minimum (i.e. best fitted, using both bonded fitness and Rg)						
-					# 		id_best_model_combo_score = np.argmin( (all_delta_fitness**2 + all_delta_rg**2) ** (1/2) ) # first id is used if several results are returned
-
-					# 		# if this is a new best
-					# 		if id_best_model_combo_score > ns.best_fitness_Rg_combined:
-					# 			ns.best_fitness_Rg_combined = id_best_model_combo_score
-					# 			if ns.opti_cycle['nb_geoms']['dihedral'] == 0:
-					# 				new_best_fit_without_dihedrals = True
-					# 				ns.best_fitness_without_dihedrals = global_score_without_dihedrals, ns.nb_eval
-					# 			else:
-					# 				new_best_fit_with_dihedrals = True
-					# 				ns.best_fitness_with_dihedrals = global_score_with_dihedrals, ns.nb_eval
-					# 	except ZeroDivisionError:
-					# 		regular_eval = True
-					# else:
-					# 	regular_eval = True
 
 					# model selection based only on bonded parametrization score
 					regular_eval = True
@@ -2692,10 +2659,8 @@ def eval_function(parameters_set, ns):
 
 				else:
 					print_stdout_forced("  MD run failed (molecule exploded)")
-					eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
+					eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
 					ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
-					# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, None)
-					# ns.all_fitness_last_cycle = np.append(ns.all_fitness_last_cycle, None)
 					ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
 
 			else:
@@ -2706,10 +2671,8 @@ def eval_function(parameters_set, ns):
 					)
 				else:
 					print_stdout_forced('  MD run failed (simulation process terminated with error)')
-				eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
+				eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
 				ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
-				# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, None)
-				# ns.all_fitness_last_cycle = np.append(ns.all_fitness_last_cycle, None)
 				ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
 
 		else:
@@ -2722,10 +2685,8 @@ def eval_function(parameters_set, ns):
 				print_stdout_forced(
 					"  Equilibration run failed (simulation process terminated with error)"
 				)
-			eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
+			eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
 			ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
-			# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, None)
-			# ns.all_fitness_last_cycle = np.append(ns.all_fitness_last_cycle, None)
 			ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
 	else:
 		if mini_killed:
@@ -2737,10 +2698,8 @@ def eval_function(parameters_set, ns):
 			print_stdout_forced(
 				"  Minimization run failed (simulation process terminated with error)"
 			)
-		eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score]*5
+		eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
 		ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
-		# ns.all_rg_last_cycle = np.append(ns.all_rg_last_cycle, None)
-		# ns.all_fitness_last_cycle = np.append(ns.all_fitness_last_cycle, None)
 		ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
 
 	# exit current eval directory
@@ -2748,11 +2707,11 @@ def eval_function(parameters_set, ns):
 
 	# store log files
 	if os.path.isfile(current_eval_dir+'/md.log'):
-		shutil.copy(current_eval_dir+'/md.log', config.log_files_all_evals_dirname+'/MD_sim_eval_step_'+str(ns.nb_eval)+'.log') # copy prod log file
+		shutil.copy(current_eval_dir+'/md.log', config.log_files_all_evals_dirname+'/MD_sim_eval_step_'+str(ns.nb_eval)+'.log')  # copy prod log file
 	elif os.path.isfile(current_eval_dir+'/equi.log'):
-		shutil.copy(current_eval_dir+'/equi.log', config.log_files_all_evals_dirname+'/equi_sim_eval_step_'+str(ns.nb_eval)+'.log') # copy equi log file
+		shutil.copy(current_eval_dir+'/equi.log', config.log_files_all_evals_dirname+'/equi_sim_eval_step_'+str(ns.nb_eval)+'.log')  # copy equi log file
 	elif os.path.isfile(current_eval_dir+'/mini.log'):
-		shutil.copy(current_eval_dir+'/mini.log', config.log_files_all_evals_dirname+'/mini_sim_eval_step_'+str(ns.nb_eval)+'.log') # copy mini log file
+		shutil.copy(current_eval_dir+'/mini.log', config.log_files_all_evals_dirname+'/mini_sim_eval_step_'+str(ns.nb_eval)+'.log')  # copy mini log file
 
 	# update the best results distrib plot in execution directory
 	if new_best_fit:
@@ -2763,7 +2722,7 @@ def eval_function(parameters_set, ns):
 		shutil.copytree(current_eval_dir, config.sim_files_all_evals_dirname+'/'+current_eval_dir)
 
 	# keep BI files (the very first guess of bonded parameters) only for figures
-	# TODO: remove
+	# TODO: remove ?? this is redundant because we already produce a directory with output for the best current model
 	if ns.nb_eval == 1:
 		shutil.copytree(current_eval_dir, 'boltzmann_inv_CG_model')
 
