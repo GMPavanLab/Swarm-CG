@@ -1,6 +1,6 @@
 from .styling import sep
 
-header_error = "\n-- ! ERROR ! --\n"
+header_error = "\n\n-- ! ERROR ! --\n"
 header_warning = "\n-- ! WARNING ! --\n"
 header_gmx_error = "\n\n  GMX ERROR MSG\n" + sep + "\n\n"
 

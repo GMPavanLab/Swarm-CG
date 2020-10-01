@@ -1,4 +1,5 @@
 import numpy as np
+import MDAnalysis as mda
 from ..shared import exceptions
 
 # All these functions for virtual sites definitions are explained
@@ -21,7 +22,7 @@ def vs2_func_1(ns, traj, vs_def_beads_ids, vs_params, bead_id):
     if a < 0 or a > 1:
         msg = f"Virtual site ID {bead_id + 1} uses an incorrect weight. Expected weight in [0 , 1]."
         raise exceptions.MissformattedFile(msg)
-    weights = np.array([a, 1-a])
+    weights = np.array([1-a, a])
 
     for ts in ns.aa2cg_universe.trajectory:
         traj[ts.frame] = ns.aa2cg_universe.atoms[[i, j]].center(weights)
@@ -60,7 +61,9 @@ def vs3_func_1(ns, traj, vs_def_beads_ids, vs_params):
         pos_i = ns.aa2cg_universe.atoms[i].position
         pos_j = ns.aa2cg_universe.atoms[j].position
         pos_k = ns.aa2cg_universe.atoms[k].position
-        traj[ts.frame] = pos_i + a * (pos_i-pos_j) / np.abs(pos_i-pos_j) + b * (pos_i-pos_k) / np.abs(pos_i-pos_k)
+        r_ij = pos_j - pos_i
+        r_ik = pos_k - pos_i
+        traj[ts.frame] = pos_i + a * r_ij / mda.lib.mdamath.norm(r_ij) / 2 + b * r_ik / mda.lib.mdamath.norm(r_ik) / 2
 
 
 # vs_3 func 2 -> Linear combination using 3 reference points
@@ -79,9 +82,10 @@ def vs3_func_2(ns, traj, vs_def_beads_ids, vs_params, bead_id):
         pos_i = ns.aa2cg_universe.atoms[i].position
         pos_j = ns.aa2cg_universe.atoms[j].position
         pos_k = ns.aa2cg_universe.atoms[k].position
-        traj[ts.frame] = pos_i - b * (
-            ((1-a) * (pos_i-pos_j) + a * (pos_k-pos_j)) / np.abs((1-a) * (pos_i-pos_j) + a * (pos_k-pos_j))
-        )
+        r_ij = pos_j - pos_i
+        r_jk = pos_k - pos_j
+        comb_ijk = (1-a) * r_ij + a * r_jk
+        traj[ts.frame] = pos_i + b * (comb_ijk / mda.lib.mdamath.norm(comb_ijk))
 
 
 # vs_3 func 3 -> Linear combination using 3 reference points
@@ -96,26 +100,37 @@ def vs3_func_3(ns, traj, vs_def_beads_ids, vs_params):
         pos_i = ns.aa2cg_universe.atoms[i].position
         pos_j = ns.aa2cg_universe.atoms[j].position
         pos_k = ns.aa2cg_universe.atoms[k].position
-        vec_ij = pos_j - pos_i
-        vec_jk = pos_k - pos_j
+        r_ij = pos_j - pos_i
+        r_jk = pos_k - pos_j
         ang_rad = np.deg2rad(ang_deg)
-        comb_ijk = vec_jk - (vec_ij * (np.dot(vec_ij, vec_jk) / np.dot(vec_ij, vec_ij)))
-        traj[ts.frame] = pos_i + d * np.cos(ang_rad) * (vec_ij / np.abs(vec_ij)) + d * np.sin(ang_rad) * (comb_ijk / np.abs(comb_ijk))
+        # comb_ijk = r_jk - (np.dot(r_ij, r_jk) / np.dot(r_ij, r_ij)) * r_ij
+        comb_ijk = r_jk - ((r_ij * r_jk) / (r_ij * r_ij)) * r_ij  # BAD
+        # comb_ijk = r_jk - (np.cross(r_ij, r_jk) / np.cross(r_ij, r_ij)) * r_ij  # BAD
+        traj[ts.frame] = pos_i + d * np.cos(ang_rad) * (r_ij / mda.lib.mdamath.norm(r_ij)) + d * np.sin(ang_rad) * (comb_ijk / mda.lib.mdamath.norm(comb_ijk))
 
 
 # vs_3 func 4 -> Linear combination using 3 reference points
 # out of plane
-# NOTE: tough to implement correctly, documentation seems incomplete
 def vs3_func_4(ns, traj, vs_def_beads_ids, vs_params):
 
-    pass
+    i, j, k = vs_def_beads_ids
+    a, b, c = vs_params  # weight, weight, nm**(-1)
+    c = c * 10  # retrieve amgstrom**(-1) for MDA
+
+    for ts in ns.aa2cg_universe.trajectory:
+        pos_i = ns.aa2cg_universe.atoms[i].position
+        pos_j = ns.aa2cg_universe.atoms[j].position
+        pos_k = ns.aa2cg_universe.atoms[k].position
+        r_ij = pos_j - pos_i
+        r_ik = pos_i - pos_k
+        traj[ts.frame] = pos_i + a * r_ij + b * r_ik + c * (r_ij * r_ik)
 
 
 # Functions for virtual_sites4
 
 # vs_4 func 2 -> Linear combination using 3 reference points -> ?
-# NOTE: only function 2 is defined for vs_4 in GROMACS
-# NOTE: tough to implement correctly, documentation seems incomplete
+# NOTE: only function 2 is defined for vs_4 in GROMACS, because it replaces function 1
+#       which still existss for retro compatibility but should be ignored
 def vs4_func_2(ns, traj, vs_def_beads_ids, vs_params):
 
     pass

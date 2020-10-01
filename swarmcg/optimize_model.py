@@ -226,7 +226,7 @@ def run(ns):
                         if b_sitetype in ['A', 'V', 'D']:  # atom, virtual site, dummy (old virtual site)
                             for bead_id in range(len(ns.cg_itp['atoms'])):
                                 if ns.cg_itp['atoms'][bead_id]['bead_type'] == b_type:
-                                    if ns.cg_itp['atoms'][bead_id]['mass'] == 0:
+                                    if ns.cg_itp['atoms'][bead_id]['mass'] == None:
                                         ns.cg_itp['atoms'][bead_id]['mass'] = b_mass
                     except (IndexError, ValueError):
                         pass
@@ -248,8 +248,10 @@ def run(ns):
     with open(ns.exec_folder+'/'+config.opti_pairwise_distances_file, 'w'):
         pass
 
-    ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None  # will be computed one single time with model evaluation script
-    ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None  # will be computed one single time with model evaluation script
+    # set these to None to then check the variables have been filled (!= None), so we will do these calculations
+    # one single time in function compare_models that is called at each iteration during optimization
+    ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None
+    ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
 
     print('Calculating bonds, angles and dihedrals distributions in the reference AA-mapped model')
 
@@ -302,18 +304,18 @@ def run(ns):
     for grp_dihedral in range(ns.nb_dihedrals):
 
         dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad = scg.get_AA_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
-        if ns.exec_mode == 1: # the angle value for dihedral will be calculated from the BI fit, because for dihedrals it makes no sense to use the average
+        if ns.exec_mode == 1:  # the angle value for dihedral will be calculated from the BI fit, because for dihedrals it makes no sense to use the average
             ns.cg_itp['dihedral'][grp_dihedral]['value'] = dihedral_avg
         ns.cg_itp['dihedral'][grp_dihedral]['avg'] = dihedral_avg
         ns.cg_itp['dihedral'][grp_dihedral]['hist'] = dihedral_hist
 
         xmin, xmax = -180, 180
-        ns.data_BI['dihedral'].append([np.histogram(dihedral_values_rad, range=(np.deg2rad(xmin), np.deg2rad(xmax)), bins=2*config.bi_nb_bins)[0], np.std(dihedral_values_rad), np.mean(dihedral_values_rad), (xmin, xmax)])
+        ns.data_BI['dihedral'].append([np.histogram(dihedral_values_rad, range=(np.deg2rad(xmin), np.deg2rad(xmax)), bins=2 *config.bi_nb_bins)[0], np.std(dihedral_values_rad), np.mean(dihedral_values_rad), (xmin, xmax)])
 
-        ns.domains_val['dihedral'].append([round(np.min(dihedral_values_deg), 2), round(np.max(dihedral_values_deg), 2)]) # boundaries of force constats during optimization
+        ns.domains_val['dihedral'].append([round(np.min(dihedral_values_deg), 2), round(np.max(dihedral_values_deg), 2)])  # boundaries of force constats during optimization
 
-        if not ns.bonds_rescaling_performed:
-            print('  No bonds rescaling performed')
+    if not ns.bonds_rescaling_performed:
+        print('  No bonds rescaling performed')
 
     # output png with all the reference distributions, so the user can check
     ns.atom_only = True
@@ -380,14 +382,15 @@ def run(ns):
     sim_types = {0: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': int(round(6+np.sqrt(ns.nb_constraints+ns.nb_bonds+ns.nb_angles))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
          1: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': int(round(6+np.sqrt(ns.nb_angles+ns.nb_dihedrals))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
          2: {'sim_duration': ns.sim_duration_long, 'max_swarm_iter': int(round(6+np.sqrt(ns.nb_constraints+ns.nb_bonds+ns.nb_angles+ns.nb_dihedrals))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.20}}
-    opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
-    sim_cycles = [0, 1, 2] # simulations types
+    # opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
+    opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']]
+    sim_cycles = [0, 1, 2]  # simulations types
 
     # for tests
     # sim_types = {0: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
     #        1: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
     #        2: {'sim_duration': ns.sim_duration_long, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.20}}
-    # opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
+    # opti_cycles = [['constraint', 'bond', 'angle', 'dihedral'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
     # sim_cycles = [0, 1, 2] # simulations types
 
     # NOTE: currently, due to an issue in FST-PSO, number of swarm iterations performed is +2 when compared to the numbers we feed

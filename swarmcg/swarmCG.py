@@ -58,14 +58,14 @@ def load_aa_data(ns):
 
 	if ns.molname_in == None:
 
-		molname_atom_group = ns.aa_universe.atoms[0].fragment # select the AA connected graph for the first moltype found in TPR
+		molname_atom_group = ns.aa_universe.atoms[0].fragment  # select the AA connected graph for the first moltype found in TPR
 		ns.all_aa_mols.append(molname_atom_group)
 
 		# atoms and their attributes
 		for i in range(len(molname_atom_group)):
 
 			atom_id = ns.aa_universe.atoms[i].id
-			atom_type = ns.aa_universe.atoms[i].type[0] # TODO: using only first letter but do better with masses for exemple to discriminate/verify 2 letters atom types
+			atom_type = ns.aa_universe.atoms[i].type[0]  # this was to check for hydrogens but we don't need it atm
 			atom_charge = ns.aa_universe.atoms[i].charge
 			atom_heavy = True
 			if atom_type[0].upper() == 'H':
@@ -116,9 +116,11 @@ def verify_handled_functions(geom, func, line_nb):
 		if functions_str == '':
 			functions_str = 'None'
 		msg = (
-			f"Error while reading {geom} function in CG ITP file at line {line_nb}. "
+			f"Error while reading {geom} function in CG ITP file at line {line_nb}.\n"
 			f"This potential function is not implemented in Swarm-CG at the moment.\n"
-			f"Please use one of these {geom} potential functions: {functions_str}."
+			f"Please use one of these {geom} potential functions: {functions_str}.\n\n"
+			f"If you feel this is an important missing feature, please feel free to\n"
+			f"open an issue on github at {config.github_url}/issues."
 		)
 		raise exceptions.MissformattedFile(msg)
 
@@ -241,7 +243,7 @@ def read_cg_itp_file(ns):
 
 					if len(sp_itp_line) == 7:
 						bead_id, bead_type, resnr, residue, atom, cgnr, charge = sp_itp_line[:7]
-						mass = 0
+						mass = None
 
 						# In case the masses are ABSENT in the ITP file (probably the most normal case with
 						# MARTINI usage), then we will read the CG masses from the TPR file to avoid having
@@ -255,6 +257,7 @@ def read_cg_itp_file(ns):
 
 					elif len(sp_itp_line) == 8:
 						bead_id, bead_type, resnr, residue, atom, cgnr, charge, mass = sp_itp_line[:8]
+						mass = float(mass)
 					else:
 						msg = (
 						"The atom description from the input itp file: \n\n {} \n\n"
@@ -271,7 +274,7 @@ def read_cg_itp_file(ns):
 						ns.real_beads_ids.append(int(bead_id) - 1)
 
 					# assignment of the variables value
-					ns.cg_itp['atoms'].append({'bead_id': int(bead_id) - 1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue,'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge), 'mass': float(mass), 'vs_type': None})
+					ns.cg_itp['atoms'].append({'bead_id': int(bead_id) - 1, 'bead_type': bead_type, 'resnr': int(resnr), 'residue': residue,'atom': atom, 'cgnr': int(cgnr), 'charge': float(charge), 'mass': mass, 'vs_type': None})
 					# here there is still MASS and VS_TYPE that are subject to later modification
 
 					if not len(ns.cg_itp['atoms']) == int(bead_id):
@@ -383,11 +386,11 @@ def read_cg_itp_file(ns):
 
 					# handle multiplicity if function assumes multiplicity
 					if func in config.dihedral_func_with_mult:
-						try:  # correct read of the provided multiplicity
+						try:
 							ns.cg_itp['dihedral'][ns.nb_dihedrals]['mult'].append(int(sp_itp_line[7]))
-						except (IndexError, ValueError):  # incorrect read of multiplicity -- or it was expected but not provided
-							print('  Missing multiplicity for dihedral at ITP line '+str(i+1)+', assumed multiplicity 1')
-							ns.cg_itp['dihedral'][ns.nb_dihedrals]['mult'].append(1)
+						except (IndexError, ValueError):  # incorrect read of multiplicity
+							msg = f"Incorrect read of multiplicity in dihedral with potential function {func} at ITP line {i+1}."
+							raise exceptions.MissformattedFile(msg)
 					else:  # no multiplicity parameter is expected
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['mult'].append(None)
 
@@ -543,8 +546,8 @@ def read_ndx_atoms2beads(ns):
 							)
 							raise exceptions.MissformattedFile(msg)
 
-						bead_atoms_id = [int(atom_id)-1 for atom_id in ndx_line.split()] # retrieve indexing from 0 for atoms IDs for MDAnalysis
-						ns.all_beads[bead_id]['atoms_id'].extend(bead_atoms_id) # all atoms included in current bead
+						bead_atoms_id = [int(atom_id)-1 for atom_id in ndx_line.split()]  # retrieve indexing from 0 for atoms IDs for MDAnalysis
+						ns.all_beads[bead_id]['atoms_id'].extend(bead_atoms_id)  # all atoms included in current bead
 
 						for atom_id in bead_atoms_id: # bead to which each atom belongs (one atom can belong to multiple beads if there is split-mapping)
 							ns.atoms_occ_total[atom_id] += 1
@@ -814,7 +817,7 @@ def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 
 		for i in range(len(itp_obj['atoms'])):
 			# if the ITP did NOT contain masses, they are set at 0 in this field during ITP reading
-			if itp_obj['atoms'][i]['mass'] != 0:
+			if itp_obj['atoms'][i]['mass'] != None:
 				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}     {7:<5.2f}\n'.format(
 					itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'],
 					itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'],
@@ -933,7 +936,8 @@ def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 				params = []
 				if itp_obj['virtual_sitesn'][bead_id]['func'] == 3:
 					for i in range(len(itp_obj['virtual_sitesn'][bead_id]['vs_def_beads_ids'])):
-						params.append('{:>4} {:>4}'.format(itp_obj['virtual_sitesn'][bead_id]['vs_def_beads_ids'][i]+1, itp_obj['virtual_sitesn'][bead_id]['vs_params'][i]))
+						params.append('{} {}'.format(itp_obj['virtual_sitesn'][bead_id]['vs_def_beads_ids'][i]+1, itp_obj['virtual_sitesn'][bead_id]['vs_params'][i]))
+					params = '  '.join(params)
 				else:
 					params = ' '.join(['{:>4}'.format(bid + 1) for bid in itp_obj['virtual_sitesn'][bead_id]['vs_def_beads_ids']])
 				fp.write('{:>5} {:>5}   {}\n'.format(
@@ -1204,23 +1208,23 @@ def initialize_cg_traj(ns):
 
 	masses = np.array([val['mass'] for val in ns.cg_itp['atoms']])
 	names = np.array([val['atom'] for val in ns.cg_itp['atoms']])
-	resname = np.array([val['residue'] for val in ns.cg_itp['atoms']])
+	resnames = np.array([val['residue'] for val in ns.cg_itp['atoms']])
 	resid = np.array([val['resnr'] for val in ns.cg_itp['atoms']])
-	nr = len(list(set([val['resnr'] for val in ns.cg_itp['atoms']])))
+	nr = len(set([val['resnr'] for val in ns.cg_itp['atoms']]))
 
 	ns.aa2cg_universe = mda.Universe.empty(len(ns.cg_itp['atoms']), n_residues=nr, atom_resindex=resid, n_segments=1, residue_segindex=np.ones(nr), trajectory=True)
 	ns.aa2cg_universe.add_TopologyAttr('masses')
 	ns.aa2cg_universe._topology.masses.values = np.array(masses)
-	ns.aa2cg_universe.add_TopologyAttr('name')
+	ns.aa2cg_universe.add_TopologyAttr('names')
 	ns.aa2cg_universe._topology.names.values = names
 	ns.aa2cg_universe.add_TopologyAttr('resnames')
-	ns.aa2cg_universe._topology.resnames.values = resname
+	ns.aa2cg_universe._topology.resnames.values = resnames
 
 
 def map_aa2cg_traj(ns):
 
 	# regular beads are mapped using center of mass of groups of atoms
-	coord = np.zeros((len(ns.aa_universe.trajectory), len(ns.cg_itp['atoms']), 3))
+	coord = np.empty((len(ns.aa_universe.trajectory), len(ns.cg_itp['atoms']), 3))
 	for bead_id in range(len(ns.cg_itp['atoms'])):
 		if not ns.cg_itp['atoms'][bead_id]['bead_type'].startswith('v'):  # bead is NOT a virtual site
 			traj = np.empty((len(ns.aa_universe.trajectory), 3))
@@ -1283,13 +1287,15 @@ def map_aa2cg_traj(ns):
 
 			coord[:, bead_id, :] = traj
 
-		ns.aa2cg_universe.load_new(coord, format=mda.coordinates.memory.MemoryReader)
+	ns.aa2cg_universe.load_new(coord, format=mda.coordinates.memory.MemoryReader)
 
 
 # use selected whole molecules as MDA atomgroups and make their coordinates whole, inplace, across the complete tAA rajectory
 def make_aa_traj_whole_for_selected_mols(ns):
 	
-	# TODO: add an option to NOT read the PBC in case user would feed a trajectory that is already OK and their trajectory does NOT contain PBC/BOX size info across trajectory (this was an issue I encountered with Davide B3T traj GRO)
+	# TODO: add an option to NOT read the PBC in case user would feed a trajectory that is already unwrapped for
+	#       molecule and their trajectory does NOT contain box dimensions (universe.dimensions)
+	#       (this was an issue I encountered with Davide B3T traj GRO)
 	for _ in ns.aa_universe.trajectory:
 		for aa_mol in ns.all_aa_mols:
 			mda.lib.mdamath.make_whole(aa_mol, inplace=True)
@@ -1342,7 +1348,10 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2 = beads_ids[i]
 		for ts in ns.aa2cg_universe.trajectory:
-			bond_values[len(ns.aa2cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_bonds(ns.aa2cg_universe.atoms[bead_id_1].position, ns.aa2cg_universe.atoms[bead_id_2].position, backend=ns.mda_backend, box=None) / 10 # retrieved nm
+			bond_values[len(ns.aa2cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_bonds(
+				ns.aa2cg_universe.atoms[bead_id_1].position,
+				ns.aa2cg_universe.atoms[bead_id_2].position,
+				backend=ns.mda_backend, box=None) / 10  # retrieved nm
 
 	bond_avg_init = round(np.average(bond_values), 3)
 
@@ -1389,9 +1398,9 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 	# exclusions storage format: ns.cg_itp['exclusion'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])
 
 	if grp_type.startswith('constraint'):
-		bond_hist = np.histogram(bond_values, ns.bins_constraints, density=True)[0]*ns.bw_constraints # retrieve 1-sum densities
+		bond_hist = np.histogram(bond_values, ns.bins_constraints, density=True)[0]*ns.bw_constraints  # retrieve 1-sum densities
 	if grp_type.startswith('bond'):
-		bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds # retrieve 1-sum densities
+		bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds  # retrieve 1-sum densities
 
 	return bond_avg_final, bond_hist, bond_values
 
@@ -1403,11 +1412,15 @@ def get_AA_angles_distrib(ns, beads_ids):
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
 		for ts in ns.aa2cg_universe.trajectory:
-			angle_values_rad[len(ns.aa2cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_angles(ns.aa2cg_universe.atoms[bead_id_1].position, ns.aa2cg_universe.atoms[bead_id_2].position, ns.aa2cg_universe.atoms[bead_id_3].position, backend=ns.mda_backend, box=None)
+			angle_values_rad[len(ns.aa2cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_angles(
+				ns.aa2cg_universe.atoms[bead_id_1].position,
+				ns.aa2cg_universe.atoms[bead_id_2].position,
+				ns.aa2cg_universe.atoms[bead_id_3].position,
+				backend=ns.mda_backend, box=None)
 
 	angle_values_deg = np.rad2deg(angle_values_rad)
 	angle_avg = round(np.mean(angle_values_deg), 3)
-	angle_hist = np.histogram(angle_values_deg, ns.bins_angles, density=True)[0]*ns.bw_angles # retrieve 1-sum densities
+	angle_hist = np.histogram(angle_values_deg, ns.bins_angles, density=True)[0]*ns.bw_angles  # retrieve 1-sum densities
 
 	return angle_avg, angle_hist, angle_values_deg, angle_values_rad
 
@@ -1419,11 +1432,16 @@ def get_AA_dihedrals_distrib(ns, beads_ids):
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
 		for ts in ns.aa2cg_universe.trajectory:
-			dihedral_values_rad[len(ns.aa2cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_dihedrals(ns.aa2cg_universe.atoms[bead_id_1].position, ns.aa2cg_universe.atoms[bead_id_2].position, ns.aa2cg_universe.atoms[bead_id_3].position, ns.aa2cg_universe.atoms[bead_id_4].position, backend=ns.mda_backend, box=None)
+			dihedral_values_rad[len(ns.aa2cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_dihedrals(
+				ns.aa2cg_universe.atoms[bead_id_1].position,
+				ns.aa2cg_universe.atoms[bead_id_2].position,
+				ns.aa2cg_universe.atoms[bead_id_3].position,
+				ns.aa2cg_universe.atoms[bead_id_4].position,
+				backend=ns.mda_backend, box=None)
 
 	dihedral_values_deg = np.rad2deg(dihedral_values_rad)
 	dihedral_avg = round(np.mean(dihedral_values_deg), 3)
-	dihedral_hist = np.histogram(dihedral_values_deg, ns.bins_dihedrals, density=True)[0]*ns.bw_dihedrals # retrieve 1-sum densities
+	dihedral_hist = np.histogram(dihedral_values_deg, ns.bins_dihedrals, density=True)[0]*ns.bw_dihedrals  # retrieve 1-sum densities
 
 	return dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad
 
@@ -1434,14 +1452,17 @@ def get_CG_bonds_distrib(ns, beads_ids, grp_type):
 	bond_values = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2 = beads_ids[i]
-		for ts in ns.cg_universe.trajectory: # no need for PBC handling, trajectories were made wholes for the molecule
-			bond_values[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_bonds(ns.cg_universe.atoms[bead_id_1].position, ns.cg_universe.atoms[bead_id_2].position, backend=ns.mda_backend, box=None) / 10 # retrieved nm
+		for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
+			bond_values[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_bonds(
+				ns.cg_universe.atoms[bead_id_1].position,
+				ns.cg_universe.atoms[bead_id_2].position,
+				backend=ns.mda_backend, box=None) / 10  # retrieved nm
 
 	bond_avg = round(np.mean(bond_values), 3)
 	if grp_type == 'constraint':
-		bond_hist = np.histogram(bond_values, ns.bins_constraints, density=True)[0]*ns.bw_constraints # retrieve 1-sum densities
+		bond_hist = np.histogram(bond_values, ns.bins_constraints, density=True)[0]*ns.bw_constraints  # retrieve 1-sum densities
 	if grp_type == 'bond':
-		bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds # retrieve 1-sum densities
+		bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds  # retrieve 1-sum densities
 
 	return bond_avg, bond_hist, bond_values
 
@@ -1452,13 +1473,17 @@ def get_CG_angles_distrib(ns, beads_ids):
 	angle_values_rad = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
-		for ts in ns.cg_universe.trajectory: # no need for PBC handling, trajectories were made wholes for the molecule
-			angle_values_rad[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_angles(ns.cg_universe.atoms[bead_id_1].position, ns.cg_universe.atoms[bead_id_2].position, ns.cg_universe.atoms[bead_id_3].position, backend=ns.mda_backend, box=None)
+		for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
+			angle_values_rad[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_angles(
+				ns.cg_universe.atoms[bead_id_1].position,
+				ns.cg_universe.atoms[bead_id_2].position,
+				ns.cg_universe.atoms[bead_id_3].position,
+				backend=ns.mda_backend, box=None)
 	angle_values_deg = np.rad2deg(angle_values_rad)
 
 	# get group average and histogram non-null values for comparison and display
 	angle_avg = round(np.mean(angle_values_deg), 3)
-	angle_hist = np.histogram(angle_values_deg, ns.bins_angles, density=True)[0]*ns.bw_angles # retrieve 1-sum densities
+	angle_hist = np.histogram(angle_values_deg, ns.bins_angles, density=True)[0]*ns.bw_angles  # retrieve 1-sum densities
 
 	return angle_avg, angle_hist, angle_values_deg, angle_values_rad
 
@@ -1469,8 +1494,13 @@ def get_CG_dihedrals_distrib(ns, beads_ids):
 	dihedral_values_rad = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
 	for i in range(len(beads_ids)):
 		bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
-		for ts in ns.cg_universe.trajectory: # no need for PBC handling, trajectories were made wholes for the molecule
-			dihedral_values_rad[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_dihedrals(ns.cg_universe.atoms[bead_id_1].position, ns.cg_universe.atoms[bead_id_2].position, ns.cg_universe.atoms[bead_id_3].position, ns.cg_universe.atoms[bead_id_4].position, backend=ns.mda_backend, box=None)
+		for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
+			dihedral_values_rad[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_dihedrals(
+				ns.cg_universe.atoms[bead_id_1].position,
+				ns.cg_universe.atoms[bead_id_2].position,
+				ns.cg_universe.atoms[bead_id_3].position,
+				ns.cg_universe.atoms[bead_id_4].position,
+				backend=ns.mda_backend, box=None)
 	dihedral_values_deg = np.rad2deg(dihedral_values_rad)
 
 	# get group average and histogram non-null values for comparison and display
@@ -1596,7 +1626,7 @@ def perform_BI(ns):
 				func = ns.cg_itp['dihedral'][grp_dihedral]['func']
 				
 				if func in config.dihedral_func_with_mult:
-					multiplicity = ns.cg_itp['dihedral'][grp_dihedral]['mult'] # multiplicity stays the same as in input CG ITP, it's only during model_prep that we could compare between different multiplicities
+					multiplicity = ns.cg_itp['dihedral'][grp_dihedral]['mult']  # multiplicity stays the same as in input CG ITP, it's only during model_prep that we could compare between different multiplicities
 					params_guess = [max(y)-min(y), avg_rad_grp_dihedral, min(y)]
 					popt, pcov = curve_fit(gmx_dihedrals_func_1(mult=multiplicity), x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
 
@@ -1607,7 +1637,7 @@ def perform_BI(ns):
 
 				if ns.exec_mode == 1:
 					ns.out_itp['dihedral'][grp_dihedral]['value'] = np.rad2deg(popt[1])
-					# TODO: make the fit according to user provided dihedral angle value when using execution mode 2
+					# TODO: make the fit according to user provided dihedral angle value when using execution mode 2 or 3
 
 				# stay within specified range for force constants, negative to positive according to function chosen by user
 				# print('  Dihedral group', grp_dihedral+1, 'estimated force constant BEFORE MODIFIER:', round(popt[0], 2))
@@ -1697,10 +1727,15 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 			masses = np.array([val['mass'] for val in ns.cg_itp['atoms']])
 			ns.aa2cg_universe._topology.masses.values = np.array(masses)
 
+		# create fake bonds in the CG MDA universe, that will be used only for making the molecule whole
+		if len(ns.vs_beads_ids) > 0:
+			fake_bonds = [[vs_bid, ns.real_beads_ids[0]] for vs_bid in ns.vs_beads_ids]
+			ns.cg_universe.add_bonds(fake_bonds, guessed=False)
+
 		# select the whole molecule as an MDA atomgroup and make its coordinates whole, inplace, across the complete trajectory
-		cg_mol = mda.AtomGroup([bead_id for bead_id in ns.all_beads], ns.cg_universe)
-		for ts in ns.cg_universe.trajectory:
-			mda.lib.mdamath.make_whole(cg_mol, inplace=True)
+		ag_mol = mda.AtomGroup([bead_id for bead_id in range(len(ns.cg_itp['atoms']))], ns.cg_universe)
+		for _ in ns.cg_universe.trajectory:
+			mda.lib.mdamath.make_whole(ag_mol, inplace=True)
 
 		# this requires CG data for mapping -- especially, masses are taken from the CG TPR but the CG ITP is also used atm
 		if ns.gyr_aa_mapped == None:
@@ -2353,7 +2388,7 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 			if sp_nstenergy_line[0].strip() == 'nstenergy': # discard other lines that could start with 'nstenergy'
 				nstenergy_line = i
 
-		elif mdp_line.startswith('nstxout-compressed'):
+		elif mdp_line.startswith('nstxout-compressed') or mdp_line.startswith('nstxtcout'):
 			sp_nstxout_compressed_line = mdp_line.split('=')
 			nstxout_compressed_line = i
 
@@ -2366,8 +2401,8 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 			msg = "The provided MD MDP file does not contain one of these entries: dt, nsteps."
 			raise exceptions.MissformattedFile(msg)
 
-	# force writting to the log file every given nb of steps, to make sure simulations won't be killed for insufficient writting to the log file
-	# (which we use to check for simulations that are stuck/bugged)
+	# force writting to the log file every given nb of steps, to make sure simulations won't be killed for
+	# insufficient writting to the log file (which we use to check for simulations that are stuck/bugged)
 	if nstlog_line != -1:
 		nstlog = log_write_freq
 		mdp_lines_in[nstlog_line] = sp_nstlog_line[0]+'= '+str(nstlog)+'    ; automatically modified by Swarm-CG'
@@ -2380,33 +2415,34 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 		nstxout = nsteps
 		mdp_lines_in[nstxout_line] = sp_nstxout_line[0]+'= '+str(nstxout)+'    ; automatically modified by Swarm-CG'
 	else:
-		mdp_lines_in += '\nnstxout = '+str(nstxout)+'    ; automatically added by Swarm-CG'
+		mdp_lines_in.append(f'nstxout = {nstxout}    ; automatically added by Swarm-CG')
 
 	# force NOT writting velocities data, as this can only slow the simulation and we don't need it
 	if nstvout_line != -1:
 		nstvout = nsteps
 		mdp_lines_in[nstvout_line] = sp_nstvout_line[0]+'= '+str(nstvout)+'    ; automatically modified by Swarm-CG'
 	else:
-		mdp_lines_in += '\nnstvout = '+str(nstvout)+'    ; automatically added by Swarm-CG'
+		mdp_lines_in.append(f'nstvout = {nstvout}    ; automatically added by Swarm-CG')
 
 	# force NOT writting forces data, as this can only slow the simulation and we don't need it
 	if nstfout_line != -1:
 		nstfout = nsteps
 		mdp_lines_in[nstfout_line] = sp_nstfout_line[0]+'= '+str(nstfout)+'    ; automatically modified by Swarm-CG'
 	else:
-		mdp_lines_in += '\nnstfout = '+str(nstfout)+'    ; automatically added by Swarm-CG'
+		mdp_lines_in.append(f'nstfout = {nstfout}    ; automatically added by Swarm-CG')
 
-	# force calculating and writing frames at given frequency, to not slow down the simulation too much but still allow for energy analysis
+	# force calculating and writing frames at given frequency, to not slow down
+	# the simulation too much but still allow for energy analysis
 	nstcalcenergy = int(nsteps / nb_frames / energy_write_nb_frames_ratio)
 	nstenergy = nstcalcenergy
 	if nstcalcenergy_line != -1:
 		mdp_lines_in[nstcalcenergy_line] = sp_nstcalcenergy_line[0]+'= '+str(nstcalcenergy)+'    ; automatically modified by Swarm-CG'
 	else:
-		mdp_lines_in += '\nnstcalcenergy = '+str(nstcalcenergy)+'    ; automatically added by Swarm-CG'
+		mdp_lines_in.append(f'nstcalcenergy = {nstcalcenergy}    ; automatically added by Swarm-CG')
 	if nstenergy_line != -1:
 		mdp_lines_in[nstenergy_line] = sp_nstenergy_line[0]+'= '+str(nstenergy)+'    ; automatically modified by Swarm-CG'
 	else:
-		mdp_lines_in += '\nnstenergy = '+str(nstenergy)+'    ; automatically added by Swarm-CG'
+		mdp_lines_in.append(f'nstenergy = {nstenergy}    ; automatically added by Swarm-CG')
 
 	# force writting compressed frames at given frequency, so that we obtain the desired number of frames for each CG simulation/evaluation step
 	nstxout_compressed = int(nsteps / nb_frames)
@@ -2414,7 +2450,7 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 		mdp_lines_in[nstxout_compressed_line] = sp_nstxout_compressed_line[0]+'= '+str(nstxout_compressed)+'    ; automatically modified by Swarm-CG'
 	else:
 		# sys.exit(config.header_error+'The provided MD MDP file does not contain one of these entries: nstxout-compressed')
-		mdp_lines_in += '\nnstxout-compressed = '+str(nstxout_compressed)+'    ; automatically added by Swarm-CG'
+		mdp_lines_in.append(f'nstxout-compressed = {nstxout_compressed}    ; automatically added by Swarm-CG')
 
 	# write output
 	with open(mdp_filename, 'w') as fp:

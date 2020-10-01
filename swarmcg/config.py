@@ -6,7 +6,7 @@ gmx_path = 'gmx'
 kB = 0.008314462
 sim_temperature = 300  # Kelvin
 bi_nb_bins = 50  # nb of bins to use for Boltzmann Inversion, will be doubled for dihedrals distributions binning during BI -- this has huge impact on the results of the BI and this value shall STAY AT 50 ! actually I did not try to modify much but this feels like dangerous atm
-bonds_max_range = 5  # nm -- used to define grid for EMD calculations so increasing this only slightly increases computation time, however small bw for bonds has real impact
+bonds_max_range = 20  # nm -- used to define grid for EMD calculations so increasing this only slightly increases computation time, however small bw for bonds has real impact
 bw_constraints = 0.002  # nm
 bw_bonds = 0.01  # nm
 bw_angles = 2.5  # degrees
@@ -52,16 +52,16 @@ fct_guess_min_flat_diff_dihedrals_with_mult = 0.20  # flat minimum force constan
 # TODO: handle dihedral function 9 correctly so that different potentials can be stacked for the same beads
 #       this is the primary purpose of function 9 !!
 handled_functions = {
-    'constraint': [1],
-    'bond': [1],
-    'angle': [1, 2],
-    'dihedral': [1, 2, 4],
-    'dihedral_with_mult': [1, 4],  # these functions use 3 parameters, the last one being multiplicity
-    'virtual_sites2': [1],
-    'virtual_sites3': [1],   #[1, 2, 3],
-    'virtual_sites4': [],
-    'virtual_sitesn': [1, 2, 3]
+    'constraint': [1],  # tested and verified: 1
+    'bond': [1],  # tested and verified: 1
+    'angle': [1, 2],  # tested and verified: 1, 2
+    'dihedral': [1, 2, 4],  # tested and verified: 1, 2, 4 -- ongoing: 9 (need to merge the 1+ dihedrals groups on plots)
+    'virtual_sites2': [1],  # tested and verified: 1 -- ongoing: 2 (need GMX 2020)
+    'virtual_sites3': [1, 2],  # tested and verified: 1, 2 -- ongoing: 3, 4
+    'virtual_sites4': [],  # ongoing: 2 -- irrelevant: 1
+    'virtual_sitesn': [1, 2, 3]  # tested and verified: 1, 2, 3
 }
+dihedral_func_with_mult = [1, 4, 9]  # these functions use 3 parameters, the last one being multiplicity
 
 # plots display parameters
 use_hists = False  # hists are not implemented in a way that they will be displayed with left and right bold borders atm
