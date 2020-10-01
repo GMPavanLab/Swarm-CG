@@ -213,9 +213,9 @@ def main():
 								action='store_true', default=False)
 
 	# display help if script was called without arguments
-	if len(sys.argv) == 1:
-		args_parser.print_help()
-		sys.exit()
+	# if len(sys.argv) == 1:
+	# 	args_parser.print_help()
+	# 	sys.exit()
 
 	# arguments handling, display command line if help or no arguments provided
 	ns = args_parser.parse_args()

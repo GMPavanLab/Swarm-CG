@@ -135,12 +135,12 @@ def section_switch(section_read, section_active):
 
 	for section_current in section_read:
 		section_read[section_current] = False
-	if section_active != None:
+	if section_active is not None:
 		section_read[section_active] = True
 
 
 # vs_type in [2, 3, 4, n], then they each have specific functions to define their positions
-def vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, line_nb):
+def vs_error_control(ns, bead_id, vs_type, func, line_nb, vs_def_beads_ids=None):
 
 	if bead_id >= len(ns.cg_itp['atoms']):
 		msg = (
@@ -149,13 +149,14 @@ def vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, line_nb):
 		)
 		raise exceptions.MissformattedFile(msg)
 
-	for bid in vs_def_beads_ids:
-		if bid >= len(ns.cg_itp['atoms']):
-			msg = (
-				f"The definition of virtual site ID {bead_id + 1} makes use of ID {bid + 1}, while this ID exceeds"
-				f" the number of atoms defined in the CG ITP file."
-			)
-			raise exceptions.MissformattedFile(msg)
+	if vs_def_beads_ids is not None:
+		for bid in vs_def_beads_ids:
+			if bid >= len(ns.cg_itp['atoms']):
+				msg = (
+					f"The definition of virtual site ID {bead_id + 1} makes use of ID {bid + 1}, while this ID exceeds"
+					f" the number of atoms defined in the CG ITP file."
+				)
+				raise exceptions.MissformattedFile(msg)
 
 	if not ns.cg_itp['atoms'][bead_id]['bead_type'].startswith('v'):
 		msg = (
@@ -400,7 +401,7 @@ def read_cg_itp_file(ns):
 					bead_id = int(sp_itp_line[0])-1
 					vs_def_beads_ids = [int(bid)-1 for bid in sp_itp_line[1:3]]
 					func = sp_itp_line[3]  # will be casted to int in the verification below (for factorizing checks)
-					func = vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, i)  # i is the line number
+					func = vs_error_control(ns, bead_id, vs_type, func, i, vs_def_beads_ids)  # i is the line number
 					vs_params = float(sp_itp_line[4])
 					ns.cg_itp['atoms'][bead_id]['vs_type'] = vs_type
 					ns.cg_itp['virtual_sites2'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_def_beads_ids': vs_def_beads_ids, 'vs_params': vs_params}
@@ -411,7 +412,7 @@ def read_cg_itp_file(ns):
 					bead_id = int(sp_itp_line[0])-1
 					vs_def_beads_ids = [int(bid)-1 for bid in sp_itp_line[1:4]]
 					func = sp_itp_line[4]  # will be casted to int in the verification below (for factorizing checks)
-					func = vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, i)  # i is the line number
+					func = vs_error_control(ns, bead_id, vs_type, func, i, vs_def_beads_ids)  # i is the line number
 					if func in [1, 2, 3]:
 						vs_params = [float(param) for param in sp_itp_line[5:7]]
 					elif func == 4:
@@ -425,7 +426,7 @@ def read_cg_itp_file(ns):
 					bead_id = int(sp_itp_line[0]) - 1
 					vs_def_beads_ids = [int(bid) - 1 for bid in sp_itp_line[1:5]]
 					func = sp_itp_line[5]  # will be casted to int in the verification below (for factorizing checks)
-					func = vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, i)  # i is the line number
+					func = vs_error_control(ns, bead_id, vs_type, func, i, vs_def_beads_ids)  # i is the line number
 					vs_params = [float(param) for param in sp_itp_line[6:9]]
 					ns.cg_itp['atoms'][bead_id]['vs_type'] = vs_type
 					ns.cg_itp['virtual_sites4'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_def_beads_ids': vs_def_beads_ids, 'vs_params': vs_params}
@@ -436,14 +437,14 @@ def read_cg_itp_file(ns):
 					bead_id = int(sp_itp_line[0])-1
 					func = sp_itp_line[1]  # will be casted to int in verification below (for factorizing checks)
 					# here we do the check in 2 steps, because the reading of beads_ids depends on the function
-					func = vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, i)  # i is the line number
+					func = vs_error_control(ns, bead_id, vs_type, func, i, vs_def_beads_ids=None)  # i is the line number
 					if func == 3:
 						vs_def_beads_ids = [int(sp_itp_line[2:][i])-1 for i in range(0, len(sp_itp_line[2:]), 2)]
 						vs_params = [float(sp_itp_line[2:][i]) for i in range(1, len(sp_itp_line[2:]), 2)]
 					else:
 						vs_def_beads_ids = [int(bid) - 1 for bid in sp_itp_line[2:]]
 						vs_params = None
-					func = vs_error_control(ns, bead_id, vs_type, func, vs_def_beads_ids, i)  # i is the line number
+					func = vs_error_control(ns, bead_id, vs_type, func, i, vs_def_beads_ids)  # i is the line number
 					ns.cg_itp['atoms'][bead_id]['vs_type'] = vs_type
 					ns.cg_itp['virtual_sitesn'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_def_beads_ids': vs_def_beads_ids, 'vs_params': vs_params}
 
@@ -817,7 +818,7 @@ def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 
 		for i in range(len(itp_obj['atoms'])):
 			# if the ITP did NOT contain masses, they are set at 0 in this field during ITP reading
-			if itp_obj['atoms'][i]['mass'] != None:
+			if itp_obj['atoms'][i]['mass'] is not None:
 				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}     {7:<5.2f}\n'.format(
 					itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'],
 					itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'],
@@ -1374,7 +1375,7 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 		print('  Ref. AA-mapped distrib. rescaled to avg', bond_avg_final, 'nm for', grp_type, grp_nb+1, '(initially', bond_avg_init, 'nm)')
 
 	# or if specific lengths were provided for constraints and/or bonds
-	elif ns.bonds_scaling_specific != None:
+	elif ns.bonds_scaling_specific is not None:
 
 		if grp_type.startswith('constraint'):
 			geom_id_full = 'C'+str(grp_nb+1)
@@ -2393,7 +2394,7 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 			nstxout_compressed_line = i
 
 	# adjust simulation time according to timestep
-	if sim_time != None:
+	if sim_time is not None:
 		if dt_line != -1 and nsteps_line != -1:
 			nsteps = int(sim_time*1000 / dt)
 			mdp_lines_in[nsteps_line] = sp_nsteps_line[0]+'= '+str(nsteps)+'    ; automatically modified by Swarm-CG'
@@ -2664,7 +2665,7 @@ def eval_function(parameters_set, ns):
 				ns.total_model_eval_time += datetime.now().timestamp() - start_model_eval_ts
 
 				# if gmx sasa failed to compute, it's most likely because there were inconsistent shifts across PBC in the trajectory = failed run
-				if ns.sasa_cg != None:
+				if ns.sasa_cg is not None:
 
 					# store the distributions for each evaluation step
 					shutil.move('distributions.png', '../'+config.distrib_plots_all_evals_dirname+'/distributions_eval_step_'+str(ns.nb_eval)+'.png')

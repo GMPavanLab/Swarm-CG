@@ -133,7 +133,10 @@ def run(ns):
         for top_line in top_lines:
             if top_line.startswith('#include'):
                 top_include = top_line.split()[1].replace('"', '').replace("'", '')  # remove potential single and double quotes around filenames
-                top_includes_filenames.append(os.path.dirname(arg_entries[user_provided_filenames[5]]) + '/' + top_include)
+                arg_dirname = os.path.dirname(arg_entries[user_provided_filenames[5]])
+                if arg_dirname == '':
+                    arg_dirname = '.'
+                top_includes_filenames.append(arg_dirname + '/' + top_include)
 
     # check gmx arguments conflicts
     if ns.gmx_args_str != '' and (ns.nb_threads != 0 or ns.gpu_id != ''):
@@ -248,7 +251,7 @@ def run(ns):
     with open(ns.exec_folder+'/'+config.opti_pairwise_distances_file, 'w'):
         pass
 
-    # set these to None to then check the variables have been filled (!= None), so we will do these calculations
+    # set these to None to then check the variables have been filled (is not None), so we will do these calculations
     # one single time in function compare_models that is called at each iteration during optimization
     ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None
     ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
