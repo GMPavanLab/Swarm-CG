@@ -6,7 +6,11 @@ gmx_path = 'gmx'
 kB = 0.008314462
 sim_temperature = 300  # Kelvin
 bi_nb_bins = 50  # nb of bins to use for Boltzmann Inversion, will be doubled for dihedrals distributions binning during BI -- this has huge impact on the results of the BI and this value shall STAY AT 50 ! actually I did not try to modify much but this feels like dangerous atm
-bonds_max_range = 20  # nm -- used to define grid for EMD calculations so increasing this only slightly increases computation time, however small bw for bonds has real impact
+bonds_max_range = 15  # nm -- used to define grid for EMD calculations
+# NOTE: increasing bonds_max_range increases computation time, but memory usage increases exponentially
+# TODO: detect when a bond has longer values than bonds_max_range and suggest the user to raise the limit if he really
+#       needs to, but I don't really see what kind of use case would require more than 5 nm (maybe elastic net in
+#       proteins though)
 bw_constraints = 0.002  # nm
 bw_bonds = 0.01  # nm
 bw_angles = 2.5  # degrees
@@ -57,7 +61,7 @@ handled_functions = {
     'angle': [1, 2],  # tested and verified: 1, 2
     'dihedral': [1, 2, 4],  # tested and verified: 1, 2, 4 -- ongoing: 9 (need to merge the 1+ dihedrals groups on plots)
     'virtual_sites2': [1],  # tested and verified: 1 -- ongoing: 2 (need GMX 2020)
-    'virtual_sites3': [1, 2],  # tested and verified: 1, 2 -- ongoing: 3, 4
+    'virtual_sites3': [1, 2, 3],  # tested and verified: 1, 2, 3 -- ongoing: 4
     'virtual_sites4': [],  # ongoing: 2 -- irrelevant: 1
     'virtual_sitesn': [1, 2, 3]  # tested and verified: 1, 2, 3
 }
@@ -66,7 +70,7 @@ dihedral_func_with_mult = [1, 4, 9]  # these functions use 3 parameters, the las
 # plots display parameters
 use_hists = False  # hists are not implemented in a way that they will be displayed with left and right bold borders atm
 line_alpha = 0.6  # line alpha for the density plots
-fill_alpha = 0.35  # fill alpha for the density plots
+fill_alpha = 0.30  # fill alpha for the density plots
 cg_color = '#1f77b4'
 atom_color = '#d62728'
 

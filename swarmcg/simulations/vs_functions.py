@@ -74,9 +74,6 @@ def vs3_func_2(ns, traj, vs_def_beads_ids, vs_params, bead_id):
     i, j, k = vs_def_beads_ids
     a, b = vs_params  # weight, nm
     b = b * 10  # retrieve amgstrom for MDA
-    if a < 0 or a > 1:
-        msg = f"Virtual site ID {bead_id + 1} uses an incorrect weight. Expected weight in [0 , 1]."
-        raise exceptions.MissformattedFile(msg)
 
     for ts in ns.aa2cg_universe.trajectory:
         pos_i = ns.aa2cg_universe.atoms[i].position
@@ -94,6 +91,7 @@ def vs3_func_3(ns, traj, vs_def_beads_ids, vs_params):
 
     i, j, k = vs_def_beads_ids
     ang_deg, d = vs_params  # degrees, nm
+    ang_rad = np.deg2rad(ang_deg)  # retrieve radians
     d = d * 10  # retrieve amgstrom for MDA
 
     for ts in ns.aa2cg_universe.trajectory:
@@ -102,10 +100,7 @@ def vs3_func_3(ns, traj, vs_def_beads_ids, vs_params):
         pos_k = ns.aa2cg_universe.atoms[k].position
         r_ij = pos_j - pos_i
         r_jk = pos_k - pos_j
-        ang_rad = np.deg2rad(ang_deg)
-        # comb_ijk = r_jk - (np.dot(r_ij, r_jk) / np.dot(r_ij, r_ij)) * r_ij
-        comb_ijk = r_jk - ((r_ij * r_jk) / (r_ij * r_ij)) * r_ij  # BAD
-        # comb_ijk = r_jk - (np.cross(r_ij, r_jk) / np.cross(r_ij, r_ij)) * r_ij  # BAD
+        comb_ijk = r_jk - (np.dot(r_ij, r_jk) / np.dot(r_ij, r_ij)) * r_ij
         traj[ts.frame] = pos_i + d * np.cos(ang_rad) * (r_ij / mda.lib.mdamath.norm(r_ij)) + d * np.sin(ang_rad) * (comb_ijk / mda.lib.mdamath.norm(comb_ijk))
 
 
@@ -115,7 +110,7 @@ def vs3_func_4(ns, traj, vs_def_beads_ids, vs_params):
 
     i, j, k = vs_def_beads_ids
     a, b, c = vs_params  # weight, weight, nm**(-1)
-    c = c * 10  # retrieve amgstrom**(-1) for MDA
+    c = c / 10  # retrieve amgstrom**(-1) for MDA
 
     for ts in ns.aa2cg_universe.trajectory:
         pos_i = ns.aa2cg_universe.atoms[i].position
@@ -123,14 +118,14 @@ def vs3_func_4(ns, traj, vs_def_beads_ids, vs_params):
         pos_k = ns.aa2cg_universe.atoms[k].position
         r_ij = pos_j - pos_i
         r_ik = pos_i - pos_k
-        traj[ts.frame] = pos_i + a * r_ij + b * r_ik + c * (r_ij * r_ik)
+        traj[ts.frame] = pos_i - a * r_ij - b * r_ik + c * (r_ij * r_ik)
 
 
 # Functions for virtual_sites4
 
-# vs_4 func 2 -> Linear combination using 3 reference points -> ?
+# vs_4 func 2 -> Linear combination using 3 reference points
 # NOTE: only function 2 is defined for vs_4 in GROMACS, because it replaces function 1
-#       which still existss for retro compatibility but should be ignored
+#       which still exists for retro compatibility but its usage must be avoided
 def vs4_func_2(ns, traj, vs_def_beads_ids, vs_params):
 
     pass

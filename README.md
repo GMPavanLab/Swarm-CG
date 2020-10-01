@@ -10,7 +10,7 @@ Swarm-CG is designed for automatically optimizing the bonded terms of a coarse-g
 
 ### Publication
 
-> Empereur-mot, C.; Pesce, L.; Bochicchio, D.; Perego, C.; Pavan, G.M. (2020) Swarm-CG: Automatic Parametrization of Bonded Terms in Coarse-Grained Models of Simple to Complex Molecules via Fuzzy Self-Tuning Particle Swarm Optimization. [ChemRxiv. Preprint](https://doi.org/10.26434/chemrxiv.12613427)
+> Empereur-mot, C.; Pesce, L.; Bochicchio, D.; Perego, C.; Pavan, G.M. (2020) Swarm-CG: Automatic Parametrization of Bonded Terms in MARTINI-based Coarse-Grained Models of Simple to Complex Molecules via Fuzzy Self-Tuning Particle Swarm Optimization. [ChemRxiv. Preprint](https://doi.org/10.26434/chemrxiv.12613427)
 
 ### Installation & Usage
 
