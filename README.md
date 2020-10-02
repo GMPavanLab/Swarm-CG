@@ -1,12 +1,14 @@
 # Swarm-CG
 
-Swarm-CG is designed for automatically optimizing the bonded terms of a coarse-grained (CG) molecular model, in explicit or implicit solvent, with respect to a reference all-atom (AA) trajectory and starting from a preliminary CG model (topology and non-bonded parameters). The package is designed for usage with Gromacs and contains 3 modules for:
+Swarm-CG is designed for automatically optimizing the bonded terms of a MARTINI-based coarse-grained (CG) molecular model, in explicit or implicit solvent, with respect to a reference all-atom (AA) trajectory and starting from a preliminary CG model (topology and non-bonded parameters). The package is designed for usage with Gromacs and contains 3 modules for:
 
 1. Evaluating the bonded parametrization of a CG model
 2. Optimizing bonded terms of a CG model
 3. Monitoring an optimization procedure
 
 ![Swarm-CG](https://raw.githubusercontent.com/GMPavanLab/Swarm-CG/master/images/TOC_Swarm-CG_paper.png)
+
+Swarm-CG can be used with MARTINI version 2 or 3 and handles virtual sites usage.
 
 ### Publication
 
@@ -41,7 +43,7 @@ Here is an ITP file extract from the demonstration data of [PAMAM G1](https://gi
 
 The module `scg_evaluate` enables quick evaluation of the fit of bond, angle and dihedral distributions between a CG model trajectory and a reference AA model trajectory of an identical molecule, by producing a single comprehensive figure.
 
-	scg_evaluate -aa_tpr G1_DATA/aa_topol.tpr -aa_traj G1_DATA/aa_traj.xtc -cg_map G1_DATA/cg_map.ndx -cg_itp G1_DATA/cg_model.itp -cg_tpr your_cg.tpr -cg_traj your_cg.xtc
+	scg_evaluate -aa_tpr G1_DATA/aa_topol.tpr -aa_traj G1_DATA/aa_traj.xtc -cg_map G1_DATA/cg_map.ndx -cg_itp G1_DATA/cg_model.itp -cg_tpr G1_DATA/cg_topol.tpr -cg_traj G1_DATA/cg_traj.xtc
 
 It can also be used for inspecting AA-mapped distributions exclusively.
 
