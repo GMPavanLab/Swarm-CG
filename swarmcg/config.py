@@ -61,7 +61,7 @@ handled_functions = {
     'angle': [1, 2],  # tested and verified: 1, 2
     'dihedral': [1, 2, 4],  # tested and verified: 1, 2, 4 -- ongoing: 9 (need to merge the 1+ dihedrals groups on plots)
     'virtual_sites2': [1],  # tested and verified: 1 -- ongoing: 2 (need GMX 2020)
-    'virtual_sites3': [1, 2, 3],  # tested and verified: 1, 2, 3 -- ongoing: 4
+    'virtual_sites3': [1, 2, 3, 4],  # tested and verified: 1, 2, 3, 4
     'virtual_sites4': [],  # ongoing: 2 -- irrelevant: 1
     'virtual_sitesn': [1, 2, 3]  # tested and verified: 1, 2, 3
 }

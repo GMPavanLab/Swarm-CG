@@ -242,10 +242,10 @@ def run(ns):
     # touch results files to be appended to later
     with open(ns.exec_folder+'/'+config.opti_perf_recap_file, 'w') as fp:
         # TODO: print that file has been generated with Swarm-CG etc -- do this for basically all files
-        fp.write('# nb constraints: '+str(ns.nb_constraints)+'\n')
-        fp.write('# nb bonds: '+str(ns.nb_bonds)+'\n')
-        fp.write('# nb angles: '+str(ns.nb_angles)+'\n')
-        fp.write('# nb dihedrals: '+str(ns.nb_dihedrals)+'\n')
+        fp.write(f'# nb constraints: {ns.nb_constraints}\n')
+        fp.write(f'# nb bonds: {ns.nb_bonds}\n')
+        fp.write(f'# nb angles: {ns.nb_angles}\n')
+        fp.write(f'# nb dihedrals: {ns.nb_dihedrals}\n')
         fp.write('#\n')
         fp.write('# opti_cycle nb_eval fit_score_all fit_score_cstrs_bonds fit_score_angles fit_score_dihedrals eval_score Rg_AA_mapped Rg_CG parameters_set eval_time current_total_time\n')
     with open(ns.exec_folder+'/'+config.opti_pairwise_distances_file, 'w'):
@@ -529,10 +529,10 @@ def run(ns):
     print('Total nb of evaluation steps:', ns.nb_eval)
     print('Best model obtained at evaluation step number:', ns.best_fitness[1])
     print()
-    print('Total execution time :', total_time, 'h')
-    print('Initialization time  :', init_time, 'h ('+str(round(init_time/total_time*100, 2))+' %)')
-    print('Simulations time     :', ns.total_gmx_time, 'h ('+str(round(ns.total_gmx_time/total_time*100, 2))+' %)')
-    print('Models scoring time  :', ns.total_model_eval_time, 'h ('+str(round(ns.total_model_eval_time/total_time*100, 2))+' %)')
+    print(f'Total execution time : {total_time} h')
+    print(f'Initialization time  : {init_time} h ({round(init_time/total_time*100, 2)} %)')
+    print(f'Simulations time     : {ns.total_gmx_time} h ({round(ns.total_gmx_time/total_time*100, 2)} %)')
+    print(f'Models scoring time  : {ns.total_model_eval_time} h ({round(ns.total_model_eval_time/total_time*100, 2)} %)')
     print()
 
 

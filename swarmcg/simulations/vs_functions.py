@@ -15,13 +15,10 @@ from ..shared import exceptions
 # vs_2 func 1 -> Linear combination using 2 reference points
 # weighted COG using a percentage in [0, 1]
 # the weight is applied on the bead ID that comes first
-def vs2_func_1(ns, traj, vs_def_beads_ids, vs_params, bead_id):
+def vs2_func_1(ns, traj, vs_def_beads_ids, vs_params):
 
     i, j = vs_def_beads_ids
     a = vs_params  # weight
-    if a < 0 or a > 1:
-        msg = f"Virtual site ID {bead_id + 1} uses an incorrect weight. Expected weight in [0 , 1]."
-        raise exceptions.MissformattedFile(msg)
     weights = np.array([1-a, a])
 
     for ts in ns.aa2cg_universe.trajectory:
@@ -32,19 +29,17 @@ def vs2_func_1(ns, traj, vs_def_beads_ids, vs_params, bead_id):
 # on the vector from i to j, at given distance (nm)
 # NOTE: it seems this one exists only since GROMACS 2020
 # TODO: check this one with a GMX 2020 installation
-def vs2_func_2(ns, traj, vs_def_beads_ids, vs_params, bead_id):
+def vs2_func_2(ns, traj, vs_def_beads_ids, vs_params):
 
     i, j = vs_def_beads_ids
     a = vs_params  # nm
     a = a * 10  # retrieve amgstrom for MDA
-    if a <= 0:
-        msg = f"Virtual site ID {bead_id + 1} uses an incorrect distance parameter. Expected d > 0."
-        raise exceptions.MissformattedFile(msg)
 
     for ts in ns.aa2cg_universe.trajectory:
         pos_i = ns.aa2cg_universe.atoms[i].position
         pos_j = ns.aa2cg_universe.atoms[j].position
-        traj[ts.frame] = pos_i + a * (pos_i-pos_j) / np.abs(pos_i-pos_j)
+        r_ij = pos_j - pos_i
+        traj[ts.frame] = pos_i + a * r_ij / mda.lib.mdamath.norm(r_ij)
 
 
 # Functions for virtual_sites3
@@ -69,7 +64,7 @@ def vs3_func_1(ns, traj, vs_def_beads_ids, vs_params):
 # vs_3 func 2 -> Linear combination using 3 reference points
 # in the plane, using WEIGHTS sum of vectors from j to i and from k to i + fixed distance
 # I used their formula (hopefully) so the form differs from the explanation on line above, but it should be identical
-def vs3_func_2(ns, traj, vs_def_beads_ids, vs_params, bead_id):
+def vs3_func_2(ns, traj, vs_def_beads_ids, vs_params):
 
     i, j, k = vs_def_beads_ids
     a, b = vs_params  # weight, nm
@@ -117,8 +112,8 @@ def vs3_func_4(ns, traj, vs_def_beads_ids, vs_params):
         pos_j = ns.aa2cg_universe.atoms[j].position
         pos_k = ns.aa2cg_universe.atoms[k].position
         r_ij = pos_j - pos_i
-        r_ik = pos_i - pos_k
-        traj[ts.frame] = pos_i - a * r_ij - b * r_ik + c * (r_ij * r_ik)
+        r_ik = pos_k - pos_i
+        traj[ts.frame] = pos_i + a * r_ij + b * r_ik - c * (r_ij / mda.lib.mdamath.norm(r_ij) * r_ik / mda.lib.mdamath.norm(r_ik))
 
 
 # Functions for virtual_sites4
@@ -128,7 +123,31 @@ def vs3_func_4(ns, traj, vs_def_beads_ids, vs_params):
 #       which still exists for retro compatibility but its usage must be avoided
 def vs4_func_2(ns, traj, vs_def_beads_ids, vs_params):
 
-    pass
+    i, j, k, l = vs_def_beads_ids
+    a, b, c = vs_params  # weight, weight, nm
+    c = c * 10  # retrieve amgstrom for MDA
+
+    for ts in ns.aa2cg_universe.trajectory:
+        pos_i = ns.aa2cg_universe.atoms[i].position
+        pos_j = ns.aa2cg_universe.atoms[j].position
+        pos_k = ns.aa2cg_universe.atoms[k].position
+        pos_l = ns.aa2cg_universe.atoms[l].position
+        r_ij = pos_j - pos_i
+        r_ik = pos_k - pos_i
+        r_il = pos_l - pos_i
+        r_ja = a * r_ik - r_ij
+        r_jb = b * r_il - r_ij
+
+        # r_m = r_ja * r_jb
+        # traj[ts.frame] = pos_i + c * (r_m / mda.lib.mdamath.norm(r_m))
+
+        # r_m = np.dot(r_ja, r_jb)
+        # r_m = np.dot(r_ja / mda.lib.mdamath.norm(r_ja), r_jb / mda.lib.mdamath.norm(r_jb))
+        # traj[ts.frame] = pos_i + c * (r_m / mda.lib.mdamath.norm(r_m))
+
+        r_m = r_ja / mda.lib.mdamath.norm(r_ja) * r_jb / mda.lib.mdamath.norm(r_jb)  # NOT TOO BAD BUT NOT OK
+        traj[ts.frame] = pos_i - c * (r_m / mda.lib.mdamath.norm(r_m))  # NOT TOO BAD BUT NOT OK
+
 
 
 # Functions for virtual_sitesn

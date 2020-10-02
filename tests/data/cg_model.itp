@@ -54,10 +54,16 @@ G1               1
 32     vT     1      G1    V32  32     0.00000
 33     vT     1      G1    V33  33     0.00000
 34     vT     1      G1    V34  34     0.00000
+35     vT     1      G1    V35  35     0.00000
+36     vT     1      G1    V36  36     0.00000
 
+
+;[ constraints ]
+;   i     j   funct   length
+;    1     2       1        0                     ; C1
 
 [ bonds ]
-;   i     j   funct   length   force.c.   
+;   i     j   funct   length   force.c.
 
 ; bond group 1
     1     2       1        0         0           ; B1
@@ -93,16 +99,16 @@ G1               1
    25    26       1        0         0           ; B4
 
 ; bond group 5
-    1    28       1        0         0           ; B5
+    3    28       1        0         0           ; B5
 
 ; bond group 6
-    2    28       1        0         0           ; B6
+    9    28       1        0         0           ; B6
 
 ; bond group 7
    16    32       1        0         0           ; B7
 
 ; bond group 8
-    1    29       1        0         0           ; B8
+    3    29       1        0         0           ; B8
 
 ; bond group 9
     9    29       1        0         0           ; B9
@@ -111,16 +117,43 @@ G1               1
     7    27       1        0         0           ; B10
 
 ; bond group 11
-    1    33       1        0         0           ; B11
+    5    27       1        0         0           ; B11
 
 ; bond group 12
-    2    33       1        0         0           ; B12
+    3    33       1        0         0           ; B12
 
 ; bond group 13
-    1    34       1        0         0           ; B13
+    9    33       1        0         0           ; B13
 
 ; bond group 14
-    9    34       1        0         0           ; B14
+   17    34       1        0         0           ; B14
+
+; bond group 15
+   16    34       1        0         0           ; B15
+
+; bond group 16
+   19    34       1        0         0           ; B16
+
+; bond group 17
+   21    35       1        0         0           ; B17
+
+; bond group 18
+    2    35       1        0         0           ; B18
+
+; bond group 19
+   15    35       1        0         0           ; B19
+
+; bond group 20
+    4    36       1        0         0           ; B20
+
+; bond group 21
+    3    36       1        0         0           ; B21
+
+; bond group 22
+    5    36       1        0         0           ; B22
+
+; bond group 23
+    7    36       1        0         0           ; B23
 
 
 [ angles ]
@@ -182,15 +215,21 @@ G1               1
 
 [ virtual_sites2 ]
 ;  vs     i     j  func   param
-   27     5     7     1   0.2
+   27     5     7     1   -1.3
 
 
 [ virtual_sites3 ]
 ;  vs     i     j     k  func   params
-   28     1     3     9     1   -0.3  -0.7
-   33     1     3     9     2   -0.2  0.35
-   29     1     3     9     3   120  0.25
-   34     1     3     9     4   0.5  0.25 1
+   28     1     3     9     1   -0.2  -0.7
+   33     1     3     9     2   -0.2  0.6
+   29     1     3     9     3   110  0.35
+   34    17    16    19     4   0.47  -0.25  0.32
+   35    21     2    15     4   0.12  0.3  0.21
+
+
+[ virtual_sites4 ]
+;  vs     i     j     k     l  func   params
+   36     4     3     5     7     2   -0.2  0.7  0.2
 
 
 [ virtual_sitesn ]

@@ -212,11 +212,6 @@ def main():
 	optional_args2.add_argument('-v', '--verbose', dest='verbose', help=config.help_verbose,
 								action='store_true', default=False)
 
-	# display help if script was called without arguments
-	# if len(sys.argv) == 1:
-	# 	args_parser.print_help()
-	# 	sys.exit()
-
 	# arguments handling, display command line if help or no arguments provided
 	ns = args_parser.parse_args()
 	input_cmdline = ' '.join(map(cmd_quote, sys.argv))
