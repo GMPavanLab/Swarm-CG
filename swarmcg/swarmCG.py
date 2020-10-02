@@ -30,7 +30,7 @@ warnings.resetwarnings()
 
 # cast object as string, enclose by parentheses and return a string -- for arguments display in help
 def par_wrap(string):
-	return '('+str(string)+')'
+	return f'({string})'
 
 
 # set MDAnalysis backend and number of threads
@@ -165,7 +165,7 @@ def vs_error_control(ns, bead_id, vs_type, func, line_nb, vs_def_beads_ids=None)
 		)
 		raise exceptions.MissformattedFile(msg)
 
-	vs_type_str = 'virtual_sites' + str(vs_type)
+	vs_type_str = f'virtual_sites{vs_type}'
 	func = verify_handled_functions(vs_type_str, func, line_nb)
 
 	return func
@@ -401,7 +401,7 @@ def read_cg_itp_file(ns):
 					bead_id = int(sp_itp_line[0])-1
 					vs_def_beads_ids = [int(bid)-1 for bid in sp_itp_line[1:3]]
 					func = sp_itp_line[3]  # will be casted to int in the verification below (for factorizing checks)
-					func = vs_error_control(ns, bead_id, vs_type, func, i, vs_def_beads_ids)  # i is the line number
+					func = vs_error_control(ns, bead_id, vs_type, func, i + 1, vs_def_beads_ids)  # i is the line number
 					vs_params = float(sp_itp_line[4])
 					ns.cg_itp['atoms'][bead_id]['vs_type'] = vs_type
 					ns.cg_itp['virtual_sites2'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_def_beads_ids': vs_def_beads_ids, 'vs_params': vs_params}
@@ -412,7 +412,7 @@ def read_cg_itp_file(ns):
 					bead_id = int(sp_itp_line[0])-1
 					vs_def_beads_ids = [int(bid)-1 for bid in sp_itp_line[1:4]]
 					func = sp_itp_line[4]  # will be casted to int in the verification below (for factorizing checks)
-					func = vs_error_control(ns, bead_id, vs_type, func, i, vs_def_beads_ids)  # i is the line number
+					func = vs_error_control(ns, bead_id, vs_type, func, i + 1, vs_def_beads_ids)  # i is the line number
 					if func in [1, 2, 3]:
 						vs_params = [float(param) for param in sp_itp_line[5:7]]
 					elif func == 4:
@@ -426,7 +426,7 @@ def read_cg_itp_file(ns):
 					bead_id = int(sp_itp_line[0]) - 1
 					vs_def_beads_ids = [int(bid) - 1 for bid in sp_itp_line[1:5]]
 					func = sp_itp_line[5]  # will be casted to int in the verification below (for factorizing checks)
-					func = vs_error_control(ns, bead_id, vs_type, func, i, vs_def_beads_ids)  # i is the line number
+					func = vs_error_control(ns, bead_id, vs_type, func, i + 1, vs_def_beads_ids)  # i is the line number
 					vs_params = [float(param) for param in sp_itp_line[6:9]]
 					ns.cg_itp['atoms'][bead_id]['vs_type'] = vs_type
 					ns.cg_itp['virtual_sites4'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_def_beads_ids': vs_def_beads_ids, 'vs_params': vs_params}
@@ -437,14 +437,14 @@ def read_cg_itp_file(ns):
 					bead_id = int(sp_itp_line[0])-1
 					func = sp_itp_line[1]  # will be casted to int in verification below (for factorizing checks)
 					# here we do the check in 2 steps, because the reading of beads_ids depends on the function
-					func = vs_error_control(ns, bead_id, vs_type, func, i, vs_def_beads_ids=None)  # i is the line number
+					func = vs_error_control(ns, bead_id, vs_type, func, i + 1, vs_def_beads_ids=None)  # i is the line number
 					if func == 3:
 						vs_def_beads_ids = [int(sp_itp_line[2:][i])-1 for i in range(0, len(sp_itp_line[2:]), 2)]
 						vs_params = [float(sp_itp_line[2:][i]) for i in range(1, len(sp_itp_line[2:]), 2)]
 					else:
 						vs_def_beads_ids = [int(bid) - 1 for bid in sp_itp_line[2:]]
 						vs_params = None
-					func = vs_error_control(ns, bead_id, vs_type, func, i, vs_def_beads_ids)  # i is the line number
+					func = vs_error_control(ns, bead_id, vs_type, func, i + 1, vs_def_beads_ids)  # i is the line number
 					ns.cg_itp['atoms'][bead_id]['vs_type'] = vs_type
 					ns.cg_itp['virtual_sitesn'][bead_id] = {'bead_id': bead_id, 'func': func, 'vs_def_beads_ids': vs_def_beads_ids, 'vs_params': vs_params}
 
@@ -503,12 +503,12 @@ def read_cg_itp_file(ns):
 	ns.nb_bonds += 1
 	ns.nb_angles += 1
 	ns.nb_dihedrals += 1
-	print('  Found ' + str(len(ns.real_beads_ids)) + ' beads')
-	print('  Found ' + str(len(ns.vs_beads_ids)) + ' virtual sites')
-	print('  Found ' + str(ns.nb_constraints) + ' constraints groups')
-	print('  Found ' + str(ns.nb_bonds) + ' bonds groups')
-	print('  Found ' + str(ns.nb_angles) + ' angles groups')
-	print('  Found ' + str(ns.nb_dihedrals) + ' dihedrals groups')
+	print(f'  Found {len(ns.real_beads_ids)} beads')
+	print(f'  Found {len(ns.vs_beads_ids)} virtual sites')
+	print(f'  Found {ns.nb_constraints} constraints groups')
+	print(f'  Found {ns.nb_bonds} bonds groups')
+	print(f'  Found {ns.nb_angles} angles groups')
+	print(f'  Found {ns.nb_dihedrals} dihedrals groups')
 
 
 # load CG beads from NDX-like file
@@ -779,27 +779,27 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 		raise exceptions.InvalidArgument(msg)
 
 	for i in range(ns.opti_cycle['nb_geoms']['constraint']):
-		itp_obj['constraint'][i]['value'] = round(parameters_set[i], 3) # constraint - distance
+		itp_obj['constraint'][i]['value'] = round(parameters_set[i], 3)  # constraint - distance
 
 	for i in range(ns.opti_cycle['nb_geoms']['bond']):
-		itp_obj['bond'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+i], 3) # bond - distance
-		itp_obj['bond'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+ns.opti_cycle['nb_geoms']['bond']+i], 3) # bond - force constant
+		itp_obj['bond'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+i], 3)  # bond - distance
+		itp_obj['bond'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+ns.opti_cycle['nb_geoms']['bond']+i], 3)  # bond - force constant
 
 	for i in range(ns.opti_cycle['nb_geoms']['angle']):
 		if ns.exec_mode == 1 or ns.exec_mode == 3:
-			itp_obj['angle'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+i], 2) # angle - value
-			itp_obj['angle'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+ns.opti_cycle['nb_geoms']['angle']+i], 2) # angle - force constant
+			itp_obj['angle'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+i], 2)  # angle - value
+			itp_obj['angle'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+ns.opti_cycle['nb_geoms']['angle']+i], 2)  # angle - force constant
 		else:
-		 	itp_obj['angle'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+i], 2) # angle - force constant
+			itp_obj['angle'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+i], 2)  # angle - force constant
 
 	for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
 		if ns.exec_mode == 1:
-			itp_obj['dihedral'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+i], 2) # dihedral - value
+			itp_obj['dihedral'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+i], 2)  # dihedral - value
 			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+ns.opti_cycle['nb_geoms']['dihedral']+i], 2) # dihedral - force constant
 		elif ns.exec_mode == 3:
-			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+i], 2) # dihedral - force constant
+			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+i], 2)  # dihedral - force constant
 		else:
-		 	itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+ns.opti_cycle['nb_geoms']['angle']+i], 2) # dihedral - force constant
+			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+ns.opti_cycle['nb_geoms']['angle']+i], 2)  # dihedral - force constant
 
 
 # print coarse-grain ITP
@@ -1250,9 +1250,9 @@ def map_aa2cg_traj(ns):
 				vs_params = ns.cg_itp['virtual_sites2'][bead_id]['vs_params']
 
 				if ns.cg_itp['virtual_sites2'][bead_id]['func'] == 1:
-					vsf.vs2_func_1(ns, traj, vs_def_beads_ids, vs_params, bead_id)
+					vsf.vs2_func_1(ns, traj, vs_def_beads_ids, vs_params)
 				elif ns.cg_itp['virtual_sites2'][bead_id]['func'] == 2:
-					vsf.vs2_func_2(ns, traj, vs_def_beads_ids, vs_params, bead_id)
+					vsf.vs2_func_2(ns, traj, vs_def_beads_ids, vs_params)
 
 			if ns.cg_itp['atoms'][bead_id]['vs_type'] == 3:
 				vs_def_beads_ids = ns.cg_itp['virtual_sites3'][bead_id]['vs_def_beads_ids']
@@ -1261,7 +1261,7 @@ def map_aa2cg_traj(ns):
 				if ns.cg_itp['virtual_sites3'][bead_id]['func'] == 1:
 					vsf.vs3_func_1(ns, traj, vs_def_beads_ids, vs_params)
 				elif ns.cg_itp['virtual_sites3'][bead_id]['func'] == 2:
-					vsf.vs3_func_2(ns, traj, vs_def_beads_ids, vs_params, bead_id)
+					vsf.vs3_func_2(ns, traj, vs_def_beads_ids, vs_params)
 				elif ns.cg_itp['virtual_sites3'][bead_id]['func'] == 3:
 					vsf.vs3_func_3(ns, traj, vs_def_beads_ids, vs_params)
 				elif ns.cg_itp['virtual_sites3'][bead_id]['func'] == 4:
@@ -1378,11 +1378,11 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 	elif ns.bonds_scaling_specific is not None:
 
 		if grp_type.startswith('constraint'):
-			geom_id_full = 'C'+str(grp_nb+1)
+			geom_id_full = f'C{grp_nb+1}'
 		if grp_type.startswith('bond'):
-			geom_id_full = 'B'+str(grp_nb+1)
+			geom_id_full = f'B{grp_nb+1}'
 
-		if (geom_id_full[0] == 'C' and geom_id_full in ns.bonds_scaling_specific) or (geom_id_full[0] == 'B' and geom_id_full in ns.bonds_scaling_specific):
+		if (geom_id_full.startswith('C') and geom_id_full in ns.bonds_scaling_specific) or (geom_id_full.startswith('B') and geom_id_full in ns.bonds_scaling_specific):
 			bond_rescale_factor = ns.bonds_scaling_specific[geom_id_full] / bond_avg_init
 			bond_values = [bond_length * bond_rescale_factor for bond_length in bond_values]
 			bond_avg_final = round(np.average(bond_values), 3)
@@ -1729,8 +1729,17 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 			ns.aa2cg_universe._topology.masses.values = np.array(masses)
 
 		# create fake bonds in the CG MDA universe, that will be used only for making the molecule whole
+		# we make bonds between each VS and their beads definition, so we retrieve the connectivity
+		# iteratively towards the real CG beads, that are all connected
 		if len(ns.vs_beads_ids) > 0:
-			fake_bonds = [[vs_bid, ns.real_beads_ids[0]] for vs_bid in ns.vs_beads_ids]
+			fake_bonds = []
+			for vs_type in ['2', '3', '4', 'n']:
+				try:
+					for bead_id in ns.cg_itp['virtual_sites'+vs_type]:
+						for vs_def_bead_id in ns.cg_itp['virtual_sites'+vs_type][bead_id]['vs_def_beads_ids']:
+							fake_bonds.append([bead_id, vs_def_bead_id])
+				except (IndexError, ValueError):
+					pass
 			ns.cg_universe.add_bonds(fake_bonds, guessed=False)
 
 		# select the whole molecule as an MDA atomgroup and make its coordinates whole, inplace, across the complete trajectory
@@ -2049,7 +2058,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 					ax[nrow][i].plot(constraints[grp_constraint]['CG']['avg'], 0, color=config.cg_color, marker='D')
 					print(f"Constraint {grp_constraint + 1} -- AA Avg: {round(constraints[grp_constraint]['AA']['avg'], 3)} nm -- CG Avg: {round(constraints[grp_constraint]['CG']['avg'], 3)}")
 				else:
-					ax[nrow][i].set_title('Constraint grp '+str(grp_constraint+1)+' - Avg '+str(round(avg_diff_grp_constraints[grp_constraint], 3))+' nm')
+					ax[nrow][i].set_title(f'Constraint grp {grp_constraint+1} - Avg {round(avg_diff_grp_constraints[grp_constraint], 3)} nm')
 					print(f"Constraint {grp_constraint + 1} -- AA Avg: {round(constraints[grp_constraint]['AA']['avg'], 3)}")
 				ax[nrow][i].grid(zorder=0.5)
 				if ns.row_x_scaling:
@@ -2384,7 +2393,7 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 	if sim_time is not None:
 		if dt_line != -1 and nsteps_line != -1:
 			nsteps = int(sim_time*1000 / dt)
-			mdp_lines_in[nsteps_line] = sp_nsteps_line[0]+'= '+str(nsteps)+'    ; automatically modified by Swarm-CG'
+			mdp_lines_in[nsteps_line] = f'{sp_nsteps_line[0]}= {nsteps}    ; automatically modified by Swarm-CG'
 		else:
 			msg = "The provided MD MDP file does not contain one of these entries: dt, nsteps."
 			raise exceptions.MissformattedFile(msg)
@@ -2393,7 +2402,7 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 	# insufficient writting to the log file (which we use to check for simulations that are stuck/bugged)
 	if nstlog_line != -1:
 		nstlog = log_write_freq
-		mdp_lines_in[nstlog_line] = sp_nstlog_line[0]+'= '+str(nstlog)+'    ; automatically modified by Swarm-CG'
+		mdp_lines_in[nstlog_line] = f'{sp_nstlog_line[0]}= {nstlog}    ; automatically modified by Swarm-CG'
 	else:
 		msg = "The provided MD MDP file does not contain one of these entries: nstlog."
 		raise exceptions.MissformattedFile(msg)
@@ -2401,21 +2410,21 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 	# force NOT writting coordinates data, as this can only slow the simulation and we don't need it
 	nstxout = nsteps
 	if nstxout_line != -1:
-		mdp_lines_in[nstxout_line] = sp_nstxout_line[0]+'= '+str(nstxout)+'    ; automatically modified by Swarm-CG'
+		mdp_lines_in[nstxout_line] = f'{sp_nstxout_line[0]}= {nstxout}    ; automatically modified by Swarm-CG'
 	else:
 		mdp_lines_in.append(f'nstxout = {nstxout}    ; automatically added by Swarm-CG')
 
 	# force NOT writting velocities data, as this can only slow the simulation and we don't need it
 	nstvout = nsteps
 	if nstvout_line != -1:
-		mdp_lines_in[nstvout_line] = sp_nstvout_line[0]+'= '+str(nstvout)+'    ; automatically modified by Swarm-CG'
+		mdp_lines_in[nstvout_line] = f'{sp_nstvout_line[0]}= {nstvout}    ; automatically modified by Swarm-CG'
 	else:
 		mdp_lines_in.append(f'nstvout = {nstvout}    ; automatically added by Swarm-CG')
 
 	# force NOT writting forces data, as this can only slow the simulation and we don't need it
 	nstfout = nsteps
 	if nstfout_line != -1:
-		mdp_lines_in[nstfout_line] = sp_nstfout_line[0]+'= '+str(nstfout)+'    ; automatically modified by Swarm-CG'
+		mdp_lines_in[nstfout_line] = f'{sp_nstfout_line[0]}= {nstfout}    ; automatically modified by Swarm-CG'
 	else:
 		mdp_lines_in.append(f'nstfout = {nstfout}    ; automatically added by Swarm-CG')
 
@@ -2424,18 +2433,18 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 	nstcalcenergy = int(nsteps / nb_frames / energy_write_nb_frames_ratio)
 	nstenergy = nstcalcenergy
 	if nstcalcenergy_line != -1:
-		mdp_lines_in[nstcalcenergy_line] = sp_nstcalcenergy_line[0]+'= '+str(nstcalcenergy)+'    ; automatically modified by Swarm-CG'
+		mdp_lines_in[nstcalcenergy_line] = f'{sp_nstcalcenergy_line[0]}= {nstcalcenergy}    ; automatically modified by Swarm-CG'
 	else:
 		mdp_lines_in.append(f'nstcalcenergy = {nstcalcenergy}    ; automatically added by Swarm-CG')
 	if nstenergy_line != -1:
-		mdp_lines_in[nstenergy_line] = sp_nstenergy_line[0]+'= '+str(nstenergy)+'    ; automatically modified by Swarm-CG'
+		mdp_lines_in[nstenergy_line] = f'{sp_nstenergy_line[0]}= {nstenergy}    ; automatically modified by Swarm-CG'
 	else:
 		mdp_lines_in.append(f'nstenergy = {nstenergy}    ; automatically added by Swarm-CG')
 
 	# force writting compressed frames at given frequency, so that we obtain the desired number of frames for each CG simulation/evaluation step
 	nstxout_compressed = int(nsteps / nb_frames)
 	if nstxout_compressed_line != -1:
-		mdp_lines_in[nstxout_compressed_line] = sp_nstxout_compressed_line[0]+'= '+str(nstxout_compressed)+'    ; automatically modified by Swarm-CG'
+		mdp_lines_in[nstxout_compressed_line] = f'{sp_nstxout_compressed_line[0]}= {nstxout_compressed}    ; automatically modified by Swarm-CG'
 	else:
 		# sys.exit(config.header_error+'The provided MD MDP file does not contain one of these entries: nstxout-compressed')
 		mdp_lines_in.append(f'nstxout-compressed = {nstxout_compressed}    ; automatically added by Swarm-CG')
@@ -2482,12 +2491,12 @@ def eval_function(parameters_set, ns):
 	os.chdir(ns.exec_folder)
 
 	# create new directory for new parameters evaluation
-	current_eval_dir = config.iteration_sim_files_dirname+'_eval_step_'+str(ns.nb_eval)
+	current_eval_dir = f'{config.iteration_sim_files_dirname}_eval_step_{ns.nb_eval}'
 	shutil.copytree(config.input_sim_files_dirname, current_eval_dir)
 
 	# create a modified CG ITP file with parameters according to current evaluation type
 	update_cg_itp_obj(ns, parameters_set=parameters_set, update_type=1)
-	out_path_itp = config.iteration_sim_files_dirname+'_eval_step_'+str(ns.nb_eval)+'/'+ns.cg_itp_basename
+	out_path_itp = f'{config.iteration_sim_files_dirname}_eval_step_{ns.nb_eval}/{ns.cg_itp_basename}'
 	if ns.opti_cycle['nb_geoms']['dihedral'] == 0:
 		print_sections = ['constraint', 'bond', 'angle', 'exclusion']
 	else:
@@ -2507,7 +2516,7 @@ def eval_function(parameters_set, ns):
 	# 	ns.gro_input_basename = previous_best_final_conf
 
 	# grompp -- minimization
-	gmx_cmd = ns.gmx_path+' grompp -c '+ns.gro_input_basename+' -p '+ns.top_input_basename+' -f '+ns.mdp_minimization_basename+' -o mini -maxwarn '+str(ns.mini_maxwarn)
+	gmx_cmd = f'{ns.gmx_path} grompp -c {ns.gro_input_basename} -p {ns.top_input_basename} -f {ns.mdp_minimization_basename} -o mini -maxwarn {ns.mini_maxwarn}'
 	with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
 		gmx_out = gmx_process.communicate()[1].decode()
 		gmx_process.kill()
@@ -2515,7 +2524,7 @@ def eval_function(parameters_set, ns):
 	if gmx_process.returncode == 0:
 		# mdrun -- minimization
 		gmx_cmd = gmx_args(ns, 'mdrun -deffnm mini', mpi=False)
-		with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process: # create a process group for the minimization run
+		with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process:  # create a process group for the minimization run
 
 			# check if minimization run is stuck because of instabilities
 			cycles_check = 0
@@ -2655,7 +2664,7 @@ def eval_function(parameters_set, ns):
 				if ns.sasa_cg is not None:
 
 					# store the distributions for each evaluation step
-					shutil.move('distributions.png', '../'+config.distrib_plots_all_evals_dirname+'/distributions_eval_step_'+str(ns.nb_eval)+'.png')
+					shutil.move('distributions.png', f'../{config.distrib_plots_all_evals_dirname}/distributions_eval_step_{ns.nb_eval}.png')
 
 					eval_score = 0
 					if 'constraint' in ns.opti_cycle['geoms'] and 'bond' in ns.opti_cycle['geoms']:
@@ -2729,17 +2738,17 @@ def eval_function(parameters_set, ns):
 	# exit current eval directory
 	os.chdir('..')
 
-	# store log files
+	# store all log files
 	if os.path.isfile(current_eval_dir+'/md.log'):
-		shutil.copy(current_eval_dir+'/md.log', config.log_files_all_evals_dirname+'/MD_sim_eval_step_'+str(ns.nb_eval)+'.log')  # copy prod log file
-	elif os.path.isfile(current_eval_dir+'/equi.log'):
-		shutil.copy(current_eval_dir+'/equi.log', config.log_files_all_evals_dirname+'/equi_sim_eval_step_'+str(ns.nb_eval)+'.log')  # copy equi log file
-	elif os.path.isfile(current_eval_dir+'/mini.log'):
-		shutil.copy(current_eval_dir+'/mini.log', config.log_files_all_evals_dirname+'/mini_sim_eval_step_'+str(ns.nb_eval)+'.log')  # copy mini log file
+		shutil.copy(current_eval_dir+'/md.log', f'{config.log_files_all_evals_dirname}/MD_sim_eval_step_{ns.nb_eval}.log')
+	if os.path.isfile(current_eval_dir+'/equi.log'):
+		shutil.copy(current_eval_dir+'/equi.log', f'{config.log_files_all_evals_dirname}/equi_sim_eval_step_{ns.nb_eval}.log')
+	if os.path.isfile(current_eval_dir+'/mini.log'):
+		shutil.copy(current_eval_dir+'/mini.log', f'{config.log_files_all_evals_dirname}/mini_sim_eval_step_{ns.nb_eval}.log')
 
 	# update the best results distrib plot in execution directory
 	if new_best_fit:
-		shutil.copy(config.distrib_plots_all_evals_dirname+'/distributions_eval_step_'+str(ns.nb_eval)+'.png', config.best_distrib_plots)
+		shutil.copy(f'{config.distrib_plots_all_evals_dirname}/distributions_eval_step_{ns.nb_eval}.png', config.best_distrib_plots)
 
 	# keep all sim files if user wants to
 	if ns.keep_all_sims:
@@ -2769,14 +2778,14 @@ def eval_function(parameters_set, ns):
 		if new_best_fit:
 			print_stdout_forced('    --> Selected as new best bonded parametrization')
 		# print_stdout_forced('  Opti context mismatch score:', round(eval_score, 3))
-		print_stdout_forced('  Rg CG: ', ' '+str(round(ns.gyr_cg, 2)), 'nm   (Error abs.', str(round(abs(1-ns.gyr_cg/ns.gyr_aa_mapped)*100, 1))+'% -- Reference Rg AA-mapped:', str(ns.gyr_aa_mapped)+' nm)')
-		print_stdout_forced('  SASA CG:', ns.sasa_cg, 'nm2   (Error abs.', str(round(abs(1-ns.sasa_cg/ns.sasa_aa_mapped)*100, 1))+'% -- Reference SASA AA-mapped:', str(ns.sasa_aa_mapped)+' nm2)')
+		print_stdout_forced(f'  Rg CG:   {round(ns.gyr_cg, 2)} nm   (Error abs. {round(abs(1 - ns.gyr_cg / ns.gyr_aa_mapped) * 100, 1)}% -- Reference Rg AA-mapped: {ns.gyr_aa_mapped} nm)')
+		print_stdout_forced(f'  SASA CG: {ns.sasa_cg} nm2   (Error abs. {round(abs(1 - ns.sasa_cg / ns.sasa_aa_mapped) * 100, 1)}% -- Reference SASA AA-mapped: {ns.sasa_aa_mapped} nm2)')
 
 	current_total_time = round((datetime.now().timestamp() - ns.start_opti_ts) / (60 * 60), 2)
 	current_eval_time = datetime.now().timestamp() - start_eval_ts
 	ns.total_eval_time += current_eval_time
 	current_eval_time = round(current_eval_time / 60, 2)
-	print_stdout_forced('  Iteration time:', current_eval_time, 'min')
+	print_stdout_forced(f'  Iteration time: {current_eval_time} min')
 
 	# write all pairwise distances between atom mapped and CG geoms to file for later global optimization perf plotting
 	with open(config.opti_pairwise_distances_file, 'a') as fp:
@@ -2787,17 +2796,17 @@ def eval_function(parameters_set, ns):
 	with open(config.opti_perf_recap_file, 'a') as fp:
 		recap_line = ' '.join(list(map(str, (ns.opti_cycle['nb_cycle'], ns.nb_eval, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals, eval_score, ns.gyr_aa_mapped, ns.gyr_aa_mapped_std, ns.gyr_cg, ns.gyr_cg_std, ns.sasa_aa_mapped, ns.sasa_aa_mapped_std, ns.sasa_cg, ns.sasa_cg_std))))+' '
 		for i in range(len(ns.cg_itp['constraint'])):
-			recap_line += str(ns.out_itp['constraint'][i]['value'])+' '
+			recap_line += f"{ns.out_itp['constraint'][i]['value']} "
 		for i in range(len(ns.cg_itp['bond'])):
-			recap_line += str(ns.out_itp['bond'][i]['value'])+' '+str(ns.out_itp['bond'][i]['fct'])+' '
+			recap_line += f"{ns.out_itp['bond'][i]['value']} {ns.out_itp['bond'][i]['fct']} "
 		for i in range(len(ns.cg_itp['angle'])):
-			recap_line += str(ns.out_itp['angle'][i]['value'])+' '+str(ns.out_itp['angle'][i]['fct'])+' '
+			recap_line += f"{ns.out_itp['angle'][i]['value']} {ns.out_itp['angle'][i]['fct']} "
 		for i in range(len(ns.cg_itp['dihedral'])):
 			if ns.opti_cycle['nb_geoms']['dihedral'] == 0:
 				recap_line += '0 0 '
 			else:
-				recap_line += str(ns.out_itp['dihedral'][i]['value'])+' '+str(ns.out_itp['dihedral'][i]['fct'])+' '
-		recap_line += str(current_eval_time)+' '+str(current_total_time)
+				recap_line += f"{ns.out_itp['dihedral'][i]['value']} {ns.out_itp['dihedral'][i]['fct']} "
+		recap_line += f'{current_eval_time} {current_total_time}'
 		fp.write(recap_line+'\n')
 
 	os.chdir('..')  # exit the execution directory
