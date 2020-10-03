@@ -499,6 +499,14 @@ def read_cg_itp_file(ns):
 				else:
 					raise exceptions.MissformattedFile(msg(geom, grp_geom))
 
+	# verify we have as many real CG beads (i.e. NOT virtual sites) in the ITP than in the mapping file
+	if len(ns.real_beads_ids) != len(ns.all_beads):
+		msg = (
+			"The CG beads mapping (NDX) file does NOT include as many CG beads as the ITP file.\n"
+			"Please check the NDX and ITP files you provided."
+		)
+		raise exceptions.MissformattedFile(msg)
+
 	ns.nb_constraints += 1
 	ns.nb_bonds += 1
 	ns.nb_angles += 1
@@ -529,30 +537,18 @@ def read_ndx_atoms2beads(ns):
 			if ndx_line != '':
 
 				if bool(re.search('\[.*\]', ndx_line)):
-					ns.all_beads[bead_id] = {'atoms_id': []}
-					lines_read = 0 # error handling, ensure only 1 line is read for each NDX file section/bead
 					current_section = ndx_line
+					ns.all_beads[bead_id] = {'atoms_id': [], 'section': current_section, 'line_nb': i+1}
+					current_bead_id = bead_id
+					bead_id += 1
 
 				else:
 					try:
-						lines_read += 1
-						if lines_read > 1:
-							# TODO: this is incorrect, we should allow the content of a section to be split across
-							#       several lines when reading the file, but we forbid it atm
-							msg = (
-								f"A section of the CG beads mapping (NDX) file has multiple lines, "
-								f"while Swarm-CG accepts only one line per section.\nPlease use a "
-								f"single line for IDs under section {current_section} "
-								f"near line {str(i + 1)}."
-							)
-							raise exceptions.MissformattedFile(msg)
-
 						bead_atoms_id = [int(atom_id)-1 for atom_id in ndx_line.split()]  # retrieve indexing from 0 for atoms IDs for MDAnalysis
-						ns.all_beads[bead_id]['atoms_id'].extend(bead_atoms_id)  # all atoms included in current bead
+						ns.all_beads[current_bead_id]['atoms_id'].extend(bead_atoms_id)  # all atoms included in current bead
 
-						for atom_id in bead_atoms_id: # bead to which each atom belongs (one atom can belong to multiple beads if there is split-mapping)
+						for atom_id in bead_atoms_id:  # bead to which each atom belongs (one atom can belong to multiple beads if there is split-mapping)
 							ns.atoms_occ_total[atom_id] += 1
-						bead_id += 1
 
 					except NameError:
 						msg = (
@@ -561,13 +557,22 @@ def read_ndx_atoms2beads(ns):
 							"Gromacs NDX."
 						)
 						raise exceptions.MissformattedFile(msg)
-					except ValueError: # non-integer atom ID provided
+
+					except ValueError:  # non-integer atom ID provided
 						msg = (
 							f"Incorrect reading of the sections content in the CG beads mapping "
 							f"(NDX) file.\nFound non-integer values for some IDs at line "
 							f"{str(i + 1)} under section {current_section}."
 						)
 						raise exceptions.MissformattedFile(msg)
+
+	for bead_id in ns.all_beads:
+		if len(ns.all_beads[bead_id]['atoms_id']) == 0:
+			msg = (
+				f"The ITP file contains an empty section named {ns.all_beads[bead_id]['section']} starting at line {ns.all_beads[bead_id]['line_nb']}."
+				f"Empty sections are NOT allowed, please fill or delete it."
+			)
+			raise exceptions.MissformattedFile(msg)
 
 
 # calculate weight ratio of atom ID in given CG bead
@@ -583,7 +588,7 @@ def get_atoms_weights_in_beads(ns):
 		beads_atoms_counts = collections.Counter(ns.all_beads[bead_id]['atoms_id'])
 		for atom_id in beads_atoms_counts:
 			ns.atom_w[bead_id][atom_id] = round(beads_atoms_counts[atom_id] / ns.atoms_occ_total[atom_id], 3)
-			if ns.verbose:
+			if ns.verbose and ns.mapping_type == 'COM':
 				print('  CG bead ID', bead_id+1, '-- Atom ID', atom_id+1, 'has weight ratio =', ns.atom_w[bead_id][atom_id])
 	if ns.verbose:
 		print()
