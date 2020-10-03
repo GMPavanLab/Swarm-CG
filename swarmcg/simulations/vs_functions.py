@@ -137,17 +137,8 @@ def vs4_func_2(ns, traj, vs_def_beads_ids, vs_params):
         r_il = pos_l - pos_i
         r_ja = a * r_ik - r_ij
         r_jb = b * r_il - r_ij
-
-        # r_m = r_ja * r_jb
-        # traj[ts.frame] = pos_i + c * (r_m / mda.lib.mdamath.norm(r_m))
-
-        # r_m = np.dot(r_ja, r_jb)
-        # r_m = np.dot(r_ja / mda.lib.mdamath.norm(r_ja), r_jb / mda.lib.mdamath.norm(r_jb))
-        # traj[ts.frame] = pos_i + c * (r_m / mda.lib.mdamath.norm(r_m))
-
-        r_m = r_ja / mda.lib.mdamath.norm(r_ja) * r_jb / mda.lib.mdamath.norm(r_jb)  # NOT TOO BAD BUT NOT OK
-        traj[ts.frame] = pos_i - c * (r_m / mda.lib.mdamath.norm(r_m))  # NOT TOO BAD BUT NOT OK
-
+        r_m = np.cross(r_ja, r_jb)
+        traj[ts.frame] = pos_i - c * (r_m / mda.lib.mdamath.norm(r_m))
 
 
 # Functions for virtual_sitesn

@@ -62,7 +62,7 @@ handled_functions = {
     'dihedral': [1, 2, 4],  # tested and verified: 1, 2, 4 -- ongoing: 9 (need to merge the 1+ dihedrals groups on plots)
     'virtual_sites2': [1],  # tested and verified: 1 -- ongoing: 2 (need GMX 2020)
     'virtual_sites3': [1, 2, 3, 4],  # tested and verified: 1, 2, 3, 4
-    'virtual_sites4': [],  # ongoing: 2 -- irrelevant: 1
+    'virtual_sites4': [2],  # tested and verified: 2 -- irrelevant: 1
     'virtual_sitesn': [1, 2, 3]  # tested and verified: 1, 2, 3
 }
 dihedral_func_with_mult = [1, 4, 9]  # these functions use 3 parameters, the last one being multiplicity
