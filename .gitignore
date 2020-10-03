@@ -99,3 +99,6 @@ ENV/
 .pytest_cache/
 
 # data
+/distributions.png
+/G1_DATA/.aa_traj.xtc_offsets.npz
+/G1_DATA/.cg_traj.xtc_offsets.npz

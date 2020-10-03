@@ -20,39 +20,51 @@ matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend sui
 
 def run(ns):
 
+	print()
+	print(swarmcg.shared.styling.sep_close)
+	print('| PRE-PROCESSING                                                                              |')
+	print(swarmcg.shared.styling.sep_close)
+	print()
+
 	from numpy import VisibleDeprecationWarning
-	warnings.filterwarnings("ignore", category=VisibleDeprecationWarning) # filter MDAnalysis + numpy deprecation stuff that is annoying
+	warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)  # filter MDAnalysis + numpy deprecation stuff that is annoying
 
-	# TODO: make it possible to feed a delta for Rg in case the model has scaling ?
+	# TODO: make it possible to feed a delta/offset for Rg in case the model has bonds scaling ?
 
-	ns.molname_in = None # TODO: arguments that exist only in the scope of optimization (useless for manual model evaluation) -- but this could be modified to be allowed to evaluate models in mixed membranes, averaging distribs for given molecule name only
+	# get basenames for simulation files
+	ns.cg_itp_basename = os.path.basename(ns.cg_itp_filename)
+
+	# NOTE: some arguments exist only in the scope of optimization (optimize_model.py) or only in the scope of model
+	#       evaluation (evaluate_mode.py), so they need to be defined here
+	ns.molname_in = None
 	ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None
-	# ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
-	ns.aa_rg_offset = 0
+	ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
+	ns.aa_rg_offset = 0  # TODO: allow an argument more in evaluate_model, like in optimiwe_model, for adding an offset to Rg
 
 	scg.set_MDA_backend(ns)
 
-	# TODO: add missing checks -- if some are missing
-	# TODO: factorize all checks and put them in global lib
 	if not os.path.isfile(ns.aa_tpr_filename):
 		msg = (
-			"Cannot find coordinate file of the atomistic simulation"
-			"(GRO, PDB, or other trajectory formats supported by MDAnalysis)"
+			f"Cannot find topology file of the atomistic simulation at location: {ns.aa_tpr_filename}\n"
+			f"(TPR or other portable topology formats supported by MDAnalysis)"
 		)
 		raise exceptions.MissingCoordinateFile(msg)
 	if not os.path.isfile(ns.aa_traj_filename):
 		msg = (
-			"Cannot find trajectory file of the atomistic simulation"
-			"(XTC, TRR, or other trajectory formats supported by MDAnalysis)"
+			f"Cannot find trajectory file of the atomistic simulation at location: {ns.aa_traj_filename}\n"
+			f"(XTC, TRR, or other trajectory formats supported by MDAnalysis)"
 		)
 		raise exceptions.MissingTrajectoryFile(msg)
 
 	if not os.path.isfile(ns.cg_map_filename):
-		msg = "Cannot find CG beads mapping file (NDX-like file format)"
+		msg = (
+			f"Cannot find CG beads mapping file at location: {ns.cg_map_filename}\n"
+			f"(NDX-like file format)"
+		)
 		raise exceptions.MissingIndexFile(msg)
 
 	if not os.path.isfile(ns.cg_itp_filename):
-		msg = "Cannot find ITP file of the CG model"
+		msg = f"Cannot find ITP file of the CG model at location: {ns.cg_itp_filename}"
 		raise exceptions.MissingItpFile(msg)
 
 	# check bonds scaling arguments conflicts
@@ -63,15 +75,15 @@ def run(ns):
 		)
 		raise exceptions.InputArgumentError(msg)
 
-	print()
-	print(swarmcg.shared.styling.sep_close)
-	print('| PRE-PROCESSING                                                                              |')
-	print(swarmcg.shared.styling.sep_close)
-	print()
+	# check the mapping type
+	ns.mapping_type = ns.mapping_type.upper()
+	if ns.mapping_type != 'COM' and ns.mapping_type != 'COG':
+		msg = "Mapping type provided via argument '-mapping' must be either COM or COG (Center of Mass or Center of Geometry)."
+		raise exceptions.InputArgumentError(msg)
 
 	# display parameters for function compare_models
 	if not os.path.isfile(ns.cg_tpr_filename) or not os.path.isfile(ns.cg_traj_filename):
-		# switch to atomistic mapping inspection exclusively (= do NOT use real CG distributions)
+		# switch to atomistic mapping inspection exclusively (= do NOT plot the CG distributions)
 		print('Could not find file(s) for either CG topology or trajectory')
 		print('  Going for inspection of AA-mapped distributions exclusively')
 		print()
@@ -85,7 +97,26 @@ def run(ns):
 	except IndexError as e:
 		ns.plot_filename = ns.plot_filename+'.png'
 
-	scg.create_bins_and_dist_matrices(ns)
+	scg.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
+	scg.read_ndx_atoms2beads(ns)  # read mapping, get atoms accurences in beads
+	scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
+
+	scg.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
+	scg.process_scaling_str(ns)  # process the bonds scaling specified by user
+
+	print()
+	scg.read_aa_traj(ns)  # create universe and read traj
+	scg.load_aa_data(ns)  # read atoms attributes
+	scg.make_aa_traj_whole_for_selected_mols(ns)
+
+	# for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
+	scg.get_beads_MDA_atomgroups(ns)
+
+	print('\nMapping the trajectory from AA to CG representation')
+	scg.initialize_cg_traj(ns)
+	scg.map_aa2cg_traj(ns)
+	print()
+
 	scg.compare_models(ns, manual_mode=True, calc_sasa=False)
 
 
@@ -116,6 +147,8 @@ def main():
 	required_args.add_argument('-cg_map', dest='cg_map_filename', help=config.help_cg_map, type=str,
 							   default=config.metavar_cg_map,
 							   metavar='       ' + scg.par_wrap(config.metavar_cg_map))
+	required_args.add_argument('-mapping', dest='mapping_type', help=config.help_mapping_type, type=str,
+							   default='COM', metavar='             (COM)')
 	required_args.add_argument('-cg_itp', dest='cg_itp_filename',
 							   help='ITP file of the CG model to evaluate', type=str,
 							   default=config.metavar_cg_itp,
@@ -128,7 +161,6 @@ def main():
 							   help='XTC file of your CG trajectory (omit for solo AA inspection)',
 							   type=str, default=config.metavar_cg_traj,
 							   metavar='     ' + scg.par_wrap(config.metavar_cg_traj))
-	# required_args.add_argument('-figmolname', dest='figmolname', help='TODO REMOVE', type=str, required=True) # TODO: remove, this was just for figures
 
 	optional_args = args_parser.add_argument_group(bullet + 'CG MODEL SCALING')
 	# optional_args.add_argument('-nb_threads', dest='nb_threads', help='number of threads to use', type=int, default=1, metavar='1') # TODO: does NOT work properly -- modif MDAnalysis code with OpenMP num_threads(n) in the pragma
@@ -147,8 +179,6 @@ def main():
 							   help=config.help_bonds2angles_scoring_factor, type=float,
 							   default=config.bonds2angles_scoring_factor,
 							   metavar='      ' + scg.par_wrap(config.bonds2angles_scoring_factor))
-	# ONLY FOR PAPER FIGURES
-	# optional_args.add_argument('-datamol', dest='datamol', help='Save bonded score and Rg values for each frame across simulation', type=str, default='MOL_EXEC_MODE')
 
 	graphical_args = args_parser.add_argument_group(bullet + 'FIGURE DISPLAY')
 	graphical_args.add_argument('-mismatch_ordering', dest='mismatch_order',
@@ -163,10 +193,10 @@ def main():
 								metavar='           ' + scg.par_wrap(config.bw_bonds))
 	graphical_args.add_argument('-bw_angles', dest='bw_angles', help=config.help_bw_angles,
 								type=float, default=config.bw_angles,
-								metavar='             ' + scg.par_wrap(config.bw_angles))
+								metavar='           ' + scg.par_wrap(config.bw_angles))
 	graphical_args.add_argument('-bw_dihedrals', dest='bw_dihedrals', help=config.help_bw_dihedrals,
 								type=float, default=config.bw_dihedrals,
-								metavar='          ' + scg.par_wrap(config.bw_dihedrals))
+								metavar='        ' + scg.par_wrap(config.bw_dihedrals))
 	graphical_args.add_argument('-disable_x_scaling', dest='row_x_scaling',
 								help='Disable auto-scaling of X axis across each row of the plot',
 								default=True, action='store_false')
@@ -176,7 +206,7 @@ def main():
 	graphical_args.add_argument('-bonds_max_range', dest='bonded_max_range',
 								help=config.help_bonds_max_range, type=float,
 								default=config.bonds_max_range,
-								metavar='       ' + scg.par_wrap(config.bonds_max_range))
+								metavar='      ' + scg.par_wrap(config.bonds_max_range))
 	graphical_args.add_argument('-ncols', dest='ncols_max',
 								help='Max. nb of columns displayed in figure', type=int, default=0,
 								metavar='')  # TODO: make this a line return in plot instead of ignoring groups
@@ -184,16 +214,11 @@ def main():
 	optional_args2 = args_parser.add_argument_group(bullet + 'OTHERS')
 	optional_args2.add_argument('-o', dest='plot_filename',
 								help='Filename for the output plot (extension/format can be one of:\neps, pdf, pgf, png, ps, raw, rgba, svg, svgz)',
-								type=str, default='distributions.png', metavar='distributions.png')
+								type=str, default='distributions.png', metavar='     (distributions.png)')
 	optional_args2.add_argument('-h', '--help', action='help',
 								help='Show this help message and exit')
 	optional_args2.add_argument('-v', '--verbose', dest='verbose', help=config.help_verbose,
 								action='store_true', default=False)
-
-	# display help if script was called without arguments
-	if len(sys.argv) == 1:
-		args_parser.print_help()
-		sys.exit()
 
 	# arguments handling, display command line if help or no arguments provided
 	ns = args_parser.parse_args()
@@ -202,3 +227,6 @@ def main():
 	print('Command line:', input_cmdline)
 
 	run(ns)
+
+if __name__ == "__main__":
+	main()
