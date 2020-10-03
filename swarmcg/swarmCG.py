@@ -571,6 +571,7 @@ def read_ndx_atoms2beads(ns):
 
 
 # calculate weight ratio of atom ID in given CG bead
+# this is for splitting atom weight in case an atom is mapped to several CG beads
 def get_atoms_weights_in_beads(ns):
 
 	ns.atom_w = dict()
@@ -595,8 +596,12 @@ def get_beads_MDA_atomgroups(ns):
 	for bead_id in ns.atom_w:
 		try:
 			# print('Created bead_id', bead_id, 'using atoms', [atom_id for atom_id in ns.atom_w[bead_id]])
-			ns.mda_beads_atom_grps[bead_id] = mda.AtomGroup([atom_id for atom_id in ns.atom_w[bead_id]], ns.aa_universe)
-			ns.mda_weights_atom_grps[bead_id] = np.array([ns.atom_w[bead_id][atom_id]*ns.aa_universe.atoms[atom_id].mass for atom_id in ns.atom_w[bead_id]])
+			if ns.mapping_type == 'COM':
+				ns.mda_beads_atom_grps[bead_id] = mda.AtomGroup([atom_id for atom_id in ns.atom_w[bead_id]], ns.aa_universe)
+				ns.mda_weights_atom_grps[bead_id] = np.array([ns.atom_w[bead_id][atom_id]*ns.aa_universe.atoms[atom_id].mass for atom_id in ns.atom_w[bead_id]])
+			elif ns.mapping_type == 'COG':
+				ns.mda_beads_atom_grps[bead_id] = mda.AtomGroup([atom_id for atom_id in ns.atom_w[bead_id]], ns.aa_universe)
+				ns.mda_weights_atom_grps[bead_id] = np.array([1 for _ in ns.atom_w[bead_id]])
 
 		except IndexError as e:
 			msg = (
@@ -1223,6 +1228,11 @@ def initialize_cg_traj(ns):
 
 
 def map_aa2cg_traj(ns):
+
+	if ns.mapping_type == 'COM':
+		print('  Interpretation: Center of Mass (COM)')
+	elif ns.mapping_type == 'COG':
+		print('  Interpretation: Center of Geometry (COG)')
 
 	# regular beads are mapped using center of mass of groups of atoms
 	coord = np.empty((len(ns.aa_universe.trajectory), len(ns.cg_itp['atoms']), 3))

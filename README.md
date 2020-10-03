@@ -8,7 +8,7 @@ Swarm-CG is designed for automatically optimizing the bonded terms of a MARTINI-
 
 ![Swarm-CG](https://raw.githubusercontent.com/GMPavanLab/Swarm-CG/master/images/TOC_Swarm-CG_paper.png)
 
-Swarm-CG can be used with MARTINI version 2 or 3 and handles virtual sites usage.
+Swarm-CG can be used with MARTINI version 2 or 3, handles virtual sites usage and mapping via Center of Mass (COM) or Center of Geometry (COG).
 
 ### Publication
 

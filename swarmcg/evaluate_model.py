@@ -20,6 +20,12 @@ matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend sui
 
 def run(ns):
 
+	print()
+	print(swarmcg.shared.styling.sep_close)
+	print('| PRE-PROCESSING                                                                              |')
+	print(swarmcg.shared.styling.sep_close)
+	print()
+
 	from numpy import VisibleDeprecationWarning
 	warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)  # filter MDAnalysis + numpy deprecation stuff that is annoying
 
@@ -69,11 +75,11 @@ def run(ns):
 		)
 		raise exceptions.InputArgumentError(msg)
 
-	print()
-	print(swarmcg.shared.styling.sep_close)
-	print('| PRE-PROCESSING                                                                              |')
-	print(swarmcg.shared.styling.sep_close)
-	print()
+	# check the mapping type
+	ns.mapping_type = ns.mapping_type.upper()
+	if ns.mapping_type != 'COM' and ns.mapping_type != 'COG':
+		msg = "Mapping type provided via argument '-mapping' must be either COM or COG (Center of Mass or Center of Geometry)."
+		raise exceptions.InputArgumentError(msg)
 
 	# display parameters for function compare_models
 	if not os.path.isfile(ns.cg_tpr_filename) or not os.path.isfile(ns.cg_traj_filename):
@@ -141,6 +147,8 @@ def main():
 	required_args.add_argument('-cg_map', dest='cg_map_filename', help=config.help_cg_map, type=str,
 							   default=config.metavar_cg_map,
 							   metavar='       ' + scg.par_wrap(config.metavar_cg_map))
+	required_args.add_argument('-mapping', dest='mapping_type', help=config.help_mapping_type, type=str,
+							   default='COM', metavar='             (COM)')
 	required_args.add_argument('-cg_itp', dest='cg_itp_filename',
 							   help='ITP file of the CG model to evaluate', type=str,
 							   default=config.metavar_cg_itp,
@@ -185,10 +193,10 @@ def main():
 								metavar='           ' + scg.par_wrap(config.bw_bonds))
 	graphical_args.add_argument('-bw_angles', dest='bw_angles', help=config.help_bw_angles,
 								type=float, default=config.bw_angles,
-								metavar='             ' + scg.par_wrap(config.bw_angles))
+								metavar='           ' + scg.par_wrap(config.bw_angles))
 	graphical_args.add_argument('-bw_dihedrals', dest='bw_dihedrals', help=config.help_bw_dihedrals,
 								type=float, default=config.bw_dihedrals,
-								metavar='          ' + scg.par_wrap(config.bw_dihedrals))
+								metavar='        ' + scg.par_wrap(config.bw_dihedrals))
 	graphical_args.add_argument('-disable_x_scaling', dest='row_x_scaling',
 								help='Disable auto-scaling of X axis across each row of the plot',
 								default=True, action='store_false')
@@ -198,7 +206,7 @@ def main():
 	graphical_args.add_argument('-bonds_max_range', dest='bonded_max_range',
 								help=config.help_bonds_max_range, type=float,
 								default=config.bonds_max_range,
-								metavar='       ' + scg.par_wrap(config.bonds_max_range))
+								metavar='      ' + scg.par_wrap(config.bonds_max_range))
 	graphical_args.add_argument('-ncols', dest='ncols_max',
 								help='Max. nb of columns displayed in figure', type=int, default=0,
 								metavar='')  # TODO: make this a line return in plot instead of ignoring groups
@@ -206,7 +214,7 @@ def main():
 	optional_args2 = args_parser.add_argument_group(bullet + 'OTHERS')
 	optional_args2.add_argument('-o', dest='plot_filename',
 								help='Filename for the output plot (extension/format can be one of:\neps, pdf, pgf, png, ps, raw, rgba, svg, svgz)',
-								type=str, default='distributions.png', metavar='distributions.png')
+								type=str, default='distributions.png', metavar='     (distributions.png)')
 	optional_args2.add_argument('-h', '--help', action='help',
 								help='Show this help message and exit')
 	optional_args2.add_argument('-v', '--verbose', dest='verbose', help=config.help_verbose,

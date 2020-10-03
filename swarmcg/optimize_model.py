@@ -78,6 +78,12 @@ def run(ns):
         )
         raise exceptions.AvoidOverwritingFolder(msg)
 
+    # check the mapping type
+    ns.mapping_type = ns.mapping_type.upper()
+    if ns.mapping_type != 'COM' and ns.mapping_type != 'COG':
+        msg = "Mapping type provided via argument '-mapping' must be either COM or COG (Center of Mass or Center of Geometry)."
+        raise exceptions.InputArgumentError(msg)
+
     # check if we can find files at user-provided location(s)
     # here the order of the args in the 2 lists below is important, be very careful if changing this or adding args
     arg_entries = vars(ns)  # dict view of the arguments namespace
@@ -574,6 +580,8 @@ def main():
     required_args.add_argument('-cg_map', dest='cg_map_filename', help=config.help_cg_map, type=str,
                              default=config.metavar_cg_map,
                              metavar='        ' + scg.par_wrap(config.metavar_cg_map))
+    required_args.add_argument('-mapping', dest='mapping_type', help=config.help_mapping_type, type=str,
+                             default='COM', metavar='              (COM)')
 
     sim_filenames_args = args_parser.add_argument_group(bullet + 'CG MODEL OPTIMIZATION')
     sim_filenames_args.add_argument('-cg_itp', dest='cg_itp_filename',
@@ -672,7 +680,7 @@ def main():
     optional_args5.add_argument('-bonds_max_range', dest='bonded_max_range',
                               help=config.help_bonds_max_range, type=float,
                               default=config.bonds_max_range,
-                              metavar='        ' + scg.par_wrap(config.bonds_max_range))
+                              metavar='       ' + scg.par_wrap(config.bonds_max_range))
 
     optional_args6 = args_parser.add_argument_group(bullet + 'CG MODEL FORCE CONSTANTS')
     optional_args6.add_argument('-max_fct_bonds_f1', dest='default_max_fct_bonds_opti',
