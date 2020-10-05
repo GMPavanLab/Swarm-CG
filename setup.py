@@ -26,6 +26,10 @@ setup(
         'fst-pso>=1.4.12',
         'MDAnalysis>=1.0.0'
     ],
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+    ],
     entry_points={
         'console_scripts': [
             'scg_optimize=swarmcg.optimize_model:main',
