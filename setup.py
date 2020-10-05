@@ -22,7 +22,7 @@ setup(
         'numpy>=1.16.4',
         'scipy>=1.2.2',
         'pyemd>=0.5.1',
-        'matplotlib>=2.2.4',
+        'matplotlib>=3.2.2',  # warnings appear for lower versions, don't change
         'fst-pso>=1.4.12',
         'MDAnalysis>=1.0.0'
     ],

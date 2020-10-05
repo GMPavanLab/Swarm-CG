@@ -2582,7 +2582,7 @@ def eval_function(parameters_set, ns):
 		if gmx_process.returncode == 0:
 			# mdrun -- EQUI
 			gmx_cmd = gmx_args(ns, 'mdrun -deffnm equi')
-			with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process: # create a process group for the EQUI run
+			with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process:  # create a process group for the EQUI run
 
 				# check if EQUI run is stuck because of instabilities
 				cycles_check = 0

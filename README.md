@@ -16,13 +16,16 @@ Swarm-CG works with MARTINI version 2 or 3. Virtual sites are correctly handled 
 
 ### Installation & Usage
 
-Swarm-CG was tested using Python 3.6.8 and Gromacs 2018.6.
+Swarm-CG has been tested with Python versions >= 3.6.8 and Gromacs versions >= 2018.1.
 
-	pip3 install swarm-cg    # creates the 3 entrypoints/aliases below
+    yum install python3-devel        # python dev tools CentOS (optional)
+    pip3 install python-dev-tools    # python dev tools Ubuntu (optional)
+
+	pip3 install swarm-cg            # creates the 3 entrypoints/aliases below
 	
-	scg_evaluate -h          # see point 1
-	scg_optimize -h          # see point 2
-	scg_monitor -h           # see point 3
+	scg_evaluate -h                  # see point 1
+	scg_optimize -h                  # see point 2
+	scg_monitor -h                   # see point 3
 
 To better handle sampling in symmetrical molecules you can form groups of bonds/angles/dihedrals that Swarm-CG will consider identical, using line returns and/or comments in the topology (ITP) file. AA-mapped distributions will be averaged within groups to create the references used for evaluation (see point 1) or as target of the optimization procedure (see point 2). For optimization, identical parameters will be used for the bonds/angles/dihedrals within each group.
 
