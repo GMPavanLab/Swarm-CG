@@ -1,6 +1,6 @@
 # Swarm-CG
 
-Swarm-CG is designed for automatically optimizing the bonded terms of a coarse-grained (CG) molecular model, in explicit or implicit solvent, with respect to a reference all-atom (AA) trajectory and starting from a preliminary CG model (topology and non-bonded parameters). The package is designed for usage with Gromacs and contains 3 modules for:
+Swarm-CG is designed for automatically optimizing the bonded terms of a MARTINI-based coarse-grained (CG) molecular model, in explicit or implicit solvent, with respect to a reference all-atom (AA) trajectory and starting from a preliminary CG model (topology and non-bonded parameters). The package is designed for usage with Gromacs and contains 3 modules for:
 
 1. Evaluating the bonded parametrization of a CG model
 2. Optimizing bonded terms of a CG model
@@ -8,9 +8,11 @@ Swarm-CG is designed for automatically optimizing the bonded terms of a coarse-g
 
 ![Swarm-CG](https://raw.githubusercontent.com/GMPavanLab/Swarm-CG/master/images/TOC_Swarm-CG_paper.png)
 
+Swarm-CG works with MARTINI version 2 or 3. Virtual sites are correctly handled and the AA-to-CG mapping can be interpreted as Center of Mass (COM) or Center of Geometry (COG).
+
 ### Publication
 
-> Empereur-mot, C.; Pesce, L.; Bochicchio, D.; Perego, C.; Pavan, G.M. (2020) Swarm-CG: Automatic Parametrization of Bonded Terms in Coarse-Grained Models of Simple to Complex Molecules via Fuzzy Self-Tuning Particle Swarm Optimization. [ChemRxiv. Preprint](https://doi.org/10.26434/chemrxiv.12613427)
+> Empereur-mot, C.; Pesce, L.; Bochicchio, D.; Perego, C.; Pavan, G.M. (2020) Swarm-CG: Automatic Parametrization of Bonded Terms in MARTINI-based Coarse-Grained Models of Simple to Complex Molecules via Fuzzy Self-Tuning Particle Swarm Optimization. [ChemRxiv. Preprint](https://doi.org/10.26434/chemrxiv.12613427)
 
 ### Installation & Usage
 
@@ -41,7 +43,7 @@ Here is an ITP file extract from the demonstration data of [PAMAM G1](https://gi
 
 The module `scg_evaluate` enables quick evaluation of the fit of bond, angle and dihedral distributions between a CG model trajectory and a reference AA model trajectory of an identical molecule, by producing a single comprehensive figure.
 
-	scg_evaluate -aa_tpr G1_DATA/aa_topol.tpr -aa_traj G1_DATA/aa_traj.xtc -cg_map G1_DATA/cg_map.ndx -cg_itp G1_DATA/cg_model.itp -cg_tpr your_cg.tpr -cg_traj your_cg.xtc
+	scg_evaluate -aa_tpr G1_DATA/aa_topol.tpr -aa_traj G1_DATA/aa_traj.xtc -cg_map G1_DATA/cg_map.ndx -cg_itp G1_DATA/cg_model.itp -cg_tpr G1_DATA/cg_topol.tpr -cg_traj G1_DATA/cg_traj.xtc
 
 It can also be used for inspecting AA-mapped distributions exclusively.
 

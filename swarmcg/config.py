@@ -1,25 +1,20 @@
 # general stuff
-module_version = '1.1.2'
 github_url = 'http://github.com/GMPavanLab/SwarmCG'
 gmx_path = 'gmx'
 
-# clustering, defaults
-default_dist_thres_bonds = 1 # nm
-default_dist_thres_angles = 180 # degrees
-default_dist_thres_dihedrals = 360 # degrees
-# default_dist_thres_bonds = 0.01 # for tests, force splitting groups with distribution clustering
-# default_dist_thres_angles = 1 # for tests, force splitting groups with distribution clustering
-# default_dist_thres_dihedrals = 1 # for tests, force splitting groups with distribution clustering
-
 # BI and FST-PSO OPTI, defaults
 kB = 0.008314462
-sim_temperature = 300 # Kelvin
-bi_nb_bins = 50 # nb of bins to use for Boltzmann Inversion, will be doubled for dihedrals distributions binning during BI -- this has huge impact on the results of the BI and this value shall STAY AT 50 ! actually I did not try to modify much but this feels like dangerous atm
-bonds_max_range = 5 # nm -- used to define grid for EMD calculations so increasing this only slightly increases computation time, however small bw for bonds has real impact
-bw_constraints = 0.002 # nm
-bw_bonds = 0.01 # nm
-bw_angles = 2.5 # degrees
-bw_dihedrals = 2.5 # degrees
+sim_temperature = 300  # Kelvin
+bi_nb_bins = 50  # nb of bins to use for Boltzmann Inversion, will be doubled for dihedrals distributions binning during BI -- this has huge impact on the results of the BI and this value shall STAY AT 50 ! actually I did not try to modify much but this feels like dangerous atm
+bonds_max_range = 15  # nm -- used to define grid for EMD calculations
+# NOTE: increasing bonds_max_range increases computation time, but memory usage increases exponentially
+# TODO: detect when a bond has longer values than bonds_max_range and suggest the user to raise the limit if he really
+#       needs to, but I don't really see what kind of use case would require more than 5 nm (maybe elastic net in
+#       proteins though)
+bw_constraints = 0.002  # nm
+bw_bonds = 0.01  # nm
+bw_angles = 2.5  # degrees
+bw_dihedrals = 2.5  # degrees
 default_min_fct_bonds = 0
 default_max_fct_bonds_bi = 17000
 default_max_fct_bonds_opti = 18000
@@ -39,38 +34,43 @@ default_max_fct_dihedrals_opti_func_without_mult = 1500
 default_abs_range_fct_dihedrals_bi_func_with_mult = 3.5
 default_abs_range_fct_dihedrals_opti_func_with_mult = 15
 
-bonds2angles_scoring_factor = 500 # multiplier applied to constraints/bonds EMD scores to retrieve angles/dihedrals mismatches that are comparable, for the opti scoring function
-sim_crash_EMD_indep_score = 150 # when a simulation crashes or does not finish for any reason: EMD distance between 2 distributions, for 1 geom
+bonds2angles_scoring_factor = 500  # multiplier applied to constraints/bonds EMD scores to retrieve angles/dihedrals mismatches that are comparable, for the opti scoring function
+sim_crash_EMD_indep_score = 150  # when a simulation crashes or does not finish for any reason: EMD distance between 2 distributions, for 1 geom
 
 # bonds scaling, default
-bonds_scaling = 1.0 # ratio
-min_bonds_length = 0.00 # nm
-bonds_scaling_str = '' # constraints and bonds ids + their required target AA-mapped distributions rescaled averages
+bonds_scaling = 1.0  # ratio
+min_bonds_length = 0.00  # nm
+bonds_scaling_str = ''  # constraints and bonds ids + their required target AA-mapped distributions rescaled averages
 
 # building of the initial guesses for optimization, defaults
-bond_dist_guess_variation = 0.025 # nm
-angle_value_guess_variation = 10 # degrees
-dihedral_value_guess_variation = 10 # degrees
-# val_guess_fact = 1.0 # factor to apply to initial geoms values to find low and high boundaries for random generation of particles' values -- now adjusted according to optimization cycles
-# fct_guess_fact = 0.2 # factor to apply to initial force constant to find low and high boundaries for random generation of particles' force constants -- now adjusted according to optimization cycles
-fct_guess_min_flat_diff_bonds = 200 # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
-fct_guess_min_flat_diff_angles = 50 # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
-fct_guess_min_flat_diff_dihedrals_without_mult = 0.50 # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
-fct_guess_min_flat_diff_dihedrals_with_mult = 0.20 # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
+bond_dist_guess_variation = 0.025  # nm
+angle_value_guess_variation = 10  # degrees
+dihedral_value_guess_variation = 10  # degrees
+fct_guess_min_flat_diff_bonds = 200  # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
+fct_guess_min_flat_diff_angles = 50  # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
+fct_guess_min_flat_diff_dihedrals_without_mult = 0.50  # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
+fct_guess_min_flat_diff_dihedrals_with_mult = 0.20  # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
 
 # gromacs functions that are properly treated at the moment
 # if we find a function that is not handled, program will exit with an appropriate error message
-handled_constraints_functions = [1]
-handled_bonds_functions = [1]
-handled_angles_functions = [1, 2]
-handled_dihedrals_functions = [1, 2, 4]
-dihedral_func_with_mult = [1, 4] # these functions use 3 parameters, the last one being multiplicity (if it's omitted gromacs will use 1 by default, we reproduce this behavior)
-# TODO: handle dihedral function 9 correctly so that different potentials can be stacked for the same beads -- this is the primary purpose of function 9 !! 
+# TODO: handle dihedral function 9 correctly so that different potentials can be stacked for the same beads
+#       this is the primary purpose of function 9 !!
+handled_functions = {
+    'constraint': [1],  # tested and verified: 1
+    'bond': [1],  # tested and verified: 1
+    'angle': [1, 2],  # tested and verified: 1, 2
+    'dihedral': [1, 2, 4],  # tested and verified: 1, 2, 4 -- ongoing: 9 (need to merge the 1+ dihedrals groups on plots)
+    'virtual_sites2': [1],  # tested and verified: 1 -- ongoing: 2 (need GMX 2020)
+    'virtual_sites3': [1, 2, 3, 4],  # tested and verified: 1, 2, 3, 4
+    'virtual_sites4': [2],  # tested and verified: 2 -- irrelevant: 1
+    'virtual_sitesn': [1, 2, 3]  # tested and verified: 1, 2, 3
+}
+dihedral_func_with_mult = [1, 4, 9]  # these functions use 3 parameters, the last one being multiplicity
 
 # plots display parameters
-use_hists = False # hists are not implemented in a way that they will be displayed with left and right borders, as it is already the case for bonds
-line_alpha = 0.6 # line alpha for the density plots
-fill_alpha = 0.35 # fill alpha for the density plots
+use_hists = False  # hists are not implemented in a way that they will be displayed with left and right bold borders atm
+line_alpha = 0.6  # line alpha for the density plots
+fill_alpha = 0.30  # fill alpha for the density plots
 cg_color = '#1f77b4'
 atom_color = '#d62728'
 
@@ -86,6 +86,7 @@ metavar_cg_traj = 'cg_traj.xtc'
 help_aa_tpr = 'Topology binary file of your reference AA simulation (TPR)'
 help_aa_traj = 'Trajectory file of the reference AA simulation (XTC, TRR)\nPBC are handled internally if trajectory contains box dimensions'
 help_cg_map = 'Mapping file of the atoms to CG beads (NDX-like file format)'
+help_mapping_type = 'Center Of Mass (COM) or Center Of Geometry (COG), for\ninterpreting the mapping file'
 help_verbose = 'Display more details on each processing step'
 help_gmx_path = 'Your Gromacs alias/path'
 help_bonds_scaling = 'Scaling factor for ALL AA-mapped bonds/constraints lengths\nOnly one of arguments -bonds_scaling, -bonds_scaling_str\nand -min_bonds_length can be provided'
@@ -105,7 +106,7 @@ help_max_fct_dihedrals_without_mult = 'Max. force ct. for dihedrals function 2 (
 
 # optimization output filenames
 input_sim_files_dirname = '.internal/input_CG_simulation_files'
-iteration_sim_files_dirname = 'CG_sim_files' # basename to be appended to with _NN
+iteration_sim_files_dirname = 'CG_sim_files'  # basename to be appended to with _NN
 best_fitted_model_dirname = 'optimized_CG_model'
 distrib_plots_all_evals_dirname = 'all_evals_distributions'
 log_files_all_evals_dirname = 'all_evals_logs'
@@ -114,15 +115,6 @@ opti_perf_recap_file = '.internal/opti_recap_evals_perfs_and_params.csv'
 opti_pairwise_distances_file = '.internal/opti_recap_evals_pairwise_distribs_diffs.csv'
 ref_distrib_plots = 'reference_AA_distributions.png'
 best_distrib_plots = 'optimized_CG_model_distributions.png'
-
-# stdout display formatting
-sep = '----------------------------------------------------------------------'
-sep_close = '+---------------------------------------------------------------------------------------------+'
-# header_warning = '\n========================= /!\\  WARNING  /!\\ ==========================\n'
-header_warning = '\n-- ! WARNING ! --\n'
-# header_error = '\n========================== /!\\  ERROR  /!\\ ===========================\n'
-header_error = '\n-- ! ERROR ! --\n'
-header_gmx_error = sep+'\n  GMX ERROR MSG\n'+sep+'\n\n'
 
 
 
