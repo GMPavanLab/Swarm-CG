@@ -2755,7 +2755,7 @@ def eval_function(parameters_set, ns):
 
 	# store all log files
 	if os.path.isfile(current_eval_dir+'/md.log'):
-		shutil.copy(current_eval_dir+'/md.log', f'{config.log_files_all_evals_dirname}/MD_sim_eval_step_{ns.nb_eval}.log')
+		shutil.copy(current_eval_dir+'/md.log', f'{config.log_files_all_evals_dirname}/md_sim_eval_step_{ns.nb_eval}.log')
 	if os.path.isfile(current_eval_dir+'/equi.log'):
 		shutil.copy(current_eval_dir+'/equi.log', f'{config.log_files_all_evals_dirname}/equi_sim_eval_step_{ns.nb_eval}.log')
 	if os.path.isfile(current_eval_dir+'/mini.log'):

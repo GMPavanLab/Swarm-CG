@@ -20,6 +20,10 @@ warnings.resetwarnings()
 
 def run(ns):
 
+	# filter matplotlib warnings
+	warnings.filterwarnings("ignore", category=DeprecationWarning)
+	warnings.filterwarnings("ignore", category=ImportWarning)
+
 	# TODO: print some text to tell user if opti run finished or not -- then we can only look at the results files, not the running processes on the machine
 
 	display_sim_crashes = False
@@ -30,26 +34,25 @@ def run(ns):
 	color_subscores = 'mediumseagreen'
 	yrange_rg = [None, None]
 	yrange_sasa = [None, None]
-	all_gyr_aa_mapped_offset = 0.00 # rescaling offset
+	all_gyr_aa_mapped_offset = 0.00  # rescaling offset
 
 	plt.rcParams['axes.axisbelow'] = True
 
 	# parameters
-	read_offset = 15 # nb of trailing fields that have static lengths in the recap file (i.e. NOT dependent on number of bonds, angles, etc.)
-	min_nb_cols = 9 # to be sure we have enough columns for opti process plots, even if number of bonds/angles/dihedrals is less than this
+	read_offset = 15  # nb of trailing fields that have static lengths in the recap file (i.e. NOT dependent on number of bonds, angles, etc.)
+	min_nb_cols = 9  # to be sure we have enough columns for opti process plots, even if number of bonds/angles/dihedrals is less than this
 
 	# read scores for each geom at each fitness evaluation/simulation
 	with warnings.catch_warnings():
 		warnings.filterwarnings("ignore", category=UserWarning)
 		iter_indep_scores = np.genfromtxt(ns.opti_dirname+'/'+config.opti_pairwise_distances_file, delimiter=' ')
 	try:
-		used_dihedrals = iter_indep_scores[:,0]
 		for i in range(1, iter_indep_scores.shape[1]):
 			iter_indep_scores[:, i] = forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)
-	except IndexError as e:
+	except IndexError:
 		msg = (
-			"The optimization recap file seems empty, please wait for your optimization process "
-			"to start or check for errors during execution"
+			"The optimization recap file seems empty. Please wait for your optimization process\n"
+			"to have performed a few iterations, or check for errors during execution."
 		)
 		raise exceptions.IncompleteOptimisationFile(msg)
 
@@ -63,7 +66,6 @@ def run(ns):
 
 		# to make sure the 2 opti recap files contain the same number of iterations (avoid buffering/writing problems so that this script can be executed anytime)
 		iter_indep_scores = iter_indep_scores[:nb_evals,]
-		used_dihedrals = used_dihedrals[:nb_evals]
 
 		# read header
 		nb_constraints = int(eval_lines[0].split()[3])
@@ -92,12 +94,6 @@ def run(ns):
 			parameters_vals['dihedrals']['force_ctr'][i] = []
 
 		all_eval_scores, all_eval_times, all_total_times = [], [], []
-		# worst_fit_score = round((nb_constraints+nb_bonds+nb_angles+nb_dihedrals) * config.sim_crash_EMD_indep_score, 3)
-		worst_fit_score = round(
-			np.sqrt((nb_constraints+nb_bonds) * config.sim_crash_EMD_indep_score) +
-			np.sqrt(nb_angles * config.sim_crash_EMD_indep_score) +
-			np.sqrt(nb_dihedrals * config.sim_crash_EMD_indep_score)
-		, 3)
 		all_fit_score_total, all_fit_score_constraints_bonds, all_fit_score_angles, all_fit_score_dihedrals = np.array([]), np.array([]), np.array([]), np.array([])
 		all_gyr_aa_mapped, all_gyr_aa_mapped_std, all_gyr_cg, all_gyr_cg_std = np.array([]), np.array([]), np.array([]), np.array([])
 		all_sasa_aa_mapped, all_sasa_aa_mapped_std, all_sasa_cg, all_sasa_cg_std = np.array([]), np.array([]), np.array([]), np.array([])
@@ -106,12 +102,11 @@ def run(ns):
 		y_fct_range = {'bonds': [np.inf, 0], 'angles': [np.inf, 0], 'dihedrals': [np.inf, 0]}
 
 		# read content
-		for i in range(6, 6+nb_evals): # nb of evaluations is taken from the independent scores to ignore a possible ongoing simulation, to be able to run this script during the opti process
+		for i in range(6, 6+nb_evals):  # nb of evaluations is taken from the independent scores to ignore a possible ongoing simulation, to be able to run this script during the opti process
 
 			sp_eval_line = eval_lines[i].split()
 			opti_cycle = int(sp_eval_line[0])
 			all_opti_cycles.append(opti_cycle)
-			num_eval = int(sp_eval_line[1])
 			fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals, eval_score = list(map(float, sp_eval_line[2:read_offset-8]))
 			try:
 				gyr_aa_mapped, gyr_aa_mapped_std = float(sp_eval_line[read_offset-8]), float(sp_eval_line[read_offset-7])
@@ -206,33 +201,11 @@ def run(ns):
 	cyc_mask = np.where((all_opti_cycles > 0) & (all_fit_score_total != None))[0]
 	id_best_all = np.where(all_fit_score_total == np.amin(all_fit_score_total[cyc_mask]))[0][0]
 
-	# # new selection using both bonded fitness and Rg
-	# rg_mask = np.where((all_gyr_cg != None) & (all_opti_cycles == all_opti_cycles[-1]))[0]
-	# dist_rg_abs = abs(all_gyr_cg[rg_mask] - all_gyr_aa_mapped[rg_mask])
-	# all_delta_rg = (dist_rg_abs - np.amin(dist_rg_abs)) / (np.amax(dist_rg_abs) - np.amin(dist_rg_abs))
-	# all_delta_fitness = (all_fit_score_total[rg_mask] - np.amin(all_fit_score_total[rg_mask])) / (np.amax(all_fit_score_total[rg_mask]) - np.amin(all_fit_score_total[rg_mask]))
-
-	# # get index of minimum (i.e. best fitted, using both bonded fitness and Rg)		
-	# id_best_all = np.argmin( (all_delta_fitness**2 + all_delta_rg**2) ** (1/2) ) # first id is used if several results are returned
-	# id_best_all = rg_mask[id_best_all]
-
 	print('Best bonded terms found at step', id_best_all+1, 'with estimated Rg', all_gyr_cg[id_best_all], 'nm and SASA', all_sasa_cg[id_best_all], 'nm2')
 
 	print()
 	print('  Rg CG: ', ' '+str(round(all_gyr_cg[id_best_all], 3)), 'nm   (Error abs.', str(round(abs(1-all_gyr_cg[id_best_all]/all_gyr_aa_mapped[id_best_all])*100, 1))+'% -- Reference Rg AA-mapped:', str(all_gyr_aa_mapped[id_best_all])+' nm)')
 	print('  SASA CG:', round(all_sasa_cg[id_best_all], 2), 'nm2   (Error abs.', str(round(abs(1-all_sasa_cg[id_best_all]/all_sasa_aa_mapped[id_best_all])*100, 1))+'% -- Reference SASA AA-mapped:', str(all_sasa_aa_mapped[id_best_all])+' nm2)')
-
-	# TODO: this display is incorrect -- fixed yet ???? check with a new opti run, since writing in internal files depends on the opti run
-	# TODO: add Rg and SASA info and error
-	# id_best_without_dihedrals = np.where(all_fit_score_total == np.amin(all_fit_score_total[all_fit_score_total != None]))[0][0]
-	# print()
-	# print('Best fitness (without dihedrals) found at step', id_best_without_dihedrals+1, 'with Rg', all_gyr_cg[id_best_without_dihedrals], 'and SASA', all_sasa_cg[id_best_without_dihedrals])
-
-	# if nb_dihedrals != 0 and np.sum(used_dihedrals) > 0:
-	# 	id_best_with_dihedrals = np.where((all_fit_score_total == np.amin(all_fit_score_total[all_fit_score_total != None])) & (used_dihedrals == 1))[0][0]
-	# 	print('Best fitness (with dihedrals) found at step', id_best_with_dihedrals+1, 'with Rg', all_gyr_cg[id_best_with_dihedrals], 'and SASA', all_sasa_cg[id_best_with_dihedrals])
-	# else:
-	# 	print('Did not find results with dihedrals')
 
 	# display indicator when simulation(s) crashed for any reason -- check for None gyr_cg to identify a simulation as crashed
 	crashes_ids = np.where(all_gyr_cg == None)[0]+1
@@ -244,34 +217,15 @@ def run(ns):
 	all_fit_score_dihedrals = forward_fill(all_fit_score_dihedrals, None)
 	all_gyr_aa_mapped = forward_fill(all_gyr_aa_mapped, None)
 	all_gyr_aa_mapped_std = forward_fill(all_gyr_aa_mapped_std, None)
-	# all_gyr_cg = np.where(all_gyr_cg == None, 0, all_gyr_cg)
 	all_gyr_cg = forward_fill(all_gyr_cg, None)
 	all_gyr_cg_std = forward_fill(all_gyr_cg_std, None)
 	all_sasa_aa_mapped = forward_fill(all_sasa_aa_mapped, None)
 	all_sasa_aa_mapped_std = forward_fill(all_sasa_aa_mapped_std, None)
-	# all_sasa_cg = np.where(all_sasa_cg == None, 0, all_sasa_cg)
-	# all_sasa_cg = forward_fill(all_sasa_cg, 0)
 	all_sasa_cg = forward_fill(all_sasa_cg, None)
 	all_sasa_cg_std = forward_fill(all_sasa_cg_std, None)
 
 	for i in range(len(all_gyr_aa_mapped)):
 		all_gyr_aa_mapped[i] += all_gyr_aa_mapped_offset
-
-	# iter_indep_scores.where(iter_indep_scores < config.sim_crash_EMD_indep_score, inplace=True) # mask scores when simulation crashed
-
-	# linear regression on all evaluation scores, the 2 last third and the very last third of them, to visually check for continued optimization
-	# try:
-	# 	slope, intercept = polyfit(list(range(len(all_eval_scores))), np.array(all_eval_scores), 1)
-	# except:
-	# 	pass
-	# try:
-	# 	slope_conti, intercept_conti = polyfit(list(range(int(len(all_eval_scores)*1/3), len(all_eval_scores))), np.array(all_eval_scores[int(len(all_eval_scores)*1/3):]), 1)
-	# except:
-	# 	pass
-	# try:
-	# 	slope_conti2, intercept_conti2 = polyfit(list(range(int(len(all_eval_scores)*2/3), len(all_eval_scores))), np.array(all_eval_scores[int(len(all_eval_scores)*2/3):]), 1) 
-	# except:
-	# 	pass
 
 	larger_group = max(nb_constraints, nb_bonds, nb_angles, nb_dihedrals, min_nb_cols)
 	nrow, nrows, ncols = 0, 9, larger_group
@@ -303,7 +257,6 @@ def run(ns):
 		for i in range(len(opti_cycles_sep)):
 			ax[0][1].axvline(x=opti_cycles_sep[i], color=opti_cycles_sep_color)
 	ax[0][1].plot(id_best_all+1, all_eval_scores[id_best_all], marker='D', color='white', markerfacecolor='gold', markersize=10, markeredgewidth=1.5, markeredgecolor='black', label='Selected model')
-	# ax[0][1].legend(loc='upper right')
 
 	ax[0][2].set_title("Cstrs & bonds scores")
 	ax[0][2].grid(zorder=0.5)
@@ -314,7 +267,6 @@ def run(ns):
 		for i in range(len(opti_cycles_sep)):
 			ax[0][2].axvline(x=opti_cycles_sep[i], color=opti_cycles_sep_color)
 	ax[0][2].plot(id_best_all+1, all_fit_score_constraints_bonds[id_best_all], marker='D', color='white', markerfacecolor='gold', markersize=10, markeredgewidth=1.5, markeredgecolor='black', label='Selected model')
-	# ax[0][2].legend(loc='upper right')
 
 	ax[0][3].set_title("Angles scores")
 	ax[0][3].grid(zorder=0.5)
@@ -325,7 +277,6 @@ def run(ns):
 		for i in range(len(opti_cycles_sep)):
 			ax[0][3].axvline(x=opti_cycles_sep[i], color=opti_cycles_sep_color)
 	ax[0][3].plot(id_best_all+1, all_fit_score_angles[id_best_all], marker='D', color='white', markerfacecolor='gold', markersize=10, markeredgewidth=1.5, markeredgecolor='black', label='Selected model')
-	# ax[0][3].legend(loc='upper right')
 
 	ax[0][4].set_title("Dihedrals scores")
 	ax[0][4].grid(zorder=0.5)
@@ -336,7 +287,6 @@ def run(ns):
 		for i in range(len(opti_cycles_sep)):
 			ax[0][4].axvline(x=opti_cycles_sep[i], color=opti_cycles_sep_color)
 	ax[0][4].plot(id_best_all+1, all_fit_score_dihedrals[id_best_all], marker='D', color='white', markerfacecolor='gold', markersize=10, markeredgewidth=1.5, markeredgecolor='black', label='Selected model')
-	# ax[0][4].legend(loc='upper right')
 
 	ax[0][5].set_title("Radius of gyration")
 	ax[0][5].grid(zorder=0.5)
@@ -383,7 +333,6 @@ def run(ns):
 		for i in range(len(opti_cycles_sep)):
 			ax[0][7].axvline(x=opti_cycles_sep[i], color=opti_cycles_sep_color)
 	ax[0][7].plot(id_best_all+1, all_total_times[id_best_all], marker='D', color='white', markerfacecolor='gold', markersize=10, markeredgewidth=1.5, markeredgecolor='black', label='Selected model')
-	# ax[0][7].legend(loc='upper left')
 
 	ax[0][8].set_title("All evaluation times (min)")
 	ax[0][8].grid(zorder=0.5)
@@ -395,7 +344,7 @@ def run(ns):
 	for i in range(9, ncols):
 		ax[0][i].set_visible(False)
 
-	plt_sidespace = 0.05 # ylim bottom and top margin as a percentage of y range of data
+	plt_sidespace = 0.05  # ylim bottom and top margin as a percentage of y range of data
 	x_min, x_max = 1-(nb_evals-1)*plt_sidespace, nb_evals+(nb_evals-1)*plt_sidespace
 
 	# constraints
@@ -414,7 +363,6 @@ def run(ns):
 				if display_opti_cycles_sep:
 					for j in range(len(opti_cycles_sep)):
 						ax[nrow-1][i].axvline(x=opti_cycles_sep[j], color=opti_cycles_sep_color)
-				# ax[nrow-1][i].set_ylim(bottom=domains_ranges['constraints'][i][0]-(domains_ranges['constraints'][i][1]-domains_ranges['constraints'][i][0])*plt_sidespace, top=domains_ranges['constraints'][i][1]+(domains_ranges['constraints'][i][1]-domains_ranges['constraints'][i][0])*plt_sidespace)
 
 				# best models parameters
 				if parameters_vals['constraints']['values'][i][id_best_all] != None:
@@ -453,7 +401,6 @@ def run(ns):
 					ax[nrow-1][i].scatter(crashes_ids, np.array(parameters_vals['bonds']['values'][i])[crashes_ids-1], marker='x', color='black', zorder=2)
 				ax[nrow-1][i].tick_params(axis='y', labelcolor=color)
 				ax[nrow-1][i].set_xlim(x_min, x_max)
-				# ax[nrow-1][i].set_ylim(bottom=domains_ranges['bonds'][i][0]-(domains_ranges['bonds'][i][1]-domains_ranges['bonds'][i][0])*plt_sidespace, top=domains_ranges['bonds'][i][1]+(domains_ranges['bonds'][i][1]-domains_ranges['bonds'][i][0])*plt_sidespace)
 
 				ax2 = ax[nrow-1][i].twinx()
 				color = 'tab:red'
@@ -463,7 +410,6 @@ def run(ns):
 				if display_opti_cycles_sep:
 					for j in range(len(opti_cycles_sep)):
 						ax[nrow-1][i].axvline(x=opti_cycles_sep[j], color=opti_cycles_sep_color)
-				# ax2.set_ylim(bottom=domains_fct['bond'][0]-(domains_fct['bond'][1]-domains_fct['bond'][0])*plt_sidespace, top=domains_fct['bond'][1]+(domains_fct['bond'][1]-domains_fct['bond'][0])*plt_sidespace)
 				ax2.set_ylim(bottom=y_fct_range['bonds'][0]-(y_fct_range['bonds'][1]-y_fct_range['bonds'][0])*plt_sidespace, top=y_fct_range['bonds'][1]+(y_fct_range['bonds'][1]-y_fct_range['bonds'][0])*plt_sidespace)
 				if i == nb_bonds-1:
 					ax2.tick_params(axis='y', labelcolor=color)
@@ -508,7 +454,6 @@ def run(ns):
 					ax[nrow-1][i].scatter(crashes_ids, np.array(parameters_vals['angles']['values'][i])[crashes_ids-1], marker='x', color='black', zorder=2)
 				ax[nrow-1][i].tick_params(axis='y', labelcolor=color)
 				ax[nrow-1][i].set_xlim(x_min, x_max)
-				# ax[nrow-1][i].set_ylim(bottom=domains_ranges['angles'][i][0]-(domains_ranges['angles'][i][1]-domains_ranges['angles'][i][0])*plt_sidespace, top=domains_ranges['angles'][i][1]+(domains_ranges['angles'][i][1]-domains_ranges['angles'][i][0])*plt_sidespace)
 				ax2 = ax[nrow-1][i].twinx()
 				color = 'tab:red'
 				ax2.plot(x_evals, parameters_vals['angles']['force_ctr'][i], color=color)
@@ -517,7 +462,6 @@ def run(ns):
 				if display_opti_cycles_sep:
 					for j in range(len(opti_cycles_sep)):
 						ax[nrow-1][i].axvline(x=opti_cycles_sep[j], color=opti_cycles_sep_color)
-				# ax2.set_ylim(bottom=domains_fct['angle'][0]-(domains_fct['angle'][1]-domains_fct['angle'][0])*plt_sidespace, top=domains_fct['angle'][1]+(domains_fct['angle'][1]-domains_fct['angle'][0])*plt_sidespace)
 				ax2.set_ylim(bottom=y_fct_range['angles'][0]-(y_fct_range['angles'][1]-y_fct_range['angles'][0])*plt_sidespace, top=y_fct_range['angles'][1]+(y_fct_range['angles'][1]-y_fct_range['angles'][0])*plt_sidespace)
 				if i == nb_angles-1:
 					ax2.tick_params(axis='y', labelcolor=color)
@@ -562,7 +506,6 @@ def run(ns):
 					ax[nrow-1][i].scatter(crashes_ids, np.array(parameters_vals['dihedrals']['values'][i])[crashes_ids-1], marker='x', color='black', zorder=2)
 				ax[nrow-1][i].tick_params(axis='y', labelcolor=color)
 				ax[nrow-1][i].set_xlim(x_min, x_max)
-				# ax[nrow-1][i].set_ylim(bottom=domains_ranges['dihedrals'][i][0]-(domains_ranges['dihedrals'][i][1]-domains_ranges['dihedrals'][i][0])*plt_sidespace, top=domains_ranges['dihedrals'][i][1]+(domains_ranges['dihedrals'][i][1]-domains_ranges['dihedrals'][i][0])*plt_sidespace)
 				ax2 = ax[nrow-1][i].twinx()
 				color = 'tab:red'
 				ax2.plot(x_evals, parameters_vals['dihedrals']['force_ctr'][i], color=color)
@@ -571,7 +514,6 @@ def run(ns):
 				if display_opti_cycles_sep:
 					for j in range(len(opti_cycles_sep)):
 						ax[nrow-1][i].axvline(x=opti_cycles_sep[j], color=opti_cycles_sep_color)
-				# ax2.set_ylim(bottom=domains_fct['dihedral'][0]-(domains_fct['dihedral'][1]-domains_fct['dihedral'][0])*plt_sidespace, top=domains_fct['dihedral'][1]+(domains_fct['dihedral'][1]-domains_fct['dihedral'][0])*plt_sidespace)
 				try:
 					ax2.set_ylim(bottom=y_fct_range['dihedrals'][0]-(y_fct_range['dihedrals'][1]-y_fct_range['dihedrals'][0])*plt_sidespace, top=y_fct_range['dihedrals'][1]+(y_fct_range['dihedrals'][1]-y_fct_range['dihedrals'][0])*plt_sidespace)
 				except ValueError:
