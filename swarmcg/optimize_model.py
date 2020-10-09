@@ -21,9 +21,9 @@ warnings.resetwarnings()
 def run(ns):
 
     from numpy import VisibleDeprecationWarning
-    warnings.filterwarnings("ignore", category=VisibleDeprecationWarning) # filter MDAnalysis + numpy deprecation stuff that is annoying
+    warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)  # filter MDAnalysis + numpy deprecation stuff that is annoying
+    warnings.filterwarnings("ignore", category=ImportWarning)  # filter Matplotlib mpl_toolkits missing __init__ stuff
 
-    # TODO: allow to feed a JSON file or DICT-like string for which bonds group to rescale for AA
     # TODO: allow to feed a JSON file for cycles of optimization ?? this is more optional but useful for big stuff possibly
     # TODO: if using SASA through GMX SASA, ensure vdwradii.dat contains the MARTINI radii
     # TODO: give a warning when users specify a bond scaling without specifying an Rg offset !!!
