@@ -201,6 +201,16 @@ def read_cg_itp_file(ns):
 		'exclusion': False
 	}
 
+	def msg_force_boundaries(line, limit, str_arg):
+		msg = (
+			f'You activated the option to take into account the parameters provided via\n'
+			f'the ITP file, but the input force constant provided at line {line} is above the\n'
+			f'maximum authorized value ({limit}).\n'
+			f'Please either modify the argument {str_arg} or modify the force\n'
+			f'constant in your ITP file.'
+		)
+		return msg
+
 	for i in range(len(itp_lines)):
 		itp_line = itp_lines[i]
 		if itp_line != '':
@@ -335,6 +345,9 @@ def read_cg_itp_file(ns):
 					ns.cg_itp['bond'][ns.nb_bonds]['value'].append(float(sp_itp_line[3]))
 					ns.cg_itp['bond'][ns.nb_bonds]['fct'].append(float(sp_itp_line[4]))
 
+					if float(sp_itp_line[4]) > ns.default_max_fct_bonds_opti and ns.user_input:
+						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_max_fct_bonds_opti, '-max_fct_bonds_f1'))
+
 				elif section_read['angle']:
 
 					# beginning of a new group
@@ -360,6 +373,12 @@ def read_cg_itp_file(ns):
 					ns.cg_itp['angle'][ns.nb_angles]['value'].append(float(sp_itp_line[4]))
 					ns.cg_itp['angle'][ns.nb_angles]['fct'].append(float(sp_itp_line[5]))
 
+					if float(sp_itp_line[5]) > ns.default_max_fct_angles_opti_f1 and ns.user_input and func == 1:
+						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_max_fct_angles_opti_f1, '-max_fct_angles_f1'))
+
+					if float(sp_itp_line[5]) > ns.default_max_fct_angles_opti_f2 and ns.user_input and func == 2:
+						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_max_fct_angles_opti_f2, '-max_fct_angles_f2'))
+
 				elif section_read['dihedral']:
 
 					# beginning of a new group
@@ -384,6 +403,12 @@ def read_cg_itp_file(ns):
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['func'].append(func)
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['value'].append(float(sp_itp_line[5]))  # issue happens here for functions that are not handled
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['fct'].append(float(sp_itp_line[6]))
+
+					if float(sp_itp_line[6]) > ns.default_abs_range_fct_dihedrals_opti_func_with_mult and ns.user_input and func in config.dihedral_func_with_mult:
+						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_abs_range_fct_dihedrals_opti_func_with_mult, '-max_fct_dihedrals_f149'))
+
+					if float(sp_itp_line[6]) > ns.default_max_fct_dihedrals_opti_func_without_mult and ns.user_input and func == 2:
+						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_max_fct_dihedrals_opti_func_without_mult, '-max_fct_dihedrals_f2'))
 
 					# handle multiplicity if function assumes multiplicity
 					if func in config.dihedral_func_with_mult:
@@ -1042,10 +1067,50 @@ def get_initial_guess_list(ns, nb_particles):
 
 	initial_guess_list.append(input_guess)
 
+	# optional second particle is initialized as input parameters
+	# this is independant of exec_mode, because we use only previously selected parameters for this particle
+	num_particle_random_start = 1
+	if ns.user_input:
+		num_particle_random_start += 1
+
+		input_guess = []
+
+		# constraints lengths
+		for i in range(len(ns.cg_itp_input['constraint'])):
+			input_guess.append(ns.cg_itp_input['constraint'][i]['value'])
+
+		# bonds lengths
+		for i in range(len(ns.cg_itp_input['bond'])):
+			input_guess.append(ns.cg_itp_input['bond'][i]['value'])
+
+		# bonds force constants
+		for i in range(len(ns.cg_itp_input['bond'])):
+			input_guess.append(ns.cg_itp_input['bond'][i]['fct'])
+
+		# angles values
+		if ns.exec_mode == 1 or ns.exec_mode == 3:
+			for i in range(len(ns.cg_itp_input['angle'])):
+				input_guess.append(ns.cg_itp_input['angle'][i]['value'])
+
+		# angles force constants
+		for i in range(len(ns.cg_itp_input['angle'])):
+			input_guess.append(ns.cg_itp_input['angle'][i]['fct'])
+
+		# dihedrals values
+		if ns.exec_mode == 1:
+			for i in range(len(ns.cg_itp_input['dihedral'])):
+				input_guess.append(ns.cg_itp_input['dihedral'][i]['value'])
+		# dihedrals force constants
+		for i in range(len(ns.cg_itp_input['dihedral'])):
+			input_guess.append(ns.cg_itp_input['dihedral'][i]['fct'])
+
+		initial_guess_list.append(input_guess)
+
+
+
 	# the second particle is initialized using best EMD score for each geom, and the parameters that yielded these EMD scores
 	# this is independant of exec_mode, because we use only previously selected parameters for this particle
 	# if yet no indep best is recorded for a given geom, values are taken from best optimized model (or BI)
-	num_particle_random_start = 1
 	if ns.opti_cycle['nb_cycle'] > 1:
 		num_particle_random_start += 1
 
