@@ -590,7 +590,7 @@ def main():
                                   default=config.metavar_cg_itp,
                                   metavar='      ' + scg.par_wrap(config.metavar_cg_itp))
     sim_filenames_args.add_argument('-user_params', dest='user_input',
-                                help='Considers the user parameters for optimization;',
+                                help='If absent, only the BI is used as starting point for parametrization\nand the parameters in the input ITP files are ignored',
                                 action='store_true', default=False)
     sim_filenames_args.add_argument('-cg_gro', dest='gro_input_filename',
                                   help='Starting GRO file used for iterative simulation\nWill be minimized and relaxed before each MD run',
@@ -724,7 +724,7 @@ def main():
     optional_args3.add_argument('-v', '--verbose', dest='verbose', help=config.help_verbose,
                               action='store_true', default=False)
     optional_args3.add_argument('-debug', dest='debug',
-                                    help='If enabled it shows the Traceback in case of error;',
+                                    help='If enabled the Traceback is displayed in case of error',
                                     action='store_true', default=False)
 
 
