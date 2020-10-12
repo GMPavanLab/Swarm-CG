@@ -41,7 +41,8 @@ def run(ns):
 	ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
 	ns.aa_rg_offset = 0  # TODO: allow an argument more in evaluate_model, like in optimiwe_model, for adding an offset to Rg
 
-	scg.set_MDA_backend(ns)
+	# scg.set_MDA_backend(ns)
+	ns.mda_backend = 'serial'  # actually serial is faster because MDA is not properly parallelized atm
 
 	if not os.path.isfile(ns.aa_tpr_filename):
 		msg = (

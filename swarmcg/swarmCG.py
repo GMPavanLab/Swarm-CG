@@ -34,13 +34,12 @@ def par_wrap(string):
 
 
 # set MDAnalysis backend and number of threads
+# NOTE: this is not used because MDA is not properly parallelized, in fact with OpenMP backend it's slower than in serial
 def set_MDA_backend(ns):
 
 	if mda.lib.distances.USED_OPENMP:  # if MDAnalysis was compiled with OpenMP support
 		ns.mda_backend = 'OpenMP'
-		# TODO: propagate number of threads to the functions calls of MDAnalysis, which means do a PR on MDAnalysis github for having functions arguments to do that because atm we cannot
 	else:
-		# print('MDAnalysis was compiled without OpenMP support, calculation of bonds/angles/dihedrals distributions will use a single thread')
 		ns.mda_backend = 'serial'
 
 
@@ -1341,7 +1340,7 @@ def create_bins_and_dist_matrices(ns, constraints=True):
 	if constraints:
 		ns.bins_constraints = np.arange(0, ns.bonded_max_range+ns.bw_constraints, ns.bw_constraints)
 	ns.bins_bonds = np.arange(0, ns.bonded_max_range+ns.bw_bonds, ns.bw_bonds)
-	ns.bins_angles = np.arange(0, 180+2*ns.bw_angles, ns.bw_angles) # one more bin for angle/dihedral because we are later using a strict inferior for bins definitions
+	ns.bins_angles = np.arange(0, 180+2*ns.bw_angles, ns.bw_angles)  # one more bin for angle/dihedral because we are later using a strict inferior for bins definitions
 	ns.bins_dihedrals = np.arange(-180, 180+2*ns.bw_dihedrals, ns.bw_dihedrals)
 
 	# bins distance for Earth Mover's Distance (EMD) to calculate histograms similarity
@@ -1353,7 +1352,7 @@ def create_bins_and_dist_matrices(ns, constraints=True):
 	bins_angles_reshape = np.array(ns.bins_angles).reshape(-1,1)
 	ns.bins_angles_dist_matrix = cdist(bins_angles_reshape, bins_angles_reshape)
 	bins_dihedrals_reshape = np.array(ns.bins_dihedrals).reshape(-1,1)
-	bins_dihedrals_dist_matrix = cdist(bins_dihedrals_reshape, bins_dihedrals_reshape) # 'classical' distance matrix
+	bins_dihedrals_dist_matrix = cdist(bins_dihedrals_reshape, bins_dihedrals_reshape)  # 'classical' distance matrix
 	ns.bins_dihedrals_dist_matrix = np.where(bins_dihedrals_dist_matrix > max(bins_dihedrals_dist_matrix[0])/2, max(bins_dihedrals_dist_matrix[0])-bins_dihedrals_dist_matrix, bins_dihedrals_dist_matrix) # periodic distance matrix
 
 
@@ -1361,13 +1360,19 @@ def create_bins_and_dist_matrices(ns, constraints=True):
 def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 
 	bond_values = np.empty(len(ns.aa2cg_universe.trajectory) * len(beads_ids))
-	for i in range(len(beads_ids)):
-		bead_id_1, bead_id_2 = beads_ids[i]
-		for ts in ns.aa2cg_universe.trajectory:
-			bond_values[len(ns.aa2cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_bonds(
-				ns.aa2cg_universe.atoms[bead_id_1].position,
-				ns.aa2cg_universe.atoms[bead_id_2].position,
-				backend=ns.mda_backend, box=None) / 10  # retrieved nm
+	frame_values = np.empty(len(beads_ids))
+	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
+
+	for ts in ns.aa2cg_universe.trajectory:
+		for i in range(len(beads_ids)):
+
+			bead_id_1, bead_id_2 = beads_ids[i]
+			bead_pos_1[i] = ns.aa2cg_universe.atoms[bead_id_1].position
+			bead_pos_2[i] = ns.aa2cg_universe.atoms[bead_id_2].position
+
+		mda.lib.distances.calc_bonds(bead_pos_1, bead_pos_2, backend=ns.mda_backend, box=None, result=frame_values)
+		bond_values[len(beads_ids)*ts.frame:len(beads_ids)*(ts.frame+1)] = frame_values / 10  # retrieved nm
 
 	bond_avg_init = round(np.average(bond_values), 3)
 
@@ -1425,14 +1430,21 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 def get_AA_angles_distrib(ns, beads_ids):
 
 	angle_values_rad = np.empty(len(ns.aa2cg_universe.trajectory) * len(beads_ids))
-	for i in range(len(beads_ids)):
-		bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
-		for ts in ns.aa2cg_universe.trajectory:
-			angle_values_rad[len(ns.aa2cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_angles(
-				ns.aa2cg_universe.atoms[bead_id_1].position,
-				ns.aa2cg_universe.atoms[bead_id_2].position,
-				ns.aa2cg_universe.atoms[bead_id_3].position,
-				backend=ns.mda_backend, box=None)
+	frame_values = np.empty(len(beads_ids))
+	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_3 = np.empty((len(beads_ids), 3), dtype=np.float32)
+
+	for ts in ns.aa2cg_universe.trajectory:
+		for i in range(len(beads_ids)):
+
+			bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
+			bead_pos_1[i] = ns.aa2cg_universe.atoms[bead_id_1].position
+			bead_pos_2[i] = ns.aa2cg_universe.atoms[bead_id_2].position
+			bead_pos_3[i] = ns.aa2cg_universe.atoms[bead_id_3].position
+
+		mda.lib.distances.calc_angles(bead_pos_1, bead_pos_2, bead_pos_3, backend=ns.mda_backend, box=None, result=frame_values)
+		angle_values_rad[len(beads_ids)*ts.frame:len(beads_ids)*(ts.frame+1)] = frame_values
 
 	angle_values_deg = np.rad2deg(angle_values_rad)
 	angle_avg = round(np.mean(angle_values_deg), 3)
@@ -1445,15 +1457,23 @@ def get_AA_angles_distrib(ns, beads_ids):
 def get_AA_dihedrals_distrib(ns, beads_ids):
 
 	dihedral_values_rad = np.empty(len(ns.aa2cg_universe.trajectory) * len(beads_ids))
-	for i in range(len(beads_ids)):
-		bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
-		for ts in ns.aa2cg_universe.trajectory:
-			dihedral_values_rad[len(ns.aa2cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_dihedrals(
-				ns.aa2cg_universe.atoms[bead_id_1].position,
-				ns.aa2cg_universe.atoms[bead_id_2].position,
-				ns.aa2cg_universe.atoms[bead_id_3].position,
-				ns.aa2cg_universe.atoms[bead_id_4].position,
-				backend=ns.mda_backend, box=None)
+	frame_values = np.empty(len(beads_ids))
+	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_3 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_4 = np.empty((len(beads_ids), 3), dtype=np.float32)
+
+	for ts in ns.aa2cg_universe.trajectory:
+		for i in range(len(beads_ids)):
+
+			bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
+			bead_pos_1[i] = ns.aa2cg_universe.atoms[bead_id_1].position
+			bead_pos_2[i] = ns.aa2cg_universe.atoms[bead_id_2].position
+			bead_pos_3[i] = ns.aa2cg_universe.atoms[bead_id_3].position
+			bead_pos_4[i] = ns.aa2cg_universe.atoms[bead_id_4].position
+
+		mda.lib.distances.calc_dihedrals(bead_pos_1, bead_pos_2, bead_pos_3, bead_pos_4, backend=ns.mda_backend, box=None, result=frame_values)
+		dihedral_values_rad[len(beads_ids) * ts.frame:len(beads_ids) * (ts.frame + 1)] = frame_values
 
 	dihedral_values_deg = np.rad2deg(dihedral_values_rad)
 	dihedral_avg = round(np.mean(dihedral_values_deg), 3)
@@ -1466,13 +1486,19 @@ def get_AA_dihedrals_distrib(ns, beads_ids):
 def get_CG_bonds_distrib(ns, beads_ids, grp_type):
 
 	bond_values = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
-	for i in range(len(beads_ids)):
-		bead_id_1, bead_id_2 = beads_ids[i]
-		for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
-			bond_values[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_bonds(
-				ns.cg_universe.atoms[bead_id_1].position,
-				ns.cg_universe.atoms[bead_id_2].position,
-				backend=ns.mda_backend, box=None) / 10  # retrieved nm
+	frame_values = np.empty(len(beads_ids))
+	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
+
+	for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
+		for i in range(len(beads_ids)):
+
+			bead_id_1, bead_id_2 = beads_ids[i]
+			bead_pos_1[i] = ns.cg_universe.atoms[bead_id_1].position
+			bead_pos_2[i] = ns.cg_universe.atoms[bead_id_2].position
+
+		mda.lib.distances.calc_bonds(bead_pos_1, bead_pos_2, backend=ns.mda_backend, box=None, result=frame_values)
+		bond_values[len(beads_ids) * ts.frame:len(beads_ids) * (ts.frame + 1)] = frame_values / 10  # retrieved nm
 
 	bond_avg = round(np.mean(bond_values), 3)
 	if grp_type == 'constraint':
@@ -1487,14 +1513,22 @@ def get_CG_bonds_distrib(ns, beads_ids, grp_type):
 def get_CG_angles_distrib(ns, beads_ids):
 
 	angle_values_rad = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
-	for i in range(len(beads_ids)):
-		bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
-		for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
-			angle_values_rad[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_angles(
-				ns.cg_universe.atoms[bead_id_1].position,
-				ns.cg_universe.atoms[bead_id_2].position,
-				ns.cg_universe.atoms[bead_id_3].position,
-				backend=ns.mda_backend, box=None)
+	frame_values = np.empty(len(beads_ids))
+	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_3 = np.empty((len(beads_ids), 3), dtype=np.float32)
+
+	for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
+		for i in range(len(beads_ids)):
+
+			bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
+			bead_pos_1[i] = ns.cg_universe.atoms[bead_id_1].position
+			bead_pos_2[i] = ns.cg_universe.atoms[bead_id_2].position
+			bead_pos_3[i] = ns.cg_universe.atoms[bead_id_3].position
+
+		mda.lib.distances.calc_angles(bead_pos_1, bead_pos_2, bead_pos_3, backend=ns.mda_backend, box=None, result=frame_values)
+		angle_values_rad[len(beads_ids) * ts.frame:len(beads_ids) * (ts.frame + 1)] = frame_values
+
 	angle_values_deg = np.rad2deg(angle_values_rad)
 
 	# get group average and histogram non-null values for comparison and display
@@ -1508,22 +1542,32 @@ def get_CG_angles_distrib(ns, beads_ids):
 def get_CG_dihedrals_distrib(ns, beads_ids):
 
 	dihedral_values_rad = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
-	for i in range(len(beads_ids)):
-		bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
-		for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
-			dihedral_values_rad[len(ns.cg_universe.trajectory)*i+ts.frame] = mda.lib.distances.calc_dihedrals(
-				ns.cg_universe.atoms[bead_id_1].position,
-				ns.cg_universe.atoms[bead_id_2].position,
-				ns.cg_universe.atoms[bead_id_3].position,
-				ns.cg_universe.atoms[bead_id_4].position,
-				backend=ns.mda_backend, box=None)
+	frame_values = np.empty(len(beads_ids))
+	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_3 = np.empty((len(beads_ids), 3), dtype=np.float32)
+	bead_pos_4 = np.empty((len(beads_ids), 3), dtype=np.float32)
+
+	for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
+		for i in range(len(beads_ids)):
+
+			bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
+			bead_pos_1[i] = ns.cg_universe.atoms[bead_id_1].position
+			bead_pos_2[i] = ns.cg_universe.atoms[bead_id_2].position
+			bead_pos_3[i] = ns.cg_universe.atoms[bead_id_3].position
+			bead_pos_4[i] = ns.cg_universe.atoms[bead_id_4].position
+
+		mda.lib.distances.calc_dihedrals(bead_pos_1, bead_pos_2, bead_pos_3, bead_pos_4, backend=ns.mda_backend, box=None, result=frame_values)
+		dihedral_values_rad[len(beads_ids) * ts.frame:len(beads_ids) * (ts.frame + 1)] = frame_values
+
 	dihedral_values_deg = np.rad2deg(dihedral_values_rad)
 
 	# get group average and histogram non-null values for comparison and display
 	dihedral_avg = round(np.mean(dihedral_values_deg), 3)
-	dihedral_hist = np.histogram(dihedral_values_deg, ns.bins_dihedrals, density=True)[0]*ns.bw_dihedrals # retrieve 1-sum densities
+	dihedral_hist = np.histogram(dihedral_values_deg, ns.bins_dihedrals, density=True)[0]*ns.bw_dihedrals  # retrieve 1-sum densities
 
 	return dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad
+
 
 # update ITP force constants with Boltzmann inversion for selected geoms at this given optimization step
 def perform_BI(ns):
@@ -1791,6 +1835,8 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	print(styling.sep_close, flush=True)
 	print()
 
+	# bonded_calc_time = datetime.now().timestamp()
+
 	# constraints
 	print('Processing constraints ...', flush=True)
 	diff_ordered_grp_constraints = list(range(ns.nb_constraints))
@@ -2011,6 +2057,8 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	if ns.mismatch_order and not ns.atom_only:
 		diff_ordered_grp_dihedrals = [x for _, x in sorted(zip(avg_diff_grp_dihedrals, diff_ordered_grp_dihedrals), key=lambda pair: pair[0], reverse=True)]
 
+	# bonded_calc_time = datetime.now().timestamp() - bonded_calc_time
+	# print('Time for reference distributions calculation:', round(bonded_calc_time / 60, 2), 'min')
 
 	###############################
 	# DISPLAY DISTRIBUTIONS PLOTS #

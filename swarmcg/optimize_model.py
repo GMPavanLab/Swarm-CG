@@ -161,8 +161,8 @@ def run(ns):
     # INITIALIZATION #
     ##################
 
-    # scg.set_MDA_backend(ns)  # cannot use this properly currently because we cannot limit number of threads
-    ns.mda_backend = 'serial'  # currently force single thread for safe clusters execution
+    # scg.set_MDA_backend(ns)
+    ns.mda_backend = 'serial'  # actually serial is faster because MDA is not properly parallelized atm
 
     # directory to write all files for current execution of optimizations routines
     os.mkdir(ns.exec_folder)
