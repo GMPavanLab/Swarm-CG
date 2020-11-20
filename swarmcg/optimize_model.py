@@ -204,6 +204,7 @@ def run(ns):
     scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
 
     scg.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
+    ns.cg_itp_input = copy.deepcopy(ns.cg_itp)
     scg.process_scaling_str(ns)  # process the bonds scaling specified by user
 
     print()
@@ -588,6 +589,9 @@ def main():
                                   help='ITP file of the CG model to optimize', type=str,
                                   default=config.metavar_cg_itp,
                                   metavar='      ' + scg.par_wrap(config.metavar_cg_itp))
+    sim_filenames_args.add_argument('-user_params', dest='user_input',
+                                help='If absent, only the BI is used as starting point for parametrization\nand the parameters in the input ITP files are ignored',
+                                action='store_true', default=False)
     sim_filenames_args.add_argument('-cg_gro', dest='gro_input_filename',
                                   help='Starting GRO file used for iterative simulation\nWill be minimized and relaxed before each MD run',
                                   type=str, default='start_conf.gro',
@@ -719,6 +723,10 @@ def main():
     optional_args3.add_argument('-h', '--help', help='Show this help message and exit', action='help')
     optional_args3.add_argument('-v', '--verbose', dest='verbose', help=config.help_verbose,
                               action='store_true', default=False)
+    optional_args3.add_argument('-debug', dest='debug',
+                                    help='If enabled the Traceback is displayed in case of error',
+                                    action='store_true', default=False)
+
 
     # display help if script was called without arguments
     if len(sys.argv) == 1:
@@ -728,6 +736,10 @@ def main():
     # arguments handling, display command line if help or no arguments provided
     # argcomplete.autocomplete(parser)
     ns = args_parser.parse_args()
+
+    if not ns.debug:
+        sys.tracebacklimit = 0
+
     input_cmdline = ' '.join(map(cmd_quote, sys.argv))
     ns.exec_folder = time.strftime(
     "MODEL_OPTI__STARTED_%d-%m-%Y_%Hh%Mm%Ss")  # default folder name for all files of this optimization run, in case none is provided
