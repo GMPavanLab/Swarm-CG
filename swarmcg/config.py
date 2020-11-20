@@ -42,6 +42,8 @@ bonds_scaling = 1.0  # ratio
 min_bonds_length = 0.00  # nm
 bonds_scaling_str = ''  # constraints and bonds ids + their required target AA-mapped distributions rescaled averages
 
+# NOTE: in the benchmark of the paper we used bonds2_angles_scoring_factor = 500 and fct_guess_min_flat_diff_angles = 50, difference should be super small but an improvement
+
 # building of the initial guesses for optimization, defaults
 bond_dist_guess_variation = 0.025  # nm
 angle_value_guess_variation = 10  # degrees
