@@ -273,8 +273,8 @@ def run(ns):
     for grp_constraint in range(ns.nb_constraints):
 
         constraint_avg, constraint_hist, constraint_values = scg.get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['constraint'][grp_constraint]['beads'], grp_type='constraint group', grp_nb=grp_constraint)
-        # if ns.exec_mode == 1:
-        ns.cg_itp['constraint'][grp_constraint]['value'] = constraint_avg
+        if ns.exec_mode == 1:
+            ns.cg_itp['constraint'][grp_constraint]['value'] = constraint_avg
         ns.cg_itp['constraint'][grp_constraint]['avg'] = constraint_avg
         ns.cg_itp['constraint'][grp_constraint]['hist'] = constraint_hist
 
@@ -284,8 +284,8 @@ def run(ns):
     for grp_bond in range(ns.nb_bonds):
 
         bond_avg, bond_hist, bond_values = scg.get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bond group', grp_nb=grp_bond)
-        # if ns.exec_mode == 1:
-        ns.cg_itp['bond'][grp_bond]['value'] = bond_avg
+        if ns.exec_mode == 1:
+            ns.cg_itp['bond'][grp_bond]['value'] = bond_avg
         ns.cg_itp['bond'][grp_bond]['avg'] = bond_avg
         ns.cg_itp['bond'][grp_bond]['hist'] = bond_hist
 
@@ -299,7 +299,7 @@ def run(ns):
     for grp_angle in range(ns.nb_angles):
 
         angle_avg, angle_hist, angle_values_deg, angle_values_rad = scg.get_AA_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
-        if ns.exec_mode == 1 or ns.exec_mode == 3:
+        if ns.exec_mode == 1:
             ns.cg_itp['angle'][grp_angle]['value'] = angle_avg
         ns.cg_itp['angle'][grp_angle]['avg'] = angle_avg
         ns.cg_itp['angle'][grp_angle]['hist'] = angle_hist
@@ -314,7 +314,7 @@ def run(ns):
     for grp_dihedral in range(ns.nb_dihedrals):
 
         dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad = scg.get_AA_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
-        if ns.exec_mode == 1:  # the angle value for dihedral will be calculated from the BI fit, because for dihedrals it makes no sense to use the average
+        if ns.exec_mode == 1:  # the dihedral equi value will be calculated from the BI fit, because for dihedrals it makes no sense to use the average
             ns.cg_itp['dihedral'][grp_dihedral]['value'] = dihedral_avg
         ns.cg_itp['dihedral'][grp_dihedral]['avg'] = dihedral_avg
         ns.cg_itp['dihedral'][grp_dihedral]['hist'] = dihedral_hist
@@ -489,8 +489,7 @@ def run(ns):
         # actual BI to get the initial guesses of force constants, for all selected geoms at this given optimization step
         # BI is performed:
         # -- exec_mode 1: all equilibrium values and force constants
-        # -- exec_mode 2: equilibrium values are not touched for angles and dihedrals, but all force constants are estimated
-        # -- exec_mode 3: equilibrium values are not touched for dihedrals, but all force constants are estimated
+        # -- exec_mode 2: equilibrium values are not touched for bonds, angles and dihedrals, but all their force constants are optimized
         scg.perform_BI(ns)  # performed on object ns.out_itp
 
         # build vector for search space boundaries + create variations around the BI initial guesses
@@ -568,7 +567,7 @@ def main():
     optional_args0 = args_parser.add_argument_group(
     req_args_header + '\n\n' + bullet + 'EXECUTION MODE')
     optional_args0.add_argument('-exec_mode', dest='exec_mode',
-                              help='MODE 1: Tune both bonds lengths, angles/dihedrals values\n        and their force constants\nMODE 2: Like MODE 1 but angles/dihedrals values in the prelim.\n        CG model ITP are conserved during optimization\nMODE 3: Like MODE 1 but only dihedrals values in the prelim.\n        CG model ITP are conserved during optimization',
+                              help='MODE 1: Tune both bonds/angles/dihedrals equilibrium values\n        and their force constants\nMODE 2: Tune only bonds/angles/dihedrals force constants\n        with FIXED equilibrium values from the prelim. CG ITP',
                               type=int, default=1, metavar='              (1)')
 
     required_args = args_parser.add_argument_group(bullet + 'REFERENCE AA MODEL')
@@ -590,7 +589,7 @@ def main():
                                   default=config.metavar_cg_itp,
                                   metavar='      ' + scg.par_wrap(config.metavar_cg_itp))
     sim_filenames_args.add_argument('-user_params', dest='user_input',
-                                help='If absent, only the BI is used as starting point for parametrization\nand the parameters in the input ITP files are ignored',
+                                help='If absent, only the BI is used as starting point for parametrization\nIf present, parameters in the input ITP files are considered\n',
                                 action='store_true', default=False)
     sim_filenames_args.add_argument('-cg_gro', dest='gro_input_filename',
                                   help='Starting GRO file used for iterative simulation\nWill be minimized and relaxed before each MD run',
@@ -723,10 +722,6 @@ def main():
     optional_args3.add_argument('-h', '--help', help='Show this help message and exit', action='help')
     optional_args3.add_argument('-v', '--verbose', dest='verbose', help=config.help_verbose,
                               action='store_true', default=False)
-    optional_args3.add_argument('-debug', dest='debug',
-                                    help='If enabled the Traceback is displayed in case of error',
-                                    action='store_true', default=False)
-
 
     # display help if script was called without arguments
     if len(sys.argv) == 1:
@@ -737,7 +732,7 @@ def main():
     # argcomplete.autocomplete(parser)
     ns = args_parser.parse_args()
 
-    if not ns.debug:
+    if not ns.verbose:
         sys.tracebacklimit = 0
 
     input_cmdline = ' '.join(map(cmd_quote, sys.argv))

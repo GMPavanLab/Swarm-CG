@@ -712,7 +712,7 @@ def compute_SASA(ns, traj_type):
 		#       we generate a new truncated TPR so that we can use GMX sasa, this is shit but no choice atm
 		nb_beads_real = len(ns.real_beads_ids)
 
-		# generate an index.ndx file with the number of beads,
+		# generate an cg_map.ndx file with the number of beads,
 		# so we can call SASA on this group and we will have exactly the content we want
 		ns.cg_ndx_filename = '../'+config.input_sim_files_dirname+'/cg_index.ndx'
 		with open(ns.cg_ndx_filename, 'w') as fp:
@@ -813,27 +813,29 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 		raise exceptions.InvalidArgument(msg)
 
 	for i in range(ns.opti_cycle['nb_geoms']['constraint']):
-		itp_obj['constraint'][i]['value'] = round(parameters_set[i], 3)  # constraint - distance
+		if ns.exec_mode == 1:
+			itp_obj['constraint'][i]['value'] = round(parameters_set[i], 3)  # constraint - distance
 
 	for i in range(ns.opti_cycle['nb_geoms']['bond']):
-		itp_obj['bond'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+i], 3)  # bond - distance
-		itp_obj['bond'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+ns.opti_cycle['nb_geoms']['bond']+i], 3)  # bond - force constant
+		if ns.exec_mode == 1:
+			itp_obj['bond'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint'] + i], 3)  # bond - distance
+			itp_obj['bond'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint'] + ns.opti_cycle['nb_geoms']['bond'] + i], 3)  # bond - force constant
+		else:
+			itp_obj['bond'][i]['fct'] = round(parameters_set[i], 3)  # bond - force constant
 
 	for i in range(ns.opti_cycle['nb_geoms']['angle']):
-		if ns.exec_mode == 1 or ns.exec_mode == 3:
-			itp_obj['angle'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+i], 2)  # angle - value
-			itp_obj['angle'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+ns.opti_cycle['nb_geoms']['angle']+i], 2)  # angle - force constant
+		if ns.exec_mode == 1:
+			itp_obj['angle'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint'] + 2 * ns.opti_cycle['nb_geoms']['bond'] + i], 2)  # angle - value
+			itp_obj['angle'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint'] + 2 * ns.opti_cycle['nb_geoms']['bond'] + ns.opti_cycle['nb_geoms']['angle'] + i], 2)  # angle - force constant
 		else:
-			itp_obj['angle'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+i], 2)  # angle - force constant
+			itp_obj['angle'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['bond'] + i], 2)  # angle - force constant
 
 	for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
 		if ns.exec_mode == 1:
-			itp_obj['dihedral'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+i], 2)  # dihedral - value
-			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+ns.opti_cycle['nb_geoms']['dihedral']+i], 2) # dihedral - force constant
-		elif ns.exec_mode == 3:
-			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+2*ns.opti_cycle['nb_geoms']['angle']+i], 2)  # dihedral - force constant
+			itp_obj['dihedral'][i]['value'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint'] + 2 * ns.opti_cycle['nb_geoms']['bond'] + 2 * ns.opti_cycle['nb_geoms']['angle'] + i], 2)  # dihedral - value
+			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint'] + 2 * ns.opti_cycle['nb_geoms']['bond'] + 2 * ns.opti_cycle['nb_geoms']['angle'] + ns.opti_cycle['nb_geoms']['dihedral'] + i], 2) # dihedral - force constant
 		else:
-			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint']+2*ns.opti_cycle['nb_geoms']['bond']+ns.opti_cycle['nb_geoms']['angle']+i], 2)  # dihedral - force constant
+			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['bond'] + ns.opti_cycle['nb_geoms']['angle'] + i], 2)  # dihedral - force constant
 
 
 # print coarse-grain ITP
@@ -995,14 +997,18 @@ def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond
 def get_search_space_boundaries(ns):
 
 	search_space_boundaries = []
+
 	if ns.opti_cycle['nb_geoms']['constraint'] > 0:
-		search_space_boundaries.extend(ns.domains_val['constraint'])  # constraints distances
+		if ns.exec_mode == 1:
+			search_space_boundaries.extend(ns.domains_val['constraint'])  # constraints distances
+
 	if ns.opti_cycle['nb_geoms']['bond'] > 0:
-		search_space_boundaries.extend(ns.domains_val['bond'])  # bonds distances and force constants
+		if ns.exec_mode == 1:
+			search_space_boundaries.extend(ns.domains_val['bond'])  # bonds distances and force constants
 		search_space_boundaries.extend([[config.default_min_fct_bonds, ns.default_max_fct_bonds_opti]]*ns.opti_cycle['nb_geoms']['bond'])
 
 	if ns.opti_cycle['nb_geoms']['angle'] > 0:
-		if ns.exec_mode == 1 or ns.exec_mode == 3:
+		if ns.exec_mode == 1:
 			search_space_boundaries.extend(ns.domains_val['angle'])  # angles values
 
 		for grp_angle in range(ns.opti_cycle['nb_geoms']['angle']):  # angles force constants
@@ -1018,7 +1024,7 @@ def get_search_space_boundaries(ns):
 		for grp_dihedral in range(ns.opti_cycle['nb_geoms']['dihedral']):  # dihedrals force constants
 			if ns.cg_itp['dihedral'][grp_dihedral]['func'] == 2:
 				search_space_boundaries.extend([[config.default_min_fct_dihedrals_func_without_mult, ns.default_max_fct_dihedrals_opti_func_without_mult]])
-			elif ns.cg_itp['dihedral'][grp_dihedral]['func'] in [1, 4, 9]:
+			elif ns.cg_itp['dihedral'][grp_dihedral]['func'] in config.dihedral_func_with_mult:
 				search_space_boundaries.extend([[-ns.default_abs_range_fct_dihedrals_opti_func_with_mult, ns.default_abs_range_fct_dihedrals_opti_func_with_mult]])
 
 	return search_space_boundaries
@@ -1037,14 +1043,15 @@ def get_initial_guess_list(ns, nb_particles):
 	# except if force constants are outside of the searchable domain defined for optimization
 	# for bonds lengths and angles/dihedrals values, we perform no checks
 	input_guess = []
-	input_guess.extend([ns.out_itp['constraint'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['constraint'])]) # constraints lengths
-	input_guess.extend([ns.out_itp['bond'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['bond'])]) # bonds lengths
+	if ns.exec_mode == 1:
+		input_guess.extend([ns.out_itp['constraint'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['constraint'])]) # constraints lengths
+		input_guess.extend([ns.out_itp['bond'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['bond'])]) # bonds lengths
 	fct_bonds = []
 	for i in range(ns.opti_cycle['nb_geoms']['bond']):
 		fct_bonds.append(min(max(ns.out_itp['bond'][i]['fct'], config.default_min_fct_bonds), ns.default_max_fct_bonds_opti)) # bonds force constants
 	input_guess.extend(fct_bonds)
 
-	if ns.exec_mode == 1 or ns.exec_mode == 3:
+	if ns.exec_mode == 1:
 		input_guess.extend([ns.out_itp['angle'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['angle'])]) # angles values
 	fct_angles = []
 	for i in range(ns.opti_cycle['nb_geoms']['angle']):
@@ -1075,19 +1082,21 @@ def get_initial_guess_list(ns, nb_particles):
 		input_guess = []
 
 		# constraints lengths
-		for i in range(len(ns.cg_itp_input['constraint'])):
-			input_guess.append(ns.cg_itp_input['constraint'][i]['value'])
+		if ns.exec_mode == 1:
+			for i in range(len(ns.cg_itp_input['constraint'])):
+				input_guess.append(ns.cg_itp_input['constraint'][i]['value'])
 
 		# bonds lengths
-		for i in range(len(ns.cg_itp_input['bond'])):
-			input_guess.append(ns.cg_itp_input['bond'][i]['value'])
+		if ns.exec_mode == 1:
+			for i in range(len(ns.cg_itp_input['bond'])):
+				input_guess.append(ns.cg_itp_input['bond'][i]['value'])
 
 		# bonds force constants
 		for i in range(len(ns.cg_itp_input['bond'])):
 			input_guess.append(ns.cg_itp_input['bond'][i]['fct'])
 
 		# angles values
-		if ns.exec_mode == 1 or ns.exec_mode == 3:
+		if ns.exec_mode == 1:
 			for i in range(len(ns.cg_itp_input['angle'])):
 				input_guess.append(ns.cg_itp_input['angle'][i]['value'])
 
@@ -1116,18 +1125,20 @@ def get_initial_guess_list(ns, nb_particles):
 		input_guess = []
 
 		# constraints lengths
-		for i in range(ns.opti_cycle['nb_geoms']['constraint']):
-			if ns.all_best_emd_dist_geoms['constraints'][i] != config.sim_crash_EMD_indep_score:
-				input_guess.append(ns.all_best_params_dist_geoms['constraints'][i]['params'][0])
-			else:
-				input_guess.append(ns.out_itp['constraint'][i]['value'])
+		if ns.exec_mode == 1:
+			for i in range(ns.opti_cycle['nb_geoms']['constraint']):
+				if ns.all_best_emd_dist_geoms['constraints'][i] != config.sim_crash_EMD_indep_score:
+					input_guess.append(ns.all_best_params_dist_geoms['constraints'][i]['params'][0])
+				else:
+					input_guess.append(ns.out_itp['constraint'][i]['value'])
 
 		# bonds lengths
-		for i in range(ns.opti_cycle['nb_geoms']['bond']):
-			if ns.all_best_emd_dist_geoms['bonds'][i] != config.sim_crash_EMD_indep_score:
-				input_guess.append(ns.all_best_params_dist_geoms['bonds'][i]['params'][0])
-			else:
-				input_guess.append(ns.out_itp['bond'][i]['value'])
+		if ns.exec_mode == 1:
+			for i in range(ns.opti_cycle['nb_geoms']['bond']):
+				if ns.all_best_emd_dist_geoms['bonds'][i] != config.sim_crash_EMD_indep_score:
+					input_guess.append(ns.all_best_params_dist_geoms['bonds'][i]['params'][0])
+				else:
+					input_guess.append(ns.out_itp['bond'][i]['value'])
 		# bonds force constants
 		for i in range(ns.opti_cycle['nb_geoms']['bond']):
 			if ns.all_best_emd_dist_geoms['bonds'][i] != config.sim_crash_EMD_indep_score:
@@ -1136,7 +1147,7 @@ def get_initial_guess_list(ns, nb_particles):
 				input_guess.append(ns.out_itp['bond'][i]['fct'])
 
 		# angles values
-		if ns.exec_mode == 1 or ns.exec_mode == 3:
+		if ns.exec_mode == 1:
 			for i in range(ns.opti_cycle['nb_geoms']['angle']):
 				if ns.all_best_emd_dist_geoms['angles'][i] != config.sim_crash_EMD_indep_score:
 					input_guess.append(ns.all_best_params_dist_geoms['angles'][i]['params'][0])
@@ -1173,24 +1184,26 @@ def get_initial_guess_list(ns, nb_particles):
 		init_guess = []
 
 		# constraints lengths
-		for j in range(ns.opti_cycle['nb_geoms']['constraint']):
-			try:
-				emd_err_fact = max(1, ns.all_emd_dist_geoms['constraints'][j]/2)
-			except:
-				emd_err_fact = 1
-			draw_low = max(ns.out_itp['constraint'][j]['value']-config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['constraint'][j][0])
-			draw_high = min(ns.out_itp['constraint'][j]['value']+config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['constraint'][j][1])
-			init_guess.append(draw_float(draw_low, draw_high, 3))
+		if ns.exec_mode == 1:
+			for j in range(ns.opti_cycle['nb_geoms']['constraint']):
+				try:
+					emd_err_fact = max(1, ns.all_emd_dist_geoms['constraints'][j]/2)
+				except:
+					emd_err_fact = 1
+				draw_low = max(ns.out_itp['constraint'][j]['value']-config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['constraint'][j][0])
+				draw_high = min(ns.out_itp['constraint'][j]['value']+config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['constraint'][j][1])
+				init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# bonds lengths
-		for j in range(ns.opti_cycle['nb_geoms']['bond']):
-			try:
-				emd_err_fact = max(1, ns.all_emd_dist_geoms['bonds'][j]/2)
-			except:
-				emd_err_fact = 1
-			draw_low = max(ns.out_itp['bond'][j]['value']-config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['bond'][j][0])
-			draw_high = min(ns.out_itp['bond'][j]['value']+config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['bond'][j][1])
-			init_guess.append(draw_float(draw_low, draw_high, 3))
+		if ns.exec_mode == 1:
+			for j in range(ns.opti_cycle['nb_geoms']['bond']):
+				try:
+					emd_err_fact = max(1, ns.all_emd_dist_geoms['bonds'][j]/2)
+				except:
+					emd_err_fact = 1
+				draw_low = max(ns.out_itp['bond'][j]['value']-config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['bond'][j][0])
+				draw_high = min(ns.out_itp['bond'][j]['value']+config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['bond'][j][1])
+				init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# bonds force constants
 		for j in range(ns.opti_cycle['nb_geoms']['bond']):
@@ -1203,7 +1216,7 @@ def get_initial_guess_list(ns, nb_particles):
 			init_guess.append(draw_float(draw_low, draw_high, 3))
 
 		# angles values
-		if ns.exec_mode == 1 or ns.exec_mode == 3:
+		if ns.exec_mode == 1:
 			for j in range(ns.opti_cycle['nb_geoms']['angle']):
 				try:
 					emd_err_fact = max(1, ns.all_emd_dist_geoms['angles'][j]/2)
@@ -1762,7 +1775,7 @@ def perform_BI(ns):
 
 				if ns.exec_mode == 1:
 					ns.out_itp['dihedral'][grp_dihedral]['value'] = np.rad2deg(popt[1])
-					# TODO: make the fit according to user provided dihedral angle value when using execution mode 2 or 3
+					# TODO: make the fit according to user provided dihedral angle value when using execution mode 2
 
 				# stay within specified range for force constants, negative to positive according to function chosen by user
 				# print('  Dihedral group', grp_dihedral+1, 'estimated force constant BEFORE MODIFIER:', round(popt[0], 2))
