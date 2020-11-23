@@ -359,7 +359,7 @@ def read_cg_itp_file(ns):
 						ns.cg_itp['angle'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': []})  # initialize storage for this new group
 
 					try:
-						ns.cg_itp['angle'][ns.nb_angles]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:3]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
+						ns.cg_itp['angle'][ns.nb_angles]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:3]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						msg = (
 							"Incorrect reading of the CG ITP file within [angles] section.\n"
@@ -1708,7 +1708,7 @@ def perform_BI(ns):
 
 			if ns.verbose:
 				print()
-				print('Performing Boltzmann Inversion to estimate angles force constants')
+				print('Performing Direct Boltzmann Inversion (DBI) to estimate angles force constants')
 
 			for grp_angle in range(ns.opti_cycle['nb_geoms']['angle']):
 
@@ -1749,7 +1749,7 @@ def perform_BI(ns):
 
 			if ns.verbose:
 				print()
-				print('Performing Boltzmann Inversion to estimate dihedrals force constants')
+				print('Performing Direct Boltzmann Inversion (DBI) to estimate dihedrals force constants')
 
 			for grp_dihedral in range(ns.opti_cycle['nb_geoms']['dihedral']):
 
