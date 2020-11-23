@@ -5,6 +5,7 @@ warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
+import numpy as np
 
 import matplotlib
 
@@ -40,6 +41,10 @@ def run(ns):
 	ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None
 	ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
 	ns.aa_rg_offset = 0  # TODO: allow an argument more in evaluate_model, like in optimiwe_model, for adding an offset to Rg
+	ns.default_max_fct_bonds_opti = np.inf
+	ns.default_max_fct_angles_opti_f1 = np.inf
+	ns.default_max_fct_angles_opti_f2 = np.inf
+	ns.default_max_fct_dihedrals_opti_func_without_mult = np.inf
 
 	# scg.set_MDA_backend(ns)
 	ns.mda_backend = 'serial'  # actually serial is faster because MDA is not properly parallelized atm

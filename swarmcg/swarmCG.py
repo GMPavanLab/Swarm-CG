@@ -304,7 +304,7 @@ def read_cg_itp_file(ns):
 
 						else:
 							geom_type = str(len(ns.cg_itp['constraint'])+1)
-						ns.cg_itp['constraint'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': []})  # initialize storage for this new group
+						ns.cg_itp['constraint'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'value_user': []})  # initialize storage for this new group
 
 					try:
 						ns.cg_itp['constraint'][ns.nb_constraints]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
@@ -328,7 +328,7 @@ def read_cg_itp_file(ns):
 							geom_type = itp_lines[i-1].split()[3]  # if the current CG ITP was generated with our package
 						else:
 							geom_type = str(len(ns.cg_itp['bond'])+1)
-						ns.cg_itp['bond'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': []})  # initialize storage for this new group
+						ns.cg_itp['bond'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'value_user': [], 'fct': [], 'fct_user': []})  # initialize storage for this new group
 
 					try:
 						ns.cg_itp['bond'][ns.nb_bonds]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
@@ -342,7 +342,9 @@ def read_cg_itp_file(ns):
 					func = verify_handled_functions('bond', sp_itp_line[2], i+1)
 					ns.cg_itp['bond'][ns.nb_bonds]['func'].append(func)
 					ns.cg_itp['bond'][ns.nb_bonds]['value'].append(float(sp_itp_line[3]))
+					ns.cg_itp['bond'][ns.nb_bonds]['value_user'].append(float(sp_itp_line[3]))
 					ns.cg_itp['bond'][ns.nb_bonds]['fct'].append(float(sp_itp_line[4]))
+					ns.cg_itp['bond'][ns.nb_bonds]['fct_user'].append(float(sp_itp_line[4]))
 
 					if float(sp_itp_line[4]) > ns.default_max_fct_bonds_opti and ns.user_input:
 						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_max_fct_bonds_opti, '-max_fct_bonds_f1'))
@@ -356,10 +358,10 @@ def read_cg_itp_file(ns):
 							geom_type = itp_lines[i-1].split()[3]  # if the current CG ITP was generated with our package
 						else:
 							geom_type = str(len(ns.cg_itp['angle'])+1)
-						ns.cg_itp['angle'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': []})  # initialize storage for this new group
+						ns.cg_itp['angle'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'value_user': [], 'fct': [], 'fct_user': []})  # initialize storage for this new group
 
 					try:
-						ns.cg_itp['angle'][ns.nb_angles]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:3]]) # retrieve indexing from 0 for CG beads IDS for MDAnalysis
+						ns.cg_itp['angle'][ns.nb_angles]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:3]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
 					except ValueError:
 						msg = (
 							"Incorrect reading of the CG ITP file within [angles] section.\n"
@@ -370,7 +372,9 @@ def read_cg_itp_file(ns):
 					func = verify_handled_functions('angle', sp_itp_line[3], i+1)
 					ns.cg_itp['angle'][ns.nb_angles]['func'].append(func)
 					ns.cg_itp['angle'][ns.nb_angles]['value'].append(float(sp_itp_line[4]))
+					ns.cg_itp['angle'][ns.nb_angles]['value_user'].append(float(sp_itp_line[4]))
 					ns.cg_itp['angle'][ns.nb_angles]['fct'].append(float(sp_itp_line[5]))
+					ns.cg_itp['angle'][ns.nb_angles]['fct_user'].append(float(sp_itp_line[5]))
 
 					if float(sp_itp_line[5]) > ns.default_max_fct_angles_opti_f1 and ns.user_input and func == 1:
 						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_max_fct_angles_opti_f1, '-max_fct_angles_f1'))
@@ -387,7 +391,7 @@ def read_cg_itp_file(ns):
 							geom_type = itp_lines[i-1].split()[3]  # if the current CG ITP was generated with our package
 						else:
 							geom_type = str(len(ns.cg_itp['dihedral'])+1)
-						ns.cg_itp['dihedral'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'fct': [], 'mult': []})  # initialize storage for this new group
+						ns.cg_itp['dihedral'].append({'geom_type': geom_type, 'beads': [], 'func': [], 'value': [], 'value_user': [], 'fct': [], 'fct_user': [], 'mult': []})  # initialize storage for this new group
 
 					try:
 						ns.cg_itp['dihedral'][ns.nb_dihedrals]['beads'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:4]])  # retrieve indexing from 0 for CG beads IDS for MDAnalysis
@@ -401,7 +405,9 @@ def read_cg_itp_file(ns):
 					func = verify_handled_functions('dihedral', sp_itp_line[4], i+1)
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['func'].append(func)
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['value'].append(float(sp_itp_line[5]))  # issue happens here for functions that are not handled
+					ns.cg_itp['dihedral'][ns.nb_dihedrals]['value_user'].append(float(sp_itp_line[5]))
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['fct'].append(float(sp_itp_line[6]))
+					ns.cg_itp['dihedral'][ns.nb_dihedrals]['fct_user'].append(float(sp_itp_line[6]))
 
 					if float(sp_itp_line[6]) > ns.default_abs_range_fct_dihedrals_opti_func_with_mult and ns.user_input and func in config.dihedral_func_with_mult:
 						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_abs_range_fct_dihedrals_opti_func_with_mult, '-max_fct_dihedrals_f149'))
@@ -491,7 +497,7 @@ def read_cg_itp_file(ns):
 
 	for geom in ['constraint']:  # constraints only
 		for grp_geom in range(len(ns.cg_itp[geom])):
-			for var in ['func', 'value']:
+			for var in ['func', 'value', 'value_user']:
 				var_set = set(ns.cg_itp[geom][grp_geom][var])
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
@@ -500,7 +506,7 @@ def read_cg_itp_file(ns):
 
 	for geom in ['bond', 'angle']:  # bonds and angles only
 		for grp_geom in range(len(ns.cg_itp[geom])):
-			for var in ['func', 'value', 'fct']:
+			for var in ['func', 'value', 'value_user', 'fct', 'fct_user']:
 				var_set = set(ns.cg_itp[geom][grp_geom][var])
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
@@ -509,7 +515,7 @@ def read_cg_itp_file(ns):
 
 	for geom in ['dihedral']:  # dihedrals only
 		for grp_geom in range(len(ns.cg_itp[geom])):
-			for var in ['func', 'value', 'fct']:
+			for var in ['func', 'value', 'value_user', 'fct', 'fct_user']:
 				var_set = set(ns.cg_itp[geom][grp_geom][var])
 				if len(var_set) == 1:
 					ns.cg_itp[geom][grp_geom][var] = var_set.pop()
@@ -1005,7 +1011,7 @@ def get_search_space_boundaries(ns):
 	if ns.opti_cycle['nb_geoms']['bond'] > 0:
 		if ns.exec_mode == 1:
 			search_space_boundaries.extend(ns.domains_val['bond'])  # bonds distances and force constants
-		search_space_boundaries.extend([[config.default_min_fct_bonds, ns.default_max_fct_bonds_opti]]*ns.opti_cycle['nb_geoms']['bond'])
+		search_space_boundaries.extend([[config.default_min_fct_bonds, ns.default_max_fct_bonds_opti]] * ns.opti_cycle['nb_geoms']['bond'])
 
 	if ns.opti_cycle['nb_geoms']['angle'] > 0:
 		if ns.exec_mode == 1:
@@ -1072,56 +1078,16 @@ def get_initial_guess_list(ns, nb_particles):
 	input_guess.extend(fct_dihedrals)
 
 	initial_guess_list.append(input_guess)
+	num_particle_random_start = 1  # first particle is DBI
 
-	# optional second particle is initialized as input parameters
-	# this is independant of exec_mode, because we use only previously selected parameters for this particle
-	num_particle_random_start = 1
-	if ns.user_input:
-		num_particle_random_start += 1
-
-		input_guess = []
-
-		# constraints lengths
-		if ns.exec_mode == 1:
-			for i in range(len(ns.cg_itp_input['constraint'])):
-				input_guess.append(ns.cg_itp_input['constraint'][i]['value'])
-
-		# bonds lengths
-		if ns.exec_mode == 1:
-			for i in range(len(ns.cg_itp_input['bond'])):
-				input_guess.append(ns.cg_itp_input['bond'][i]['value'])
-
-		# bonds force constants
-		for i in range(len(ns.cg_itp_input['bond'])):
-			input_guess.append(ns.cg_itp_input['bond'][i]['fct'])
-
-		# angles values
-		if ns.exec_mode == 1:
-			for i in range(len(ns.cg_itp_input['angle'])):
-				input_guess.append(ns.cg_itp_input['angle'][i]['value'])
-
-		# angles force constants
-		for i in range(len(ns.cg_itp_input['angle'])):
-			input_guess.append(ns.cg_itp_input['angle'][i]['fct'])
-
-		# dihedrals values
-		if ns.exec_mode == 1:
-			for i in range(len(ns.cg_itp_input['dihedral'])):
-				input_guess.append(ns.cg_itp_input['dihedral'][i]['value'])
-		# dihedrals force constants
-		for i in range(len(ns.cg_itp_input['dihedral'])):
-			input_guess.append(ns.cg_itp_input['dihedral'][i]['fct'])
-
-		initial_guess_list.append(input_guess)
-
-
-
-	# the second particle is initialized using best EMD score for each geom, and the parameters that yielded these EMD scores
-	# this is independant of exec_mode, because we use only previously selected parameters for this particle
-	# if yet no indep best is recorded for a given geom, values are taken from best optimized model (or BI)
+	# The second particle (or third if -user_params is provided) is initialized using best EMD score for each geom,
+	# and the parameters that yielded these EMD scores. This is independant of exec_mode, because we use only
+	# previously selected parameters for this particle. If yet no indep best is recorded for a given geom,
+	# values are taken from best optimized model until now. If we are in opti cycle 1 and -user_params is provided,
+	# then this particle is instead initialized as the users parameters.
 	if ns.opti_cycle['nb_cycle'] > 1:
-		num_particle_random_start += 1
 
+		num_particle_random_start += 1
 		input_guess = []
 
 		# constraints lengths
@@ -1173,6 +1139,45 @@ def get_initial_guess_list(ns, nb_particles):
 				input_guess.append(ns.all_best_params_dist_geoms['dihedrals'][i]['params'][1])
 			else:
 				input_guess.append(ns.out_itp['dihedral'][i]['fct'])
+
+		initial_guess_list.append(input_guess)
+
+	# optional second particle is initialized as input parameters during opti cycle 1
+	elif ns.user_input:
+
+		num_particle_random_start += 1
+		input_guess = []
+
+		# constraints lengths
+		if ns.exec_mode == 1:
+			for i in range(ns.opti_cycle['nb_geoms']['constraint']):
+				input_guess.append(ns.out_itp['constraint'][i]['value_user'])
+
+		# bonds lengths
+		if ns.exec_mode == 1:
+			for i in range(ns.opti_cycle['nb_geoms']['bond']):
+				input_guess.append(ns.out_itp['bond'][i]['value_user'])
+
+		# bonds force constants
+		for i in range(ns.opti_cycle['nb_geoms']['bond']):
+			input_guess.append(ns.out_itp['bond'][i]['fct_user'])
+
+		# angles values
+		if ns.exec_mode == 1:
+			for i in range(ns.opti_cycle['nb_geoms']['angle']):
+				input_guess.append(ns.out_itp['angle'][i]['value_user'])
+
+		# angles force constants
+		for i in range(ns.opti_cycle['nb_geoms']['angle']):
+			input_guess.append(ns.out_itp['angle'][i]['fct_user'])
+
+		# dihedrals values
+		if ns.exec_mode == 1:
+			for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
+				input_guess.append(ns.out_itp['dihedral'][i]['value_user'])
+		# dihedrals force constants
+		for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
+			input_guess.append(ns.out_itp['dihedral'][i]['fct_user'])
 
 		initial_guess_list.append(input_guess)
 
@@ -1492,8 +1497,7 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 	else:
 		bond_avg_final = bond_avg_init
 
-	# or alternatively, do not rescale these bonds but add specific exclusion rules
-	# TODO: automatic exclusion rules ??
+	# or alternatively, do not rescale these bonds but add specific exclusion rules, OR JUST SUGGEST USER TO CHECK THIS
 	# exclusions storage format: ns.cg_itp['exclusion'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])
 
 	if grp_type.startswith('constraint'):
@@ -1708,7 +1712,7 @@ def perform_BI(ns):
 
 			if ns.verbose:
 				print()
-				print('Performing Boltzmann Inversion to estimate angles force constants')
+				print('Performing Direct Boltzmann Inversion (DBI) to estimate angles force constants')
 
 			for grp_angle in range(ns.opti_cycle['nb_geoms']['angle']):
 
@@ -1749,7 +1753,7 @@ def perform_BI(ns):
 
 			if ns.verbose:
 				print()
-				print('Performing Boltzmann Inversion to estimate dihedrals force constants')
+				print('Performing Direct Boltzmann Inversion (DBI) to estimate dihedrals force constants')
 
 			for grp_dihedral in range(ns.opti_cycle['nb_geoms']['dihedral']):
 

@@ -34,7 +34,7 @@ default_max_fct_dihedrals_opti_func_without_mult = 1500
 default_abs_range_fct_dihedrals_bi_func_with_mult = 3.5
 default_abs_range_fct_dihedrals_opti_func_with_mult = 15
 
-bonds2angles_scoring_factor = 250  # multiplier applied to constraints/bonds EMD scores to retrieve angles/dihedrals mismatches that are comparable, for the opti scoring function
+bonds2angles_scoring_factor = 500  # multiplier applied to constraints/bonds EMD scores to retrieve angles/dihedrals mismatches that are comparable, for the opti scoring function
 sim_crash_EMD_indep_score = 150  # when a simulation crashes or does not finish for any reason: EMD distance between 2 distributions, for 1 geom
 
 # bonds scaling, default
@@ -42,14 +42,15 @@ bonds_scaling = 1.0  # ratio
 min_bonds_length = 0.00  # nm
 bonds_scaling_str = ''  # constraints and bonds ids + their required target AA-mapped distributions rescaled averages
 
-# NOTE: in the benchmark of the paper we used bonds2_angles_scoring_factor = 500 and fct_guess_min_flat_diff_angles = 50, difference should be super small but an improvement
+# NOTE: in the benchmark of the paper we used bonds2_angles_scoring_factor = 500 and fct_guess_min_flat_diff_angles = 50,
+#       differences in the results should be small but still an improvement
 
 # building of the initial guesses for optimization, defaults
 bond_dist_guess_variation = 0.025  # nm
 angle_value_guess_variation = 10  # degrees
 dihedral_value_guess_variation = 10  # degrees
 fct_guess_min_flat_diff_bonds = 200  # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
-fct_guess_min_flat_diff_angles = 100  # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
+fct_guess_min_flat_diff_angles = 50  # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
 fct_guess_min_flat_diff_dihedrals_without_mult = 0.50  # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
 fct_guess_min_flat_diff_dihedrals_with_mult = 0.20  # flat minimum force constant variation that fct_guess_fact shall yield, used to find low and high boundaries for random generation of particles' force constants
 
