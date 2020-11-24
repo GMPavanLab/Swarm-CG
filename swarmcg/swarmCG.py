@@ -1080,11 +1080,12 @@ def get_initial_guess_list(ns, nb_particles):
 	initial_guess_list.append(input_guess)
 	num_particle_random_start = 1  # first particle is DBI
 
-	# The second particle (or third if -user_params is provided) is initialized using best EMD score for each geom,
-	# and the parameters that yielded these EMD scores. This is independant of exec_mode, because we use only
-	# previously selected parameters for this particle. If yet no indep best is recorded for a given geom,
-	# values are taken from best optimized model until now. If we are in opti cycle 1 and -user_params is provided,
-	# then this particle is instead initialized as the users parameters.
+	# The second particle is initialized either:
+	# (1) Using best EMD score for each geom and the parameters that yielded these EMD scores. This is independant
+	# of exec_mode, because we use only previously selected parameters for this particle. If yet no independant best
+	# is recorded for a given geom (dihedrals in fact), values are taken from best optimized model until now.
+	# (2) If we are in opti cycle 1 and -user_params is provided, then this particle is instead
+	# initialized as the users parameters.
 	if ns.opti_cycle['nb_cycle'] > 1:
 
 		num_particle_random_start += 1
@@ -1142,7 +1143,7 @@ def get_initial_guess_list(ns, nb_particles):
 
 		initial_guess_list.append(input_guess)
 
-	# optional second particle is initialized as input parameters during opti cycle 1
+	# optionally second particle is initialized as input parameters during opti cycle 1
 	elif ns.user_input:
 
 		num_particle_random_start += 1
