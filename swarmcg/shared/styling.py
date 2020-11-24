@@ -102,9 +102,9 @@ This module has 2 optimization modes:
     Boltzmann Inversion to estimate bonds lengths, angles/dihedrals values and their force
     constants, then runs optimization to best fit the reference AA-mapped distributions.
 
-(2) TUNE ONLY FORCE CONSTANTS FOR ANGLES/DIHEDRALS VALUES AND ALL PARAMETERS FOR BONDS.
-    Equilibrium values of angles/dihedrals provided in the preliminary  CG ITP model are
-    conserved while optimization best fits reference AA-mapped distributions.
+(2) TUNE ONLY FORCE CONSTANTS FOR BONDS/ANGLES/DIHEDRALS, WITH CONSTANT EQUILIBRIUM VALUES.
+    Equilibrium values of angles/dihedrals provided in the preliminary CG ITP model are
+    conserved while optimization will aim at best fitting reference AA-mapped distributions.
 
 Independently of parameters, the expected input is:
 

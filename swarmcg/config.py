@@ -34,7 +34,7 @@ default_max_fct_dihedrals_opti_func_without_mult = 1500
 default_abs_range_fct_dihedrals_bi_func_with_mult = 3.5
 default_abs_range_fct_dihedrals_opti_func_with_mult = 15
 
-bonds2angles_scoring_factor = 250  # multiplier applied to constraints/bonds EMD scores to retrieve angles/dihedrals mismatches that are comparable, for the opti scoring function
+bonds2angles_scoring_factor = 500  # multiplier applied to constraints/bonds EMD scores to retrieve angles/dihedrals mismatches that are comparable, for the opti scoring function
 sim_crash_EMD_indep_score = 150  # when a simulation crashes or does not finish for any reason: EMD distance between 2 distributions, for 1 geom
 
 # bonds scaling, default
