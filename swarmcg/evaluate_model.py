@@ -36,14 +36,16 @@ def run(ns):
 	ns.cg_itp_basename = os.path.basename(ns.cg_itp_filename)
 
 	# NOTE: some arguments exist only in the scope of optimization (optimize_model.py) or only in the scope of model
-	#       evaluation (evaluate_mode.py), so they need to be defined here
+	#       evaluation (evaluate_mode.py), but still need to be defined here -> Change this to something less messy
 	ns.molname_in = None
 	ns.gyr_aa_mapped, ns.gyr_aa_mapped_std = None, None
 	ns.sasa_aa_mapped, ns.sasa_aa_mapped_std = None, None
 	ns.aa_rg_offset = 0  # TODO: allow an argument more in evaluate_model, like in optimiwe_model, for adding an offset to Rg
+	ns.user_input = False
 	ns.default_max_fct_bonds_opti = np.inf
 	ns.default_max_fct_angles_opti_f1 = np.inf
 	ns.default_max_fct_angles_opti_f2 = np.inf
+	ns.default_abs_range_fct_dihedrals_opti_func_with_mult = np.inf
 	ns.default_max_fct_dihedrals_opti_func_without_mult = np.inf
 
 	# scg.set_MDA_backend(ns)

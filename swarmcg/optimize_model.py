@@ -505,6 +505,8 @@ def run(ns):
           , 3)
         # nb_particles = int(10 + 2*np.sqrt(len(search_space_boundaries)))  # formula used by FST-PSO to choose nb of particles, which defines the number of initial guesses we can use
         nb_particles = int(round(2 + np.sqrt(len(search_space_boundaries))))  # adapted to have less particles and fitted to our problems, which has good initial guesses and error driven initialization
+        if nb_particles < 3:  # actually we probably should make this an open parameter soon (not the minimum, but the REQUIRED number of particles)
+            nb_particles = 3
         # nb_particles = 2 # for tests
         initial_guess_list = scg.get_initial_guess_list(ns, nb_particles)
 
