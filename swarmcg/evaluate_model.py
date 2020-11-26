@@ -46,7 +46,7 @@ def run(ns):
 	ns.default_max_fct_angles_opti_f1 = np.inf
 	ns.default_max_fct_angles_opti_f2 = np.inf
 	ns.default_abs_range_fct_dihedrals_opti_func_with_mult = np.inf
-	ns.default_max_fct_dihedrals_opti_func_without_mult = np.inf
+	ns.default_abs_range_fct_dihedrals_opti_func_without_mult = np.inf
 
 	# scg.set_MDA_backend(ns)
 	ns.mda_backend = 'serial'  # actually serial is faster because MDA is not properly parallelized atm

@@ -8,7 +8,7 @@ Swarm-CG is designed for automatically optimizing the bonded terms of a MARTINI-
 
 ![Swarm-CG](https://raw.githubusercontent.com/GMPavanLab/Swarm-CG/master/images/TOC_Swarm-CG_paper.png)
 
-Swarm-CG works with MARTINI version 2 or 3. Virtual sites are correctly handled and the AA-to-CG mapping can be interpreted as center of mass (COM) or center of geometry (COG).
+Swarm-CG works with MARTINI version 2 or 3. The AA-to-CG mapping can be interpreted as center of mass (COM) or center of geometry (COG). Virtual sites handling is under development and will be available soon.
 
 ### Publication
 
