@@ -84,6 +84,17 @@ def run(ns):
         msg = "Mapping type provided via argument '-mapping' must be either COM or COG (Center of Mass or Center of Geometry)."
         raise exceptions.InputArgumentError(msg)
 
+    # check that force constants limits make sense
+    if ns.default_max_fct_bonds_opti <= 0:
+        msg = f"Please provide a value > 0 for argument -max_fct_bonds_f1."
+        raise exceptions.InputArgumentError(msg)
+    if ns.default_max_fct_angles_opti_f1 <= 0:
+        msg = f"Please provide a value > 0 for argument -max_fct_angles_opti_f1."
+        raise exceptions.InputArgumentError(msg)
+    if ns.default_max_fct_angles_opti_f2 <= 0:
+        msg = f"Please provide a value > 0 for argument -max_fct_angles_opti_f2."
+        raise exceptions.InputArgumentError(msg)
+
     # check if we can find files at user-provided location(s)
     # here the order of the args in the 2 lists below is important, be very careful if changing this or adding args
     arg_entries = vars(ns)  # dict view of the arguments namespace
@@ -277,7 +288,7 @@ def run(ns):
         ns.cg_itp['constraint'][grp_constraint]['avg'] = constraint_avg
         ns.cg_itp['constraint'][grp_constraint]['hist'] = constraint_hist
 
-        ns.domains_val['constraint'].append([round(np.min(constraint_values), 3), round(np.max(constraint_values), 3)])
+        ns.domains_val['constraint'].append([round(np.min(constraint_values), 3), round(np.max(constraint_values), 3)])  # boundaries of equilibrium values
         print(f'  Constraint grp {grp_constraint+1} -- Average value: '+str(round(constraint_avg, 2))+' nm -- Initial equilibrium value: '+str(round(ns.cg_itp['constraint'][grp_constraint]['value'], 2))+' nm')
 
     # get ref atom hists + find very first distances and force constants guesses for bonds groups
@@ -293,7 +304,7 @@ def run(ns):
         xmin, xmax = xmin-ns.bw_bonds, xmax+ns.bw_bonds
         ns.data_BI['bond'].append([np.histogram(bond_values, range=(xmin, xmax), bins=config.bi_nb_bins)[0], np.std(bond_values), np.mean(bond_values), (xmin, xmax)])
 
-        ns.domains_val['bond'].append([round(np.min(bond_values), 3), round(np.max(bond_values), 3)])  # boundaries of force constats during optimization
+        ns.domains_val['bond'].append([round(np.min(bond_values), 3), round(np.max(bond_values), 3)])  # boundaries of equilibrium values
         print(f'  Bond grp {grp_bond+1} -- Average value: '+str(round(bond_avg, 2))+' nm -- Initial equilibrium value: '+str(round(ns.cg_itp['bond'][grp_bond]['value'], 2))+' nm')
 
     # get ref atom hists + find very first values and force constants guesses for angles groups
@@ -309,7 +320,7 @@ def run(ns):
         xmin, xmax = xmin+ns.bw_angles/2, xmax-ns.bw_angles/2
         ns.data_BI['angle'].append([np.histogram(angle_values_rad, range=(np.deg2rad(xmin), np.deg2rad(xmax)), bins=config.bi_nb_bins)[0], np.std(angle_values_rad), (xmin, xmax)])
 
-        ns.domains_val['angle'].append([round(np.min(angle_values_deg), 2), round(np.max(angle_values_deg), 2)])  # boundaries of force constants during optimization
+        ns.domains_val['angle'].append([round(np.min(angle_values_deg), 2), round(np.max(angle_values_deg), 2)])  # boundaries of equilibrium values
         print(f'  Angle grp {grp_angle+1} -- Average value: ' + str(round(angle_avg, 2)) + ' degrees -- Initial equilibrium value: '+str(round(ns.cg_itp['angle'][grp_angle]['value'], 2))+' degrees')
 
     # get ref atom hists + find very first values and force constants guesses for dihedrals groups
@@ -324,7 +335,7 @@ def run(ns):
         xmin, xmax = -180, 180
         ns.data_BI['dihedral'].append([np.histogram(dihedral_values_rad, range=(np.deg2rad(xmin), np.deg2rad(xmax)), bins=2 *config.bi_nb_bins)[0], np.std(dihedral_values_rad), np.mean(dihedral_values_rad), (xmin, xmax)])
 
-        ns.domains_val['dihedral'].append([round(np.min(dihedral_values_deg), 2), round(np.max(dihedral_values_deg), 2)])  # boundaries of force constats during optimization
+        ns.domains_val['dihedral'].append([round(np.min(dihedral_values_deg), 2), round(np.max(dihedral_values_deg), 2)])  # boundaries of equilibrium values
         print(f'  Dihedral grp {grp_dihedral+1} -- Average value: ' + str(round(dihedral_avg, 2)) + ' degrees -- Initial equilibrium value: '+str(round(ns.cg_itp['dihedral'][grp_dihedral]['value'], 2))+' degrees')
 
     if not ns.bonds_rescaling_performed:
@@ -497,6 +508,7 @@ def run(ns):
 
         # build vector for search space boundaries + create variations around the BI initial guesses
         search_space_boundaries = scg.get_search_space_boundaries(ns)
+
         # ns.worst_fit_score = round(len(search_space_boundaries) * config.sim_crash_EMD_indep_score, 3)
         ns.worst_fit_score = round(\
           np.sqrt((ns.nb_constraints+ns.nb_bonds) * config.sim_crash_EMD_indep_score) + \
@@ -645,21 +657,31 @@ def main():
                               help='Time (s) after which to kill a simulation that has not been\nwriting into its log file, in case a simulation gets stuck',
                               type=int, default=60, metavar='        (60)')
 
-    optional_args2 = args_parser.add_argument_group(bullet + 'CG MODEL SCALING')
-    optional_args2.add_argument('-aa_rg_offset', dest='aa_rg_offset',
-                              help='Radius of gyration offset (nm) to be applied to AA data\naccording to your potential bonds rescaling (for display only)',
-                              type=float, default=0.00, metavar='        ' + scg.par_wrap('0.00'))
-    optional_args2.add_argument('-bonds_scaling', dest='bonds_scaling',
-                              help=config.help_bonds_scaling, type=float,
-                              default=config.bonds_scaling,
-                              metavar='        ' + scg.par_wrap(config.bonds_scaling))
-    optional_args2.add_argument('-bonds_scaling_str', dest='bonds_scaling_str',
-                              help=config.help_bonds_scaling_str, type=str,
-                              default=config.bonds_scaling_str, metavar='')
-    optional_args2.add_argument('-min_bonds_length', dest='min_bonds_length',
-                              help=config.help_min_bonds_length, type=float,
-                              default=config.min_bonds_length,
-                              metavar='     ' + scg.par_wrap(config.min_bonds_length))
+    optional_args6 = args_parser.add_argument_group(bullet + 'CG MODEL FORCE CONSTANTS')
+    optional_args6.add_argument('-max_fct_bonds_f1', dest='default_max_fct_bonds_opti',
+                              help=config.help_max_fct_bonds, type=float,
+                              default=config.default_max_fct_bonds_opti,
+                              metavar='   ' + scg.par_wrap(config.default_max_fct_bonds_opti))
+    optional_args6.add_argument('-max_fct_angles_f1', dest='default_max_fct_angles_opti_f1',
+                              help=config.help_max_fct_angles_f1, type=float,
+                              default=config.default_max_fct_angles_opti_f1,
+                              metavar='   ' + scg.par_wrap(config.default_max_fct_angles_opti_f1))
+    optional_args6.add_argument('-max_fct_angles_f2', dest='default_max_fct_angles_opti_f2',
+                              help=config.help_max_fct_angles_f2, type=float,
+                              default=config.default_max_fct_angles_opti_f2,
+                              metavar='   ' + scg.par_wrap(config.default_max_fct_angles_opti_f2))
+    optional_args6.add_argument('-max_fct_dihedrals_f149',
+                              dest='default_abs_range_fct_dihedrals_opti_func_with_mult',
+                              help=config.help_max_fct_dihedrals_with_mult, type=float,
+                              default=config.default_abs_range_fct_dihedrals_opti_func_with_mult,
+                              metavar='' + scg.par_wrap(
+                                config.default_abs_range_fct_dihedrals_opti_func_with_mult))
+    optional_args6.add_argument('-max_fct_dihedrals_f2',
+                              dest='default_abs_range_fct_dihedrals_opti_func_without_mult',
+                              help=config.help_max_fct_dihedrals_without_mult, type=float,
+                              default=config.default_abs_range_fct_dihedrals_opti_func_without_mult,
+                              metavar='' + scg.par_wrap(
+                                config.default_abs_range_fct_dihedrals_opti_func_without_mult))
 
     optional_args5 = args_parser.add_argument_group(bullet + 'CG MODEL SCORING')
     optional_args5.add_argument('-cg_time_short', dest='sim_duration_short',
@@ -690,31 +712,21 @@ def main():
                               default=config.bonds_max_range,
                               metavar='       ' + scg.par_wrap(config.bonds_max_range))
 
-    optional_args6 = args_parser.add_argument_group(bullet + 'CG MODEL FORCE CONSTANTS')
-    optional_args6.add_argument('-max_fct_bonds_f1', dest='default_max_fct_bonds_opti',
-                              help=config.help_max_fct_bonds, type=float,
-                              default=config.default_max_fct_bonds_opti,
-                              metavar='   ' + scg.par_wrap(config.default_max_fct_bonds_opti))
-    optional_args6.add_argument('-max_fct_angles_f1', dest='default_max_fct_angles_opti_f1',
-                              help=config.help_max_fct_angles_f1, type=float,
-                              default=config.default_max_fct_angles_opti_f1,
-                              metavar='   ' + scg.par_wrap(config.default_max_fct_angles_opti_f1))
-    optional_args6.add_argument('-max_fct_angles_f2', dest='default_max_fct_angles_opti_f2',
-                              help=config.help_max_fct_angles_f2, type=float,
-                              default=config.default_max_fct_angles_opti_f2,
-                              metavar='   ' + scg.par_wrap(config.default_max_fct_angles_opti_f2))
-    optional_args6.add_argument('-max_fct_dihedrals_f149',
-                              dest='default_abs_range_fct_dihedrals_opti_func_with_mult',
-                              help=config.help_max_fct_dihedrals_with_mult, type=float,
-                              default=config.default_abs_range_fct_dihedrals_opti_func_with_mult,
-                              metavar='' + scg.par_wrap(
-                                config.default_abs_range_fct_dihedrals_opti_func_with_mult))
-    optional_args6.add_argument('-max_fct_dihedrals_f2',
-                              dest='default_max_fct_dihedrals_opti_func_without_mult',
-                              help=config.help_max_fct_dihedrals_without_mult, type=float,
-                              default=config.default_max_fct_dihedrals_opti_func_without_mult,
-                              metavar='' + scg.par_wrap(
-                                config.default_max_fct_dihedrals_opti_func_without_mult))
+    optional_args2 = args_parser.add_argument_group(bullet + 'CG MODEL SCALING')
+    optional_args2.add_argument('-aa_rg_offset', dest='aa_rg_offset',
+                              help='Radius of gyration offset (nm) to be applied to AA data\naccording to your potential bonds rescaling (for display only)',
+                              type=float, default=0.00, metavar='        ' + scg.par_wrap('0.00'))
+    optional_args2.add_argument('-bonds_scaling', dest='bonds_scaling',
+                              help=config.help_bonds_scaling, type=float,
+                              default=config.bonds_scaling,
+                              metavar='        ' + scg.par_wrap(config.bonds_scaling))
+    optional_args2.add_argument('-bonds_scaling_str', dest='bonds_scaling_str',
+                              help=config.help_bonds_scaling_str, type=str,
+                              default=config.bonds_scaling_str, metavar='')
+    optional_args2.add_argument('-min_bonds_length', dest='min_bonds_length',
+                              help=config.help_min_bonds_length, type=float,
+                              default=config.min_bonds_length,
+                              metavar='     ' + scg.par_wrap(config.min_bonds_length))
 
     optional_args3 = args_parser.add_argument_group(bullet + 'OTHERS')
     optional_args3.add_argument('-temp', dest='temp',
@@ -737,6 +749,7 @@ def main():
     # argcomplete.autocomplete(parser)
     ns = args_parser.parse_args()
 
+    # do NOT display the stack by default
     if not ns.verbose:
         sys.tracebacklimit = 0
 

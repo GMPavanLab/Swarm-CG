@@ -29,7 +29,7 @@ class InvalidArgument(BaseError):
     base_msg = (
         "Cannot interpret argument -{name} as provided: {value}. "
         "{additional_info}"
-        "Please check your parameters, or look for help in an example."
+        "Please check your parameters or look at the help (-h) for an example."
     )
 
     def __init__(self, argument, value, additional_info=""):

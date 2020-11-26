@@ -200,11 +200,11 @@ def read_cg_itp_file(ns):
 		'exclusion': False
 	}
 
-	def msg_force_boundaries(line, limit, str_arg):
+	def msg_force_boundaries(line, min_fct, max_fct, str_arg):
 		msg = (
 			f'You activated the option to take into account the parameters provided via\n'
-			f'the ITP file, but the input force constant provided at line {line} is above the\n'
-			f'maximum authorized value ({limit}).\n'
+			f'the ITP file, but the input force constant provided at line {line} is outside\n'
+			f'of the range of authorized values: [{min_fct}, {max_fct}].\n'
 			f'Please either modify the argument {str_arg} or modify the force\n'
 			f'constant in your ITP file.'
 		)
@@ -346,8 +346,8 @@ def read_cg_itp_file(ns):
 					ns.cg_itp['bond'][ns.nb_bonds]['fct'].append(float(sp_itp_line[4]))
 					ns.cg_itp['bond'][ns.nb_bonds]['fct_user'].append(float(sp_itp_line[4]))
 
-					if float(sp_itp_line[4]) > ns.default_max_fct_bonds_opti and ns.user_input:
-						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_max_fct_bonds_opti, '-max_fct_bonds_f1'))
+					if ns.user_input and not 0 <= float(sp_itp_line[4]) <= ns.default_max_fct_bonds_opti:
+						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, 0, ns.default_max_fct_bonds_opti, '-max_fct_bonds_f1'))
 
 				elif section_read['angle']:
 
@@ -376,11 +376,11 @@ def read_cg_itp_file(ns):
 					ns.cg_itp['angle'][ns.nb_angles]['fct'].append(float(sp_itp_line[5]))
 					ns.cg_itp['angle'][ns.nb_angles]['fct_user'].append(float(sp_itp_line[5]))
 
-					if float(sp_itp_line[5]) > ns.default_max_fct_angles_opti_f1 and ns.user_input and func == 1:
-						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_max_fct_angles_opti_f1, '-max_fct_angles_f1'))
-
-					if float(sp_itp_line[5]) > ns.default_max_fct_angles_opti_f2 and ns.user_input and func == 2:
-						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_max_fct_angles_opti_f2, '-max_fct_angles_f2'))
+					if ns.user_input:
+						if func == 1 and not 0 <= float(sp_itp_line[5]) <= ns.default_max_fct_angles_opti_f1:
+							raise exceptions.MissformattedFile(msg_force_boundaries(i+1, 0, ns.default_max_fct_angles_opti_f1, '-max_fct_angles_f1'))
+						elif func == 2 and not 0 <= float(sp_itp_line[5]) <= ns.default_max_fct_angles_opti_f2:
+							raise exceptions.MissformattedFile(msg_force_boundaries(i+1, 0, ns.default_max_fct_angles_opti_f2, '-max_fct_angles_f2'))
 
 				elif section_read['dihedral']:
 
@@ -409,11 +409,11 @@ def read_cg_itp_file(ns):
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['fct'].append(float(sp_itp_line[6]))
 					ns.cg_itp['dihedral'][ns.nb_dihedrals]['fct_user'].append(float(sp_itp_line[6]))
 
-					if float(sp_itp_line[6]) > ns.default_abs_range_fct_dihedrals_opti_func_with_mult and ns.user_input and func in config.dihedral_func_with_mult:
-						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_abs_range_fct_dihedrals_opti_func_with_mult, '-max_fct_dihedrals_f149'))
-
-					if float(sp_itp_line[6]) > ns.default_max_fct_dihedrals_opti_func_without_mult and ns.user_input and func == 2:
-						raise exceptions.MissformattedFile(msg_force_boundaries(i+1, ns.default_max_fct_dihedrals_opti_func_without_mult, '-max_fct_dihedrals_f2'))
+					if ns.user_input:
+						if func in config.dihedral_func_with_mult and not -ns.default_abs_range_fct_dihedrals_opti_func_with_mult <= float(sp_itp_line[6]) <= ns.default_abs_range_fct_dihedrals_opti_func_with_mult:
+							raise exceptions.MissformattedFile(msg_force_boundaries(i+1, -ns.default_abs_range_fct_dihedrals_opti_func_with_mult, ns.default_abs_range_fct_dihedrals_opti_func_with_mult, '-max_fct_dihedrals_f149'))
+						elif func == 2 and not -ns.default_abs_range_fct_dihedrals_opti_func_without_mult <= float(sp_itp_line[6]) <= ns.default_abs_range_fct_dihedrals_opti_func_without_mult:
+							raise exceptions.MissformattedFile(msg_force_boundaries(i+1, -ns.default_abs_range_fct_dihedrals_opti_func_without_mult, ns.default_abs_range_fct_dihedrals_opti_func_without_mult, '-max_fct_dihedrals_f2'))
 
 					# handle multiplicity if function assumes multiplicity
 					if func in config.dihedral_func_with_mult:
@@ -1006,30 +1006,30 @@ def get_search_space_boundaries(ns):
 
 	if ns.opti_cycle['nb_geoms']['constraint'] > 0:
 		if ns.exec_mode == 1:
-			search_space_boundaries.extend(ns.domains_val['constraint'])  # constraints distances
+			search_space_boundaries.extend(ns.domains_val['constraint'])  # constraints equilibrium values
 
 	if ns.opti_cycle['nb_geoms']['bond'] > 0:
 		if ns.exec_mode == 1:
-			search_space_boundaries.extend(ns.domains_val['bond'])  # bonds distances and force constants
-		search_space_boundaries.extend([[config.default_min_fct_bonds, ns.default_max_fct_bonds_opti]] * ns.opti_cycle['nb_geoms']['bond'])
+			search_space_boundaries.extend(ns.domains_val['bond'])  # bonds equilibrium values
+		search_space_boundaries.extend([[0, ns.default_max_fct_bonds_opti]] * ns.opti_cycle['nb_geoms']['bond'])  # bonds force constants
 
 	if ns.opti_cycle['nb_geoms']['angle'] > 0:
 		if ns.exec_mode == 1:
-			search_space_boundaries.extend(ns.domains_val['angle'])  # angles values
+			search_space_boundaries.extend(ns.domains_val['angle'])  # angles equilibrium values
 
 		for grp_angle in range(ns.opti_cycle['nb_geoms']['angle']):  # angles force constants
 			if ns.cg_itp['angle'][grp_angle]['func'] == 1:
-				search_space_boundaries.extend([[config.default_min_fct_angles, ns.default_max_fct_angles_opti_f1]])
+				search_space_boundaries.extend([[0, ns.default_max_fct_angles_opti_f1]])
 			elif ns.cg_itp['angle'][grp_angle]['func'] == 2:
-				search_space_boundaries.extend([[config.default_min_fct_angles, ns.default_max_fct_angles_opti_f2]])
+				search_space_boundaries.extend([[0, ns.default_max_fct_angles_opti_f2]])
 
 	if ns.opti_cycle['nb_geoms']['dihedral'] > 0:
 		if ns.exec_mode == 1:
-			search_space_boundaries.extend(ns.domains_val['dihedral'])  # dihedrals values
+			search_space_boundaries.extend(ns.domains_val['dihedral'])  # dihedrals equilibrium values
 
 		for grp_dihedral in range(ns.opti_cycle['nb_geoms']['dihedral']):  # dihedrals force constants
 			if ns.cg_itp['dihedral'][grp_dihedral]['func'] == 2:
-				search_space_boundaries.extend([[config.default_min_fct_dihedrals_func_without_mult, ns.default_max_fct_dihedrals_opti_func_without_mult]])
+				search_space_boundaries.extend([[-ns.default_abs_range_fct_dihedrals_opti_func_without_mult, ns.default_abs_range_fct_dihedrals_opti_func_without_mult]])
 			elif ns.cg_itp['dihedral'][grp_dihedral]['func'] in config.dihedral_func_with_mult:
 				search_space_boundaries.extend([[-ns.default_abs_range_fct_dihedrals_opti_func_with_mult, ns.default_abs_range_fct_dihedrals_opti_func_with_mult]])
 
@@ -1043,39 +1043,42 @@ def get_search_space_boundaries(ns):
 #   3rd do dihedrals the similarly, using BI ratio
 def get_initial_guess_list(ns, nb_particles):
 
-	initial_guess_list = [] # array of arrays (inner arrays are the values used for particles initialization)
+	initial_guess_list = []  # array of arrays (inner arrays are the values used for particles initialization)
 
 	# the first particle is initialized as EXACTLY the values of the current CG ITP object (or BI in exec_mode 1)
 	# except if force constants are outside of the searchable domain defined for optimization
 	# for bonds lengths and angles/dihedrals values, we perform no checks
 	input_guess = []
-	if ns.exec_mode == 1:
-		input_guess.extend([ns.out_itp['constraint'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['constraint'])]) # constraints lengths
-		input_guess.extend([ns.out_itp['bond'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['bond'])]) # bonds lengths
-	fct_bonds = []
-	for i in range(ns.opti_cycle['nb_geoms']['bond']):
-		fct_bonds.append(min(max(ns.out_itp['bond'][i]['fct'], config.default_min_fct_bonds), ns.default_max_fct_bonds_opti)) # bonds force constants
-	input_guess.extend(fct_bonds)
 
 	if ns.exec_mode == 1:
-		input_guess.extend([ns.out_itp['angle'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['angle'])]) # angles values
-	fct_angles = []
+		for i in range(ns.opti_cycle['nb_geoms']['constraint']):
+			input_guess.append(min(max(ns.out_itp['constraint'][i]['value'], ns.domains_val['constraint'][i][0]), ns.domains_val['constraint'][i][1]))  # constraints equilibrium values
+
+		for i in range(ns.opti_cycle['nb_geoms']['bond']):
+			input_guess.append(min(max(ns.out_itp['bond'][i]['value'], ns.domains_val['bond'][i][0]), ns.domains_val['bond'][i][1]))  # bonds equilibrium values
+
+	for i in range(ns.opti_cycle['nb_geoms']['bond']):
+		input_guess.append(min(max(ns.out_itp['bond'][i]['fct'], 0), ns.default_max_fct_bonds_opti))  # bonds force constants
+
+	if ns.exec_mode == 1:
+		for i in range(ns.opti_cycle['nb_geoms']['angle']):
+			input_guess.append(min(max(ns.out_itp['angle'][i]['value'], ns.domains_val['angle'][i][0]), ns.domains_val['angle'][i][1]))  # angles equilibrium values
+
 	for i in range(ns.opti_cycle['nb_geoms']['angle']):
 		if ns.cg_itp['angle'][i]['func'] == 1:
-			fct_angles.append(min(max(ns.out_itp['angle'][i]['fct'], config.default_min_fct_angles), ns.default_max_fct_angles_opti_f1)) # angles force constants
+			input_guess.append(min(max(ns.out_itp['angle'][i]['fct'], 0), ns.default_max_fct_angles_opti_f1))  # angles force constants
 		elif ns.cg_itp['angle'][i]['func'] == 2:
-			fct_angles.append(min(max(ns.out_itp['angle'][i]['fct'], config.default_min_fct_angles), ns.default_max_fct_angles_opti_f2)) # angles force constants
-	input_guess.extend(fct_angles)
+			input_guess.append(min(max(ns.out_itp['angle'][i]['fct'], 0), ns.default_max_fct_angles_opti_f2))  # angles force constants
 
 	if ns.exec_mode == 1:
-		input_guess.extend([ns.out_itp['dihedral'][i]['value'] for i in range(ns.opti_cycle['nb_geoms']['dihedral'])]) # dihedrals values
-	fct_dihedrals = []
+		for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
+			input_guess.append(min(max(ns.out_itp['dihedral'][i]['value'], ns.domains_val['dihedral'][i][0]), ns.domains_val['dihedral'][i][1]))  # dihedrals equilibrium values
+
 	for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
 		if ns.cg_itp['dihedral'][i]['func'] == 2:
-			fct_dihedrals.append(min(max(ns.out_itp['dihedral'][i]['fct'], config.default_min_fct_dihedrals_func_without_mult), ns.default_max_fct_dihedrals_opti_func_without_mult)) # dihedrals force constants
+			input_guess.append(min(max(ns.out_itp['dihedral'][i]['fct'], -ns.default_abs_range_fct_dihedrals_opti_func_without_mult), ns.default_abs_range_fct_dihedrals_opti_func_without_mult))  # dihedrals force constants
 		else:
-			fct_dihedrals.append(min(max(ns.out_itp['dihedral'][i]['fct'], -ns.default_abs_range_fct_dihedrals_opti_func_with_mult), ns.default_abs_range_fct_dihedrals_opti_func_with_mult)) # dihedrals force constants
-	input_guess.extend(fct_dihedrals)
+			input_guess.append(min(max(ns.out_itp['dihedral'][i]['fct'], -ns.default_abs_range_fct_dihedrals_opti_func_with_mult), ns.default_abs_range_fct_dihedrals_opti_func_with_mult))  # dihedrals force constants
 
 	initial_guess_list.append(input_guess)
 	num_particle_random_start = 1  # first particle is DBI
@@ -1091,94 +1094,110 @@ def get_initial_guess_list(ns, nb_particles):
 		num_particle_random_start += 1
 		input_guess = []
 
-		# constraints lengths
+		# constraints equilibrium values
 		if ns.exec_mode == 1:
 			for i in range(ns.opti_cycle['nb_geoms']['constraint']):
 				if ns.all_best_emd_dist_geoms['constraints'][i] != config.sim_crash_EMD_indep_score:
 					input_guess.append(ns.all_best_params_dist_geoms['constraints'][i]['params'][0])
 				else:
-					input_guess.append(ns.out_itp['constraint'][i]['value'])
+					input_guess.append(min(max(ns.out_itp['constraint'][i]['value'], ns.domains_val['constraint'][i][0]), ns.domains_val['constraint'][i][1]))
 
-		# bonds lengths
+		# bonds equilibrium values
 		if ns.exec_mode == 1:
 			for i in range(ns.opti_cycle['nb_geoms']['bond']):
 				if ns.all_best_emd_dist_geoms['bonds'][i] != config.sim_crash_EMD_indep_score:
 					input_guess.append(ns.all_best_params_dist_geoms['bonds'][i]['params'][0])
 				else:
-					input_guess.append(ns.out_itp['bond'][i]['value'])
+					input_guess.append(min(max(ns.out_itp['bond'][i]['value'], ns.domains_val['bond'][i][0]), ns.domains_val['bond'][i][1]))
 		# bonds force constants
 		for i in range(ns.opti_cycle['nb_geoms']['bond']):
 			if ns.all_best_emd_dist_geoms['bonds'][i] != config.sim_crash_EMD_indep_score:
 				input_guess.append(ns.all_best_params_dist_geoms['bonds'][i]['params'][1])
 			else:
-				input_guess.append(ns.out_itp['bond'][i]['fct'])
+				input_guess.append(min(max(ns.out_itp['bond'][i]['fct'], 0), ns.default_max_fct_bonds_opti))
 
-		# angles values
+		# angles equilibrium values
 		if ns.exec_mode == 1:
 			for i in range(ns.opti_cycle['nb_geoms']['angle']):
 				if ns.all_best_emd_dist_geoms['angles'][i] != config.sim_crash_EMD_indep_score:
 					input_guess.append(ns.all_best_params_dist_geoms['angles'][i]['params'][0])
 				else:
-					input_guess.append(ns.out_itp['angle'][i]['value'])
+					input_guess.append(min(max(ns.out_itp['angle'][i]['value'], ns.domains_val['angle'][i][0]), ns.domains_val['angle'][i][1]))
 		# angles force constants
 		for i in range(ns.opti_cycle['nb_geoms']['angle']):
 			if ns.all_best_emd_dist_geoms['angles'][i] != config.sim_crash_EMD_indep_score:
 				input_guess.append(ns.all_best_params_dist_geoms['angles'][i]['params'][1])
 			else:
-				input_guess.append(ns.out_itp['angle'][i]['fct'])
+				if ns.cg_itp['angle'][i]['func'] == 1:
+					input_guess.append(min(max(ns.out_itp['angle'][i]['fct'], 0), ns.default_max_fct_angles_opti_f1))
+				elif ns.cg_itp['angle'][i]['func'] == 2:
+					input_guess.append(min(max(ns.out_itp['angle'][i]['fct'], 0), ns.default_max_fct_angles_opti_f2))
 
-		# dihedrals values
+		# dihedrals equilibrium values
 		if ns.exec_mode == 1:
 			for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
 				if ns.all_best_emd_dist_geoms['dihedrals'][i] != config.sim_crash_EMD_indep_score:
 					input_guess.append(ns.all_best_params_dist_geoms['dihedrals'][i]['params'][0])
 				else:
-					input_guess.append(ns.out_itp['dihedral'][i]['value'])
+					input_guess.append(min(max(ns.out_itp['dihedral'][i]['value'], ns.domains_val['dihedral'][i][0]), ns.domains_val['dihedral'][i][1]))
 		# dihedrals force constants
 		for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
 			if ns.all_best_emd_dist_geoms['dihedrals'][i] != config.sim_crash_EMD_indep_score:
 				input_guess.append(ns.all_best_params_dist_geoms['dihedrals'][i]['params'][1])
 			else:
-				input_guess.append(ns.out_itp['dihedral'][i]['fct'])
+				if ns.cg_itp['dihedral'][i]['func'] == 2:
+					input_guess.append(
+						min(max(ns.out_itp['dihedral'][i]['fct'], -ns.default_abs_range_fct_dihedrals_opti_func_without_mult), ns.default_abs_range_fct_dihedrals_opti_func_without_mult))
+				else:
+					input_guess.append(min(
+						max(ns.out_itp['dihedral'][i]['fct'], -ns.default_abs_range_fct_dihedrals_opti_func_with_mult), ns.default_abs_range_fct_dihedrals_opti_func_with_mult))
 
 		initial_guess_list.append(input_guess)
 
-	# optionally second particle is initialized as input parameters during opti cycle 1
+	# optionally second particle is initialized as input parameters ONLY at start of opti cycle 1
 	elif ns.user_input:
 
 		num_particle_random_start += 1
 		input_guess = []
 
-		# constraints lengths
+		# constraints equilibrium values
 		if ns.exec_mode == 1:
 			for i in range(ns.opti_cycle['nb_geoms']['constraint']):
-				input_guess.append(ns.out_itp['constraint'][i]['value_user'])
+				input_guess.append(min(max(ns.out_itp['constraint'][i]['value_user'], ns.domains_val['constraint'][i][0]), ns.domains_val['constraint'][i][1]))
 
-		# bonds lengths
+		# bonds equilibrium values
 		if ns.exec_mode == 1:
 			for i in range(ns.opti_cycle['nb_geoms']['bond']):
-				input_guess.append(ns.out_itp['bond'][i]['value_user'])
+				input_guess.append(min(max(ns.out_itp['bond'][i]['value_user'], ns.domains_val['bond'][i][0]), ns.domains_val['bond'][i][1]))
 
 		# bonds force constants
 		for i in range(ns.opti_cycle['nb_geoms']['bond']):
-			input_guess.append(ns.out_itp['bond'][i]['fct_user'])
+			input_guess.append(min(max(ns.out_itp['bond'][i]['fct_user'], 0), ns.default_max_fct_bonds_opti))
 
-		# angles values
+		# angles equilibrium values
 		if ns.exec_mode == 1:
 			for i in range(ns.opti_cycle['nb_geoms']['angle']):
-				input_guess.append(ns.out_itp['angle'][i]['value_user'])
+				input_guess.append(min(max(ns.out_itp['angle'][i]['value_user'], ns.domains_val['angle'][i][0]), ns.domains_val['angle'][i][1]))
 
 		# angles force constants
 		for i in range(ns.opti_cycle['nb_geoms']['angle']):
-			input_guess.append(ns.out_itp['angle'][i]['fct_user'])
+			if ns.cg_itp['angle'][i]['func'] == 1:
+				input_guess.append(min(max(ns.out_itp['angle'][i]['fct_user'], 0), ns.default_max_fct_angles_opti_f1))
+			elif ns.cg_itp['angle'][i]['func'] == 2:
+				input_guess.append(min(max(ns.out_itp['angle'][i]['fct_user'], 0), ns.default_max_fct_angles_opti_f2))
 
-		# dihedrals values
+		# dihedrals equilibrium values
 		if ns.exec_mode == 1:
 			for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
-				input_guess.append(ns.out_itp['dihedral'][i]['value_user'])
+				input_guess.append(min(max(ns.out_itp['dihedral'][i]['value_user'], ns.domains_val['dihedral'][i][0]), ns.domains_val['dihedral'][i][1]))
 		# dihedrals force constants
 		for i in range(ns.opti_cycle['nb_geoms']['dihedral']):
-			input_guess.append(ns.out_itp['dihedral'][i]['fct_user'])
+			if ns.cg_itp['dihedral'][i]['func'] == 2:
+				input_guess.append(
+					min(max(ns.out_itp['dihedral'][i]['fct_user'], -ns.default_abs_range_fct_dihedrals_opti_func_without_mult), ns.default_abs_range_fct_dihedrals_opti_func_without_mult))
+			else:
+				input_guess.append(min(
+					max(ns.out_itp['dihedral'][i]['fct_user'], -ns.default_abs_range_fct_dihedrals_opti_func_with_mult), ns.default_abs_range_fct_dihedrals_opti_func_with_mult))
 
 		initial_guess_list.append(input_guess)
 
@@ -1189,7 +1208,7 @@ def get_initial_guess_list(ns, nb_particles):
 	for i in range(num_particle_random_start, nb_particles):
 		init_guess = []
 
-		# constraints lengths
+		# constraints equilibrium values
 		if ns.exec_mode == 1:
 			for j in range(ns.opti_cycle['nb_geoms']['constraint']):
 				try:
@@ -1200,7 +1219,7 @@ def get_initial_guess_list(ns, nb_particles):
 				draw_high = min(ns.out_itp['constraint'][j]['value']+config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['constraint'][j][1])
 				init_guess.append(draw_float(draw_low, draw_high, 3))
 
-		# bonds lengths
+		# bonds equilibrium values
 		if ns.exec_mode == 1:
 			for j in range(ns.opti_cycle['nb_geoms']['bond']):
 				try:
@@ -1210,6 +1229,7 @@ def get_initial_guess_list(ns, nb_particles):
 				draw_low = max(ns.out_itp['bond'][j]['value']-config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['bond'][j][0])
 				draw_high = min(ns.out_itp['bond'][j]['value']+config.bond_dist_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['bond'][j][1])
 				init_guess.append(draw_float(draw_low, draw_high, 3))
+				# print('Particle', i+1, '-- BOND', j+1, '-- VALUE RANGE', draw_low, draw_high)
 
 		# bonds force constants
 		for j in range(ns.opti_cycle['nb_geoms']['bond']):
@@ -1217,11 +1237,12 @@ def get_initial_guess_list(ns, nb_particles):
 				emd_err_fact = max(1, ns.all_emd_dist_geoms['bonds'][j]/2)
 			except:
 				emd_err_fact = 1
-			draw_low = max(min(ns.out_itp['bond'][j]['fct']*(1-ns.fct_guess_fact*emd_err_fact), ns.out_itp['bond'][j]['fct']-config.fct_guess_min_flat_diff_bonds), config.default_min_fct_bonds)
+			draw_low = max(min(ns.out_itp['bond'][j]['fct']*(1-ns.fct_guess_fact*emd_err_fact), ns.out_itp['bond'][j]['fct']-config.fct_guess_min_flat_diff_bonds), 0)
 			draw_high = min(max(ns.out_itp['bond'][j]['fct']*(1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['bond'][j]['fct']+config.fct_guess_min_flat_diff_bonds), ns.default_max_fct_bonds_opti)
 			init_guess.append(draw_float(draw_low, draw_high, 3))
+			# print('Particle', i+1, '-- BOND', j+1, '-- FCT RANGE', draw_low, draw_high)
 
-		# angles values
+		# angles equilibrium values
 		if ns.exec_mode == 1:
 			for j in range(ns.opti_cycle['nb_geoms']['angle']):
 				try:
@@ -1231,6 +1252,7 @@ def get_initial_guess_list(ns, nb_particles):
 				draw_low = max(ns.out_itp['angle'][j]['value']-config.angle_value_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['angle'][j][0])
 				draw_high = min(ns.out_itp['angle'][j]['value']+config.angle_value_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['angle'][j][1])
 				init_guess.append(draw_float(draw_low, draw_high, 3))
+				# print('Particle', i+1, '-- ANGLE', j+1, '-- VALUE RANGE', draw_low, draw_high)
 
 		# angles force constants
 		for j in range(ns.opti_cycle['nb_geoms']['angle']):
@@ -1238,14 +1260,15 @@ def get_initial_guess_list(ns, nb_particles):
 				emd_err_fact = max(1, ns.all_emd_dist_geoms['angles'][j]/2)
 			except:
 				emd_err_fact = 1
-			draw_low = max(min(ns.out_itp['angle'][j]['fct']*(1-ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']-config.fct_guess_min_flat_diff_angles), config.default_min_fct_angles)
+			draw_low = max(min(ns.out_itp['angle'][j]['fct']*(1-ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']-config.fct_guess_min_flat_diff_angles), 0)
 			if ns.cg_itp['angle'][j]['func'] == 1:
 				draw_high = min(max(ns.out_itp['angle'][j]['fct']*(1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']+config.fct_guess_min_flat_diff_angles), ns.default_max_fct_angles_opti_f1)
 			elif ns.cg_itp['angle'][j]['func'] == 2:
 				draw_high = min(max(ns.out_itp['angle'][j]['fct']*(1+ns.fct_guess_fact*emd_err_fact), ns.out_itp['angle'][j]['fct']+config.fct_guess_min_flat_diff_angles), ns.default_max_fct_angles_opti_f2)
 			init_guess.append(draw_float(draw_low, draw_high, 3))
+			# print('Particle', i+1, '-- ANGLE', j+1, '-- FCT RANGE', draw_low, draw_high)
 
-		# dihedrals values
+		# dihedrals equilibrium values
 		if ns.exec_mode == 1:
 			for j in range(ns.opti_cycle['nb_geoms']['dihedral']):
 				try:
@@ -1255,6 +1278,7 @@ def get_initial_guess_list(ns, nb_particles):
 				draw_low = max(ns.out_itp['dihedral'][j]['value']-config.dihedral_value_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['dihedral'][j][0])
 				draw_high = min(ns.out_itp['dihedral'][j]['value']+config.dihedral_value_guess_variation*ns.val_guess_fact*emd_err_fact, ns.domains_val['dihedral'][j][1])
 				init_guess.append(draw_float(draw_low, draw_high, 3))
+				# print('Particle', i+1, '-- DIHEDRAL', j+1, '-- VALUE RANGE', draw_low, draw_high)
 
 		# dihedrals force constants
 		for j in range(ns.opti_cycle['nb_geoms']['dihedral']):
@@ -1265,7 +1289,7 @@ def get_initial_guess_list(ns, nb_particles):
 				emd_err_fact = 1
 
 			# here force constants can be negative, proceed accordingly
-			if ns.out_itp['dihedral'][j]['fct'] > 0: # if positive
+			if ns.out_itp['dihedral'][j]['fct'] > 0:  # if positive
 				# initial variations range
 				draw_low = ns.out_itp['dihedral'][j]['fct']*(1-ns.fct_guess_fact*emd_err_fact)
 				draw_high = ns.out_itp['dihedral'][j]['fct']*(1+ns.fct_guess_fact*emd_err_fact)
@@ -1276,14 +1300,15 @@ def get_initial_guess_list(ns, nb_particles):
 
 			# make sure the minimal variation range is enforced + stay within defined boundaries
 			if ns.cg_itp['dihedral'][j]['func'] == 2:
-				draw_low = max(min(draw_low, ns.out_itp['dihedral'][j]['fct']-config.fct_guess_min_flat_diff_dihedrals_without_mult), config.default_min_fct_dihedrals_func_without_mult)
-				draw_high = min(max(draw_high, ns.out_itp['dihedral'][j]['fct']+config.fct_guess_min_flat_diff_dihedrals_without_mult), ns.default_max_fct_dihedrals_opti_func_without_mult)
+				draw_low = max(min(draw_low, ns.out_itp['dihedral'][j]['fct']-config.fct_guess_min_flat_diff_dihedrals_without_mult), ns.default_abs_range_fct_dihedrals_opti_func_without_mult)
+				draw_high = min(max(draw_high, ns.out_itp['dihedral'][j]['fct']+config.fct_guess_min_flat_diff_dihedrals_without_mult), ns.default_abs_range_fct_dihedrals_opti_func_without_mult)
 			else:
 				draw_low = max(min(draw_low, ns.out_itp['dihedral'][j]['fct']-config.fct_guess_min_flat_diff_dihedrals_with_mult), -ns.default_abs_range_fct_dihedrals_opti_func_with_mult)
 				draw_high = min(max(draw_high, ns.out_itp['dihedral'][j]['fct']+config.fct_guess_min_flat_diff_dihedrals_with_mult), ns.default_abs_range_fct_dihedrals_opti_func_with_mult)
 			init_guess.append(draw_float(draw_low, draw_high, 3))
+			# print('Particle', i+1, '-- DIHEDRAL', j+1, '-- FCT RANGE', draw_low, draw_high)
 
-		initial_guess_list.append(init_guess) # register new particle, built during this loop
+		initial_guess_list.append(init_guess)  # register new particle, built during this loop
 
 	return initial_guess_list
 
@@ -1703,7 +1728,12 @@ def perform_BI(ns):
 				popt, pcov = curve_fit(gmx_bonds_func_1, x * 10, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)  # multiply for amgstrom for BI
 
 				# here we just update the force constant, bond length is already set to the average of distribution
-				ns.out_itp['bond'][grp_bond]['fct'] = min(max(popt[0]*100, config.default_min_fct_bonds), config.default_max_fct_bonds_bi)  # stay within specified range for force constants
+				ns.out_itp['bond'][grp_bond]['fct'] = popt[0]*100
+
+				# stay within limits in case user requires low force constants
+				if not 0 <= ns.out_itp['bond'][grp_bond]['fct'] <= min(config.default_max_fct_bonds_bi, ns.default_max_fct_bonds_opti):
+					ns.out_itp['bond'][grp_bond]['fct'] = min(config.default_max_fct_bonds_bi, ns.default_max_fct_bonds_opti) / 2
+
 				if ns.verbose:
 					print('  Bond group', grp_bond+1, 'estimated force constant:', round(ns.out_itp['bond'][grp_bond]['fct'], 2))
 
@@ -1744,7 +1774,16 @@ def perform_BI(ns):
 						popt[0] = 30
 
 				# here we just update the force constant, angle value is already set to the average of distribution
-				ns.out_itp['angle'][grp_angle]['fct'] = min(max(popt[0], config.default_min_fct_angles), config.default_max_fct_angles_bi) # stay within specified range for force constants
+				ns.out_itp['angle'][grp_angle]['fct'] = popt[0]
+
+				# stay within limits in case user requires low force constants
+				if func == 1:
+					if not 0 <= ns.out_itp['angle'][grp_angle]['fct'] <= min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f1):
+						ns.out_itp['angle'][grp_angle]['fct'] = min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f1) / 2
+				elif func == 2:
+					if not 0 <= ns.out_itp['angle'][grp_angle]['fct'] <= min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f2):
+						ns.out_itp['angle'][grp_angle]['fct'] = min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f2) / 2
+
 				if ns.verbose:
 					print('  Angle group', grp_angle+1, 'estimated force constant:', round(ns.out_itp['angle'][grp_angle]['fct'], 2))
 
@@ -1758,6 +1797,8 @@ def perform_BI(ns):
 
 			for grp_dihedral in range(ns.opti_cycle['nb_geoms']['dihedral']):
 
+				# TODO: clearly the initial fit of dihedrals could be done better -- initial guesses are pretty bad
+
 				hists_geoms_bi, std_rad_grp_dihedral, avg_rad_grp_dihedral, bi_xrange = ns.data_BI['dihedral'][grp_dihedral]
 				y = -config.kB * ns.temp * np.log(hists_geoms_bi + 1)
 				x = np.linspace(np.deg2rad(bi_xrange[0]), np.deg2rad(bi_xrange[1]), 2*config.bi_nb_bins, endpoint=True)
@@ -1767,6 +1808,10 @@ def perform_BI(ns):
 				
 				# use appropriate dihedral function
 				func = ns.cg_itp['dihedral'][grp_dihedral]['func']
+
+				if ns.exec_mode == 2:  # in Mode 2, make the fit according to the equilibrium value provided by user
+					avg_rad_grp_dihedral = np.deg2rad(ns.cg_itp['dihedral'][grp_dihedral]['value_user'])
+					# NOTE: this could trigger some convergence issue of scipy's curve_fit
 				
 				if func in config.dihedral_func_with_mult:
 					multiplicity = ns.cg_itp['dihedral'][grp_dihedral]['mult']  # multiplicity stays the same as in input CG ITP, it's only during model_prep that we could compare between different multiplicities
@@ -1776,18 +1821,22 @@ def perform_BI(ns):
 				elif func == 2:
 					params_guess = [k, avg_rad_grp_dihedral, min(y)]
 					popt, pcov = curve_fit(gmx_dihedrals_func_2, x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
-					popt[0] = abs(popt[0])  # just to be safe, in case the fit yielded negative fct values but this is very unlikely since we provide good starting parameters for the fit
 
-				if ns.exec_mode == 1:
-					ns.out_itp['dihedral'][grp_dihedral]['value'] = np.rad2deg(popt[1])
-					# TODO: make the fit according to user provided dihedral angle value when using execution mode 2
+				if ns.exec_mode == 1:  # in Mode 1, use the fitted value as equilibrium value (but stay within range)
+					# ns.out_itp['dihedral'][grp_dihedral]['value'] = max(min(np.rad2deg(popt[1]), ns.domains_val['dihedral'][grp_dihedral][1]), ns.domains_val['dihedral'][grp_dihedral][0])
+					ns.out_itp['dihedral'][grp_dihedral]['value'] = np.rad2deg(popt[1])  # we will apply limits of equilibrium values later
 
-				# stay within specified range for force constants, negative to positive according to function chosen by user
-				# print('  Dihedral group', grp_dihedral+1, 'estimated force constant BEFORE MODIFIER:', round(popt[0], 2))
-				if func == 2:
-					ns.out_itp['dihedral'][grp_dihedral]['fct'] = min(max(popt[0], config.default_min_fct_dihedrals_func_without_mult), config.default_max_fct_dihedrals_bi_func_without_mult)
+				print('  Dihedral group', grp_dihedral+1, 'estimated force constant BEFORE MODIFIER:', round(popt[0], 2))
+				ns.out_itp['dihedral'][grp_dihedral]['fct'] = popt[0]
+
+				# stay within limits in case user requires low force constants
+				if func in config.dihedral_func_with_mult:
+					if not max(-config.default_abs_range_fct_dihedrals_bi_func_with_mult, -ns.default_abs_range_fct_dihedrals_opti_func_with_mult) <= ns.out_itp['dihedral'][grp_dihedral]['fct'] <= min(-config.default_abs_range_fct_dihedrals_bi_func_with_mult, -ns.default_abs_range_fct_dihedrals_opti_func_with_mult):
+						ns.out_itp['dihedral'][grp_dihedral]['fct'] = np.sign(ns.out_itp['dihedral'][grp_dihedral]['fct']) * min(config.default_abs_range_fct_dihedrals_bi_func_with_mult, ns.default_abs_range_fct_dihedrals_opti_func_with_mult) / 2
 				else:
-					ns.out_itp['dihedral'][grp_dihedral]['fct'] = min(max(popt[0], -config.default_abs_range_fct_dihedrals_bi_func_with_mult), config.default_abs_range_fct_dihedrals_bi_func_with_mult) 
+					if not max(-config.default_abs_range_fct_dihedrals_bi_func_without_mult, -ns.default_abs_range_fct_dihedrals_opti_func_without_mult) <= ns.out_itp['dihedral'][grp_dihedral]['fct'] <= min(-config.default_abs_range_fct_dihedrals_bi_func_without_mult, -ns.default_abs_range_fct_dihedrals_opti_func_without_mult):
+						ns.out_itp['dihedral'][grp_dihedral]['fct'] = np.sign(ns.out_itp['dihedral'][grp_dihedral]['fct']) * min(config.default_abs_range_fct_dihedrals_bi_func_without_mult, ns.default_abs_range_fct_dihedrals_opti_func_without_mult) / 2
+
 				if ns.verbose:
 					print('  Dihedral group', grp_dihedral+1, 'estimated force constant:', round(ns.out_itp['dihedral'][grp_dihedral]['fct'], 2))
 
