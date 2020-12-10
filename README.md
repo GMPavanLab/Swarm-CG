@@ -12,7 +12,7 @@ Swarm-CG works with MARTINI version 2 or 3. The AA-to-CG mapping can be interpre
 
 ### Publication
 
-> Empereur-mot, C.; Pesce, L.; Bochicchio, D.; Perego, C.; Pavan, G.M. (2020) Swarm-CG: Automatic Parametrization of Bonded Terms in MARTINI-based Coarse-Grained Models of Simple to Complex Molecules via Fuzzy Self-Tuning Particle Swarm Optimization. [ChemRxiv. Preprint](https://doi.org/10.26434/chemrxiv.12613427)
+> Empereur-mot, C.; Pesce, L.; Bochicchio, D.; Capelli, R.; Perego, C.; Pavan, G.M. (2020) Swarm-CG: Automatic Parametrization of Bonded Terms in MARTINI-based Coarse-Grained Models of Simple to Complex Molecules via Fuzzy Self-Tuning Particle Swarm Optimization. [Paper link](https://pubs.acs.org/doi/10.1021/acsomega.0c05469)
 
 ### Installation & Usage
 
