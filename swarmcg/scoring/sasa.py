@@ -4,10 +4,10 @@ import numpy as np
 
 from swarmcg import config
 from swarmcg.shared import exceptions
-from swarmcg.shared.io import read_xvg_col
+from swarmcg.io import read_xvg_col
 from swarmcg.simulations.runner import exec_gmx
 
-PROBE_RADIUS = 0.26 # nm
+PROBE_RADIUS = 0.26  # nm
 
 
 def compute_SASA(ns, traj_type):

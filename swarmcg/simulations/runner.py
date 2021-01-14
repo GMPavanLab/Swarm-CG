@@ -1,6 +1,6 @@
 import subprocess
 
-from swarmcg.shared.io import print_stdout_forced
+from swarmcg.utils import print_stdout_forced
 
 
 # build gromacs command with arguments
