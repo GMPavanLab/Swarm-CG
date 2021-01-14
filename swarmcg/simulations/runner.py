@@ -3,8 +3,8 @@ import subprocess
 from swarmcg.utils import print_stdout_forced
 
 
-# build gromacs command with arguments
 def gmx_args(ns, gmx_cmd, mpi=True):
+    """Build gromacs command with arguments"""
     gmx_cmd = f"{ns.gmx_path} {gmx_cmd}"
     if ns.gmx_args_str != '':
         gmx_cmd = f"{gmx_cmd} {ns.gmx_args_str}"
@@ -19,8 +19,8 @@ def gmx_args(ns, gmx_cmd, mpi=True):
     return gmx_cmd
 
 
-# execute gmx cmd and return only exit code
 def exec_gmx(gmx_cmd):
+    """Execute gmx cmd and return only exit code"""
     with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE) as gmx_process:
         gmx_out = gmx_process.communicate()[1].decode()
@@ -32,8 +32,8 @@ def exec_gmx(gmx_cmd):
     return gmx_process.returncode
 
 
-# execute command and return output
 def cmdline(command):
+    """Execute command and return output"""
     try:
         output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True).decode()
         success = True
