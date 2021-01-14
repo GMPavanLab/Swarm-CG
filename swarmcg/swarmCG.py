@@ -1,6 +1,8 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
 
+from swarmcg.io.write import write_cg_itp_file
+
 warnings.filterwarnings("ignore")
 import re, os, shutil, subprocess, signal, time
 import warnings, collections
@@ -82,40 +84,6 @@ def load_aa_data(ns):
 	# TODO: print this charge, if it is not null then we need to check for Q-type beads and for the 2 Q-types that have no defined charge value, raise a warning to tell the user he has to edit the file manually
 	# net_charge = molname_atom_group.total_charge()
 	# print('Net charge of the reference all atom model:', round(net_charge, 4))
-
-
-# check if functions present in CG ITP file can be used by this program, if not we throw an error
-# authorized functions are defined in config.py (we switch them on in config.py once we have tested them)
-def verify_handled_functions(geom, func, line_nb):
-
-	try:
-		func = int(func)
-	except (ValueError, IndexError):
-		msg = (
-			f"Unexpected error while reading CG ITP file at line {line_nb}, please check this file."
-		)
-		raise exceptions.MissformattedFile(msg)
-
-	if func not in config.handled_functions[geom]:
-		functions_str = ", ".join(map(str, config.handled_functions[geom]))
-		if functions_str == '':
-			functions_str = 'None'
-		msg = (
-			f"Error while reading {geom} function in CG ITP file at line {line_nb}.\n"
-			f"This potential function is not implemented in Swarm-CG at the moment.\n"
-			f"Please use one of these {geom} potential functions: {functions_str}.\n\n"
-			f"If you feel this is an important missing feature, please feel free to\n"
-			f"open an issue on github at {config.github_url}/issues."
-		)
-		raise exceptions.MissformattedFile(msg)
-
-	return func
-
-
-# vs_type in [2, 3, 4, n], then they each have specific functions to define their positions
-
-
-#
 
 
 # load CG beads from NDX-like file
@@ -253,161 +221,6 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['constraint'] + 2 * ns.opti_cycle['nb_geoms']['bond'] + 2 * ns.opti_cycle['nb_geoms']['angle'] + ns.opti_cycle['nb_geoms']['dihedral'] + i], 2) # dihedral - force constant
 		else:
 			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['bond'] + ns.opti_cycle['nb_geoms']['angle'] + i], 2)  # dihedral - force constant
-
-
-# print coarse-grain ITP
-# here we have a switch for print_sections because we might want to optimize constraints/bonds/angles/dihedrals
-# separately, so we can leave some out with the switch and they will be optimized later
-def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond', 'angle', 'dihedral', 'exclusion']):
-
-	with open(out_path_itp, 'w') as fp:
-
-		fp.write('[ moleculetype ]\n')
-		fp.write('; molname        nrexcl\n')
-		fp.write('{0:<4} {1:>13}\n'.format(itp_obj['moleculetype']['molname'], itp_obj['moleculetype']['nrexcl']))
-
-		fp.write('\n\n[ atoms ]\n')
-		fp.write('; id type resnr residue   atom  cgnr    charge     mass\n\n')
-
-		for i in range(len(itp_obj['atoms'])):
-			# if the ITP did NOT contain masses, they are set at 0 in this field during ITP reading
-			if itp_obj['atoms'][i]['mass'] is not None:
-				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}     {7:<5.2f}\n'.format(
-					itp_obj['atoms'][i]['bead_id']+1, itp_obj['atoms'][i]['bead_type'],
-					itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i+1, itp_obj['atoms'][i]['charge'],
-					itp_obj['atoms'][i]['resnr'], itp_obj['atoms'][i]['mass']))
-			else:
-				fp.write('{0:<4} {1:>4}    {6:>2}  {2:>6} {3:>6}  {4:<4} {5:9.5f}\n'.format(
-					itp_obj['atoms'][i]['bead_id'] + 1, itp_obj['atoms'][i]['bead_type'],
-					itp_obj['atoms'][i]['residue'], itp_obj['atoms'][i]['atom'], i + 1, itp_obj['atoms'][i]['charge'],
-					itp_obj['atoms'][i]['resnr']))
-
-		if 'constraint' in print_sections and 'constraint' in itp_obj and len(itp_obj['constraint']) > 0:
-			fp.write('\n\n[ constraints ]\n')
-			fp.write(';   i     j   funct   length\n')
-
-			for j in range(len(itp_obj['constraint'])):
-
-				constraint_type = itp_obj['constraint'][j]['geom_type']
-				fp.write('\n; constraint type '+constraint_type+'\n')
-				grp_val = itp_obj['constraint'][j]['value']
-
-				for i in range(len(itp_obj['constraint'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}      ; {2}\n'.format(
-						itp_obj['constraint'][j]['func'], grp_val, constraint_type,
-						beads=[bead_id+1 for bead_id in itp_obj['constraint'][j]['beads'][i]]))
-
-		if 'bond' in print_sections and 'bond' in itp_obj and len(itp_obj['bond']) > 0:
-			fp.write('\n\n[ bonds ]\n')
-			fp.write(';   i     j   funct   length   force.c.\n')
-
-			for j in range(len(itp_obj['bond'])):
-
-				bond_type = itp_obj['bond'][j]['geom_type']
-				fp.write('\n; bond type '+bond_type+'\n')
-				grp_val, grp_fct = itp_obj['bond'][j]['value'], itp_obj['bond'][j]['fct']
-
-				for i in range(len(itp_obj['bond'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {0:>7} {1:8.3f}  {2:7.2f}           ; {3}\n'.format(
-						itp_obj['bond'][j]['func'], grp_val, grp_fct, bond_type,
-						beads=[bead_id+1 for bead_id in itp_obj['bond'][j]['beads'][i]]))
-
-		if 'angle' in print_sections and 'angle' in itp_obj and len(itp_obj['angle']) > 0:
-			fp.write('\n\n[ angles ]\n')
-			fp.write(';   i     j     k   funct     angle   force.c.\n')
-
-			for j in range(len(itp_obj['angle'])):
-
-				angle_type = itp_obj['angle'][j]['geom_type']
-				fp.write('\n; angle type '+angle_type+'\n')
-				grp_val, grp_fct = itp_obj['angle'][j]['value'], itp_obj['angle'][j]['fct']
-
-				for i in range(len(itp_obj['angle'][j]['beads'])):
-					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {0:>7} {1:9.2f}   {2:7.2f}           ; {3}\n'.format(
-						itp_obj['angle'][j]['func'], grp_val, grp_fct, angle_type,
-						beads=[bead_id+1 for bead_id in itp_obj['angle'][j]['beads'][i]]))
-
-		if 'dihedral' in print_sections and 'dihedral' in itp_obj and len(itp_obj['dihedral']) > 0:
-			fp.write('\n\n[ dihedrals ]\n')
-			fp.write(';   i     j     k     l   funct     dihedral   force.c.   mult.\n')
-
-			for j in range(len(itp_obj['dihedral'])):
-
-				dihedral_type = itp_obj['dihedral'][j]['geom_type']
-				fp.write('\n; dihedral type '+dihedral_type+'\n')
-				grp_val, grp_fct = itp_obj['dihedral'][j]['value'], itp_obj['dihedral'][j]['fct']
-
-				for i in range(len(itp_obj['dihedral'][j]['beads'])):
-
-					# handle writing of multiplicity
-					multiplicity = itp_obj['dihedral'][j]['mult']
-					if multiplicity == None:
-						multiplicity = ''
-
-					fp.write('{beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {beads[3]:>5} {0:>7}    {1:9.2f} {2:7.2f}       {4}     ; {3}\n'.format(
-						itp_obj['dihedral'][j]['func'], grp_val, grp_fct, dihedral_type, multiplicity,
-						beads=[bead_id+1 for bead_id in itp_obj['dihedral'][j]['beads'][i]]))
-
-		# here starts 4 almost identical blocks, that differ only by vs_2, vs_3, vs_4, vs_n
-		# but we could still need to write several of these sections (careful if factorizing this)
-		if len(itp_obj['virtual_sites2']) > 0:
-			fp.write('\n\n[ virtual_sites2 ]\n')
-			fp.write(';  vs     i     j  func   param\n')
-			for bead_id in itp_obj['virtual_sites2']:
-				fp.write('{0:>5} {beads[0]:>5} {beads[1]:>5} {1:>5}   {2}\n'.format(
-					str(itp_obj['virtual_sites2'][bead_id]['bead_id'] + 1),
-					str(itp_obj['virtual_sites2'][bead_id]['func']),
-					itp_obj['virtual_sites2'][bead_id]['vs_params'],
-					beads=[bid+1 for bid in itp_obj['virtual_sites2'][bead_id]['vs_def_beads_ids']])
-				)
-
-		if len(itp_obj['virtual_sites3']) > 0:
-			fp.write('\n\n[ virtual_sites3 ]\n')
-			fp.write(';  vs     i     j     k  func   params\n')
-			for bead_id in itp_obj['virtual_sites3']:
-				fp.write('{0:>5} {beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {1:>5}   {2}\n'.format(
-					str(itp_obj['virtual_sites3'][bead_id]['bead_id'] + 1),
-					str(itp_obj['virtual_sites3'][bead_id]['func']),
-					'  '.join(map(str, itp_obj['virtual_sites3'][bead_id]['vs_params'])),
-					beads=[bid+1 for bid in itp_obj['virtual_sites3'][bead_id]['vs_def_beads_ids']])
-				)
-
-		if len(itp_obj['virtual_sites4']) > 0:
-			fp.write('\n\n[ virtual_sites4 ]\n')
-			fp.write(';  vs     i     j     k     l  func   params\n')
-			for bead_id in itp_obj['virtual_sites4']:
-				fp.write('{0:>5} {beads[0]:>5} {beads[1]:>5} {beads[2]:>5} {beads[3]:>5} {1:>5}   {2}\n'.format(
-					str(itp_obj['virtual_sites4'][bead_id]['bead_id'] + 1),
-					str(itp_obj['virtual_sites4'][bead_id]['func']),
-					'  '.join(map(str, itp_obj['virtual_sites4'][bead_id]['vs_params'])),
-					beads=[bid+1 for bid in itp_obj['virtual_sites4'][bead_id]['vs_def_beads_ids']])
-				)
-
-		if len(itp_obj['virtual_sitesn']) > 0:
-			fp.write('\n\n[ virtual_sitesn ]\n')
-			fp.write(';  vs  func     def\n')
-			for bead_id in itp_obj['virtual_sitesn']:
-				params = []
-				if itp_obj['virtual_sitesn'][bead_id]['func'] == 3:
-					for i in range(len(itp_obj['virtual_sitesn'][bead_id]['vs_def_beads_ids'])):
-						params.append('{} {}'.format(itp_obj['virtual_sitesn'][bead_id]['vs_def_beads_ids'][i]+1, itp_obj['virtual_sitesn'][bead_id]['vs_params'][i]))
-					params = '  '.join(params)
-				else:
-					params = ' '.join(['{:>4}'.format(bid + 1) for bid in itp_obj['virtual_sitesn'][bead_id]['vs_def_beads_ids']])
-				fp.write('{:>5} {:>5}   {}\n'.format(
-					itp_obj['virtual_sitesn'][bead_id]['bead_id'] + 1,
-					itp_obj['virtual_sitesn'][bead_id]['func'],
-					params)
-				)
-
-		if 'exclusion' in print_sections and 'exclusion' in itp_obj and len(itp_obj['exclusion']) > 0:
-			fp.write('\n\n[ exclusions ]\n')
-			fp.write(';   i     j\n\n')
-
-			for j in range(len(itp_obj['exclusion'])):
-				fp.write(('{:>4} '*len(itp_obj['exclusion'][j])+'\n').format(*[bead_id+1 for bead_id in itp_obj['exclusion'][j]]))
-
-		fp.write('\n\n')
 
 
 # set dimensions of the search space according to the type of optimization (= geom type(s) to optimize)
@@ -722,16 +535,6 @@ def get_initial_guess_list(ns, nb_particles):
 		initial_guess_list.append(init_guess)  # register new particle, built during this loop
 
 	return initial_guess_list
-
-
-# read atomistic trajectory
-def read_aa_traj(ns):
-
-	print('Reading All Atom (AA) trajectory')
-	with warnings.catch_warnings():
-		warnings.filterwarnings("ignore", category=ImportWarning) # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
-		ns.aa_universe = mda.Universe(ns.aa_tpr_filename, ns.aa_traj_filename, in_memory=True, refresh_offsets=True, guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default in some MDA versions
-	print('  Found', len(ns.aa_universe.trajectory), 'frames')
 
 
 def initialize_cg_traj(ns):

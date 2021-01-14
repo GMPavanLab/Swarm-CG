@@ -1,9 +1,6 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
 
-import swarmcg.io.read
-import swarmcg.scoring.distances
-
 warnings.filterwarnings("ignore")
 import os, sys, shutil, subprocess, time, copy, contextlib
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -15,6 +12,7 @@ import numpy as np
 
 import swarmcg.shared.styling
 import swarmcg.scoring as scores
+import swarmcg.io as io
 from swarmcg import config
 from swarmcg.shared import exceptions
 from swarmcg import swarmCG as scg
@@ -215,7 +213,7 @@ def run(ns):
     ns.start_opti_ts = datetime.now().timestamp()
     ns.total_eval_time, ns.total_gmx_time, ns.total_model_eval_time = 0, 0, 0
 
-    swarmcg.scoring.distances.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
+    scores.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
     scg.read_ndx_atoms2beads(ns)  # read mapping, get atoms accurences in beads
     scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
 
@@ -223,7 +221,7 @@ def run(ns):
     scg.process_scaling_str(ns)  # process the bonds scaling specified by user
 
     print()
-    scg.read_aa_traj(ns)  # create universe and read traj
+    io.read_aa_traj(ns)  # create universe and read traj
     scg.load_aa_data(ns)  # read atoms attributes
     scg.make_aa_traj_whole_for_selected_mols(ns)
 

@@ -1,3 +1,7 @@
+from .read import read_aa_traj
+from .write import write_cg_itp_file
+
+
 def read_xvg_col(xvg_file, col):
     """Read 1 column of xvg file and return as array column is 0-indexed"""
     with open(xvg_file, 'r') as fp:

@@ -1,11 +1,54 @@
-# TODO: the 3 next functions below (section_switch, vs_error_control, read_cg_itp_file) could be isolated in a sort of
-#       "topology reader" class, and next we would include the formats from other MD engines
 import re
+import warnings
+
+import MDAnalysis as mda
 
 from swarmcg import config
 from swarmcg.shared import exceptions
-from swarmcg.swarmCG import verify_handled_functions
 
+
+def read_aa_traj(ns):
+    """Read atomistic trajectory"""
+    print('Reading All Atom (AA) trajectory')
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore",
+                                category=ImportWarning)  # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
+        ns.aa_universe = mda.Universe(ns.aa_tpr_filename, ns.aa_traj_filename,
+                                      in_memory=True, refresh_offsets=True,
+                                      guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default in some MDA versions
+    print('  Found', len(ns.aa_universe.trajectory), 'frames')
+
+
+def verify_handled_functions(geom, func, line_nb):
+    """Check if functions present in CG ITP file can be used by this program, if not we throw
+    an error authorized functions are defined in config.py (we switch them on in config.py
+    once we have tested them)"""
+    try:
+        func = int(func)
+    except (ValueError, IndexError):
+        msg = (
+            f"Unexpected error while reading CG ITP file at line {line_nb}, please check this file."
+        )
+        raise exceptions.MissformattedFile(msg)
+
+    if func not in config.handled_functions[geom]:
+        functions_str = ", ".join(map(str, config.handled_functions[geom]))
+        if functions_str == '':
+            functions_str = 'None'
+        msg = (
+            f"Error while reading {geom} function in CG ITP file at line {line_nb}.\n"
+            f"This potential function is not implemented in Swarm-CG at the moment.\n"
+            f"Please use one of these {geom} potential functions: {functions_str}.\n\n"
+            f"If you feel this is an important missing feature, please feel free to\n"
+            f"open an issue on github at {config.github_url}/issues."
+        )
+        raise exceptions.MissformattedFile(msg)
+
+    return func
+
+
+# TODO: the 3 next functions below (section_switch, vs_error_control, read_cg_itp_file) could be isolated in a sort of
+#       "topology reader" class, and next we would include the formats from other MD engines
 
 def section_switch(section_read, section_active):
     """Sections switch for reading ITP sections"""
@@ -16,6 +59,8 @@ def section_switch(section_read, section_active):
 
 
 def vs_error_control(ns, bead_id, vs_type, func, line_nb, vs_def_beads_ids=None):
+    """Check itpd fields; vs_type in [2, 3, 4, n], then they each have specific functions
+    to define their positions"""
     if bead_id >= len(ns.cg_itp['atoms']):
         msg = (
             f"A virtual site is defined for ID {bead_id + 1}, while this ID exceeds the number of atoms"
@@ -121,7 +166,7 @@ def read_cg_itp_file(ns):
                 if section_read['moleculetype']:
 
                     ns.cg_itp['moleculetype']['molname'], ns.cg_itp['moleculetype']['nrexcl'] = \
-                    sp_itp_line[0], int(sp_itp_line[1])
+                        sp_itp_line[0], int(sp_itp_line[1])
 
                 elif section_read['atom']:
 
