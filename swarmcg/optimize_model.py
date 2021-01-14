@@ -1,5 +1,8 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
+
+import swarmcg.scoring.distances
+
 warnings.filterwarnings("ignore")
 import os, sys, shutil, subprocess, time, copy, contextlib
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -10,6 +13,7 @@ from fstpso import FuzzyPSO
 import numpy as np
 
 import swarmcg.shared.styling
+import swarmcg.scoring as scores
 from swarmcg import config
 from swarmcg.shared import exceptions
 from swarmcg import swarmCG as scg
@@ -210,7 +214,7 @@ def run(ns):
     ns.start_opti_ts = datetime.now().timestamp()
     ns.total_eval_time, ns.total_gmx_time, ns.total_model_eval_time = 0, 0, 0
 
-    scg.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
+    swarmcg.scoring.distances.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
     scg.read_ndx_atoms2beads(ns)  # read mapping, get atoms accurences in beads
     scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
 
@@ -282,7 +286,7 @@ def run(ns):
     # get ref atom hists + find very first distances guesses for constraints groups
     for grp_constraint in range(ns.nb_constraints):
 
-        constraint_avg, constraint_hist, constraint_values = scg.get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['constraint'][grp_constraint]['beads'], grp_type='constraint group', grp_nb=grp_constraint)
+        constraint_avg, constraint_hist, constraint_values = scores.get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['constraint'][grp_constraint]['beads'], grp_type='constraint group', grp_nb=grp_constraint)
         if ns.exec_mode == 1:
             ns.cg_itp['constraint'][grp_constraint]['value'] = constraint_avg
         ns.cg_itp['constraint'][grp_constraint]['avg'] = constraint_avg
@@ -294,7 +298,7 @@ def run(ns):
     # get ref atom hists + find very first distances and force constants guesses for bonds groups
     for grp_bond in range(ns.nb_bonds):
 
-        bond_avg, bond_hist, bond_values = scg.get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bond group', grp_nb=grp_bond)
+        bond_avg, bond_hist, bond_values = scores.get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bond group', grp_nb=grp_bond)
         if ns.exec_mode == 1:
             ns.cg_itp['bond'][grp_bond]['value'] = bond_avg
         ns.cg_itp['bond'][grp_bond]['avg'] = bond_avg
@@ -310,7 +314,7 @@ def run(ns):
     # get ref atom hists + find very first values and force constants guesses for angles groups
     for grp_angle in range(ns.nb_angles):
 
-        angle_avg, angle_hist, angle_values_deg, angle_values_rad = scg.get_AA_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
+        angle_avg, angle_hist, angle_values_deg, angle_values_rad = scores.get_AA_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
         if ns.exec_mode == 1:
             ns.cg_itp['angle'][grp_angle]['value'] = angle_avg
         ns.cg_itp['angle'][grp_angle]['avg'] = angle_avg
@@ -326,7 +330,7 @@ def run(ns):
     # get ref atom hists + find very first values and force constants guesses for dihedrals groups
     for grp_dihedral in range(ns.nb_dihedrals):
 
-        dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad = scg.get_AA_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
+        dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad = scores.get_AA_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
         if ns.exec_mode == 1:  # the dihedral equi value will be calculated from the BI fit, because for dihedrals it makes no sense to use the average
             ns.cg_itp['dihedral'][grp_dihedral]['value'] = dihedral_avg
         ns.cg_itp['dihedral'][grp_dihedral]['avg'] = dihedral_avg

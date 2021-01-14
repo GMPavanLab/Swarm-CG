@@ -1,6 +1,8 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
 
+import swarmcg.scoring.distances
+
 warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
@@ -105,7 +107,7 @@ def run(ns):
 	except IndexError as e:
 		ns.plot_filename = ns.plot_filename+'.png'
 
-	scg.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
+	swarmcg.scoring.distances.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
 	scg.read_ndx_atoms2beads(ns)  # read mapping, get atoms accurences in beads
 	scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
 

@@ -1,7 +1,7 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
 warnings.filterwarnings("ignore")
-import sys, re, random, os, shutil, subprocess, signal, time, contextlib
+import re, random, os, shutil, subprocess, signal, time
 import warnings, collections
 from datetime import datetime
 
@@ -12,15 +12,18 @@ import matplotlib
 import matplotlib.pyplot as plt
 import MDAnalysis as mda
 from pyemd import emd
-from scipy.spatial.distance import cdist
 from scipy.optimize import curve_fit
 
+import swarmcg.scoring as scores
+import swarmcg.simulations.vs_functions as vsf
 from swarmcg import config
 from swarmcg.shared import utils, styling
 from swarmcg.shared import exceptions
+
+from swarmcg.shared.io import print_stdout_forced, read_xvg_col
+from swarmcg.simulations.runner import exec_gmx, gmx_args
 from swarmcg.simulations.potentials import (gmx_bonds_func_1, gmx_angles_func_1, gmx_angles_func_2,
 	gmx_dihedrals_func_1, gmx_dihedrals_func_2)
-import swarmcg.simulations.vs_functions as vsf
 
 matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 warnings.resetwarnings()
@@ -676,29 +679,6 @@ def compute_Rg(ns, traj_type):
 
 	else:
 		raise RuntimeError('Unexpected error in function: compute_Rg')
-
-
-# read 1 column of xvg file and return as array
-# column is 0-indexed
-def read_xvg_col(xvg_file, col):
-	with open(xvg_file, 'r') as fp:
-		lines = [line.strip() for line in fp.read().split('\n')]
-		data = []
-		for line in lines:
-			if not line.startswith(('#', '@')) and line != '':
-				sp_lines = list(map(float, line.split()))
-				data.append(sp_lines[col])
-	return data
-
-
-# execute gmx cmd and return only exit code
-def exec_gmx(gmx_cmd):
-	with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
-		gmx_out = gmx_process.communicate()[1].decode()
-		gmx_process.kill()
-	if gmx_process.returncode != 0:
-		print_stdout_forced('NON-ZERO EXIT CODE FOR COMMAND:', gmx_cmd, '\n\nCOMMAND OUTPUT:\n\n', gmx_out, '\n\n')
-	return gmx_process.returncode
 
 
 # compute average SASA
@@ -1425,258 +1405,6 @@ def make_aa_traj_whole_for_selected_mols(ns):
 			mda.lib.mdamath.make_whole(aa_mol, inplace=True)
 
 
-# build gromacs command with arguments
-def gmx_args(ns, gmx_cmd, mpi=True):
-
-	gmx_cmd = f"{ns.gmx_path} {gmx_cmd}"
-	if ns.gmx_args_str != '':
-		gmx_cmd = f"{gmx_cmd} {ns.gmx_args_str}"
-	else:
-		if ns.nb_threads > 0:
-			gmx_cmd = f"{gmx_cmd} -nt {ns.nb_threads}"
-		if len(ns.gpu_id) > 0:
-			gmx_cmd = f"{gmx_cmd} -gpu_id {ns.gpu_id}"
-	if mpi and ns.mpi_tasks > 1:
-		gmx_cmd = f"mpirun -np {ns.mpi_tasks} {ns.gmx_cmd}"
-
-	return gmx_cmd
-
-
-# get bins and distance matrix for pairwise distributions comparison using Earth Mover's Distance (EMD)
-def create_bins_and_dist_matrices(ns, constraints=True):
-
-	# bins for histogram distributions of bonds/angles
-	if constraints:
-		ns.bins_constraints = np.arange(0, ns.bonded_max_range+ns.bw_constraints, ns.bw_constraints)
-	ns.bins_bonds = np.arange(0, ns.bonded_max_range+ns.bw_bonds, ns.bw_bonds)
-	ns.bins_angles = np.arange(0, 180+2*ns.bw_angles, ns.bw_angles)  # one more bin for angle/dihedral because we are later using a strict inferior for bins definitions
-	ns.bins_dihedrals = np.arange(-180, 180+2*ns.bw_dihedrals, ns.bw_dihedrals)
-
-	# bins distance for Earth Mover's Distance (EMD) to calculate histograms similarity
-	if constraints:
-		bins_constraints_reshape = np.array(ns.bins_constraints).reshape(-1,1)
-		ns.bins_constraints_dist_matrix = cdist(bins_constraints_reshape, bins_constraints_reshape)
-	bins_bonds_reshape = np.array(ns.bins_bonds).reshape(-1,1)
-	ns.bins_bonds_dist_matrix = cdist(bins_bonds_reshape, bins_bonds_reshape)
-	bins_angles_reshape = np.array(ns.bins_angles).reshape(-1,1)
-	ns.bins_angles_dist_matrix = cdist(bins_angles_reshape, bins_angles_reshape)
-	bins_dihedrals_reshape = np.array(ns.bins_dihedrals).reshape(-1,1)
-	bins_dihedrals_dist_matrix = cdist(bins_dihedrals_reshape, bins_dihedrals_reshape)  # 'classical' distance matrix
-	ns.bins_dihedrals_dist_matrix = np.where(bins_dihedrals_dist_matrix > max(bins_dihedrals_dist_matrix[0])/2, max(bins_dihedrals_dist_matrix[0])-bins_dihedrals_dist_matrix, bins_dihedrals_dist_matrix) # periodic distance matrix
-
-
-# calculate bonds distribution from AA trajectory
-def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
-
-	bond_values = np.empty(len(ns.aa2cg_universe.trajectory) * len(beads_ids))
-	frame_values = np.empty(len(beads_ids))
-	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
-
-	for ts in ns.aa2cg_universe.trajectory:
-		for i in range(len(beads_ids)):
-
-			bead_id_1, bead_id_2 = beads_ids[i]
-			bead_pos_1[i] = ns.aa2cg_universe.atoms[bead_id_1].position
-			bead_pos_2[i] = ns.aa2cg_universe.atoms[bead_id_2].position
-
-		mda.lib.distances.calc_bonds(bead_pos_1, bead_pos_2, backend=ns.mda_backend, box=None, result=frame_values)
-		bond_values[len(beads_ids)*ts.frame:len(beads_ids)*(ts.frame+1)] = frame_values / 10  # retrieved nm
-
-	bond_avg_init = round(np.average(bond_values), 3)
-
-	# NOTE: for rescaling we first take the average of the group, then we rescale
-	#       this means if a bond group has a bimodal distribution, the rescale distribution is still bimodal
-
-	# rescale all bonds length if argument -bonds_scaling is provided
-	if ns.bonds_scaling != config.bonds_scaling:
-		bond_values = [bond_length * ns.bonds_scaling for bond_length in bond_values]
-		bond_avg_final = round(np.average(bond_values), 3)
-		ns.bonds_rescaling_performed = True
-		print('  Ref. AA-mapped distrib. rescaled to avg', bond_avg_final, 'nm for', grp_type, grp_nb+1, '(initially', bond_avg_init, 'nm)')
-
-	# or shift distributions for bonds that are too short for direct CG mapping (according to argument -min_bonds_length) 
-	elif bond_avg_init < ns.min_bonds_length:
-		bond_rescale_factor = ns.min_bonds_length / bond_avg_init
-		bond_values = [bond_length * bond_rescale_factor for bond_length in bond_values]
-		bond_avg_final = round(np.average(bond_values), 3)
-		ns.bonds_rescaling_performed = True
-		print('  Ref. AA-mapped distrib. rescaled to avg', bond_avg_final, 'nm for', grp_type, grp_nb+1, '(initially', bond_avg_init, 'nm)')
-
-	# or if specific lengths were provided for constraints and/or bonds
-	elif ns.bonds_scaling_specific is not None:
-
-		if grp_type.startswith('constraint'):
-			geom_id_full = f'C{grp_nb+1}'
-		if grp_type.startswith('bond'):
-			geom_id_full = f'B{grp_nb+1}'
-
-		if (geom_id_full.startswith('C') and geom_id_full in ns.bonds_scaling_specific) or (geom_id_full.startswith('B') and geom_id_full in ns.bonds_scaling_specific):
-			bond_rescale_factor = ns.bonds_scaling_specific[geom_id_full] / bond_avg_init
-			bond_values = [bond_length * bond_rescale_factor for bond_length in bond_values]
-			bond_avg_final = round(np.average(bond_values), 3)
-			ns.bonds_rescaling_performed = True
-			print('  Ref. AA-mapped distrib. rescaled to avg', bond_avg_final, 'nm for', grp_type, grp_nb+1, '(initially', bond_avg_init, 'nm)')
-		else:
-			bond_avg_final = bond_avg_init
-
-	else:
-		bond_avg_final = bond_avg_init
-
-	# or alternatively, do not rescale these bonds but add specific exclusion rules, OR JUST SUGGEST USER TO CHECK THIS
-	# exclusions storage format: ns.cg_itp['exclusion'].append([int(bead_id)-1 for bead_id in sp_itp_line[0:2]])
-
-	if grp_type.startswith('constraint'):
-		bond_hist = np.histogram(bond_values, ns.bins_constraints, density=True)[0]*ns.bw_constraints  # retrieve 1-sum densities
-	if grp_type.startswith('bond'):
-		bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds  # retrieve 1-sum densities
-
-	return bond_avg_final, bond_hist, bond_values
-
-
-# calculate angles distribution from AA trajectory
-def get_AA_angles_distrib(ns, beads_ids):
-
-	angle_values_rad = np.empty(len(ns.aa2cg_universe.trajectory) * len(beads_ids))
-	frame_values = np.empty(len(beads_ids))
-	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_3 = np.empty((len(beads_ids), 3), dtype=np.float32)
-
-	for ts in ns.aa2cg_universe.trajectory:
-		for i in range(len(beads_ids)):
-
-			bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
-			bead_pos_1[i] = ns.aa2cg_universe.atoms[bead_id_1].position
-			bead_pos_2[i] = ns.aa2cg_universe.atoms[bead_id_2].position
-			bead_pos_3[i] = ns.aa2cg_universe.atoms[bead_id_3].position
-
-		mda.lib.distances.calc_angles(bead_pos_1, bead_pos_2, bead_pos_3, backend=ns.mda_backend, box=None, result=frame_values)
-		angle_values_rad[len(beads_ids)*ts.frame:len(beads_ids)*(ts.frame+1)] = frame_values
-
-	angle_values_deg = np.rad2deg(angle_values_rad)
-	angle_avg = round(np.mean(angle_values_deg), 3)
-	angle_hist = np.histogram(angle_values_deg, ns.bins_angles, density=True)[0]*ns.bw_angles  # retrieve 1-sum densities
-
-	return angle_avg, angle_hist, angle_values_deg, angle_values_rad
-
-
-# calculate dihedrals distribution from AA trajectory
-def get_AA_dihedrals_distrib(ns, beads_ids):
-
-	dihedral_values_rad = np.empty(len(ns.aa2cg_universe.trajectory) * len(beads_ids))
-	frame_values = np.empty(len(beads_ids))
-	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_3 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_4 = np.empty((len(beads_ids), 3), dtype=np.float32)
-
-	for ts in ns.aa2cg_universe.trajectory:
-		for i in range(len(beads_ids)):
-
-			bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
-			bead_pos_1[i] = ns.aa2cg_universe.atoms[bead_id_1].position
-			bead_pos_2[i] = ns.aa2cg_universe.atoms[bead_id_2].position
-			bead_pos_3[i] = ns.aa2cg_universe.atoms[bead_id_3].position
-			bead_pos_4[i] = ns.aa2cg_universe.atoms[bead_id_4].position
-
-		mda.lib.distances.calc_dihedrals(bead_pos_1, bead_pos_2, bead_pos_3, bead_pos_4, backend=ns.mda_backend, box=None, result=frame_values)
-		dihedral_values_rad[len(beads_ids) * ts.frame:len(beads_ids) * (ts.frame + 1)] = frame_values
-
-	dihedral_values_deg = np.rad2deg(dihedral_values_rad)
-	dihedral_avg = round(np.mean(dihedral_values_deg), 3)
-	dihedral_hist = np.histogram(dihedral_values_deg, ns.bins_dihedrals, density=True)[0]*ns.bw_dihedrals  # retrieve 1-sum densities
-
-	return dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad
-
-
-# calculate bonds distribution from CG trajectory
-def get_CG_bonds_distrib(ns, beads_ids, grp_type):
-
-	bond_values = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
-	frame_values = np.empty(len(beads_ids))
-	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
-
-	for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
-		for i in range(len(beads_ids)):
-
-			bead_id_1, bead_id_2 = beads_ids[i]
-			bead_pos_1[i] = ns.cg_universe.atoms[bead_id_1].position
-			bead_pos_2[i] = ns.cg_universe.atoms[bead_id_2].position
-
-		mda.lib.distances.calc_bonds(bead_pos_1, bead_pos_2, backend=ns.mda_backend, box=None, result=frame_values)
-		bond_values[len(beads_ids) * ts.frame:len(beads_ids) * (ts.frame + 1)] = frame_values / 10  # retrieved nm
-
-	bond_avg = round(np.mean(bond_values), 3)
-	if grp_type == 'constraint':
-		bond_hist = np.histogram(bond_values, ns.bins_constraints, density=True)[0]*ns.bw_constraints  # retrieve 1-sum densities
-	if grp_type == 'bond':
-		bond_hist = np.histogram(bond_values, ns.bins_bonds, density=True)[0]*ns.bw_bonds  # retrieve 1-sum densities
-
-	return bond_avg, bond_hist, bond_values
-
-
-# calculate angles using MDAnalysis
-def get_CG_angles_distrib(ns, beads_ids):
-
-	angle_values_rad = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
-	frame_values = np.empty(len(beads_ids))
-	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_3 = np.empty((len(beads_ids), 3), dtype=np.float32)
-
-	for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
-		for i in range(len(beads_ids)):
-
-			bead_id_1, bead_id_2, bead_id_3 = beads_ids[i]
-			bead_pos_1[i] = ns.cg_universe.atoms[bead_id_1].position
-			bead_pos_2[i] = ns.cg_universe.atoms[bead_id_2].position
-			bead_pos_3[i] = ns.cg_universe.atoms[bead_id_3].position
-
-		mda.lib.distances.calc_angles(bead_pos_1, bead_pos_2, bead_pos_3, backend=ns.mda_backend, box=None, result=frame_values)
-		angle_values_rad[len(beads_ids) * ts.frame:len(beads_ids) * (ts.frame + 1)] = frame_values
-
-	angle_values_deg = np.rad2deg(angle_values_rad)
-
-	# get group average and histogram non-null values for comparison and display
-	angle_avg = round(np.mean(angle_values_deg), 3)
-	angle_hist = np.histogram(angle_values_deg, ns.bins_angles, density=True)[0]*ns.bw_angles  # retrieve 1-sum densities
-
-	return angle_avg, angle_hist, angle_values_deg, angle_values_rad
-
-
-# calculate dihedrals using MDAnalysis
-def get_CG_dihedrals_distrib(ns, beads_ids):
-
-	dihedral_values_rad = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
-	frame_values = np.empty(len(beads_ids))
-	bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_2 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_3 = np.empty((len(beads_ids), 3), dtype=np.float32)
-	bead_pos_4 = np.empty((len(beads_ids), 3), dtype=np.float32)
-
-	for ts in ns.cg_universe.trajectory:  # no need for PBC handling, trajectories were made wholes for the molecule
-		for i in range(len(beads_ids)):
-
-			bead_id_1, bead_id_2, bead_id_3, bead_id_4 = beads_ids[i]
-			bead_pos_1[i] = ns.cg_universe.atoms[bead_id_1].position
-			bead_pos_2[i] = ns.cg_universe.atoms[bead_id_2].position
-			bead_pos_3[i] = ns.cg_universe.atoms[bead_id_3].position
-			bead_pos_4[i] = ns.cg_universe.atoms[bead_id_4].position
-
-		mda.lib.distances.calc_dihedrals(bead_pos_1, bead_pos_2, bead_pos_3, bead_pos_4, backend=ns.mda_backend, box=None, result=frame_values)
-		dihedral_values_rad[len(beads_ids) * ts.frame:len(beads_ids) * (ts.frame + 1)] = frame_values
-
-	dihedral_values_deg = np.rad2deg(dihedral_values_rad)
-
-	# get group average and histogram non-null values for comparison and display
-	dihedral_avg = round(np.mean(dihedral_values_deg), 3)
-	dihedral_hist = np.histogram(dihedral_values_deg, ns.bins_dihedrals, density=True)[0]*ns.bw_dihedrals  # retrieve 1-sum densities
-
-	return dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad
-
-
 # update ITP force constants with Boltzmann inversion for selected geoms at this given optimization step
 def perform_BI(ns):
 	
@@ -1980,7 +1708,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		constraints[grp_constraint] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
 		if manual_mode:
-			constraint_avg, constraint_hist, _ = get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['constraint'][grp_constraint]['beads'], grp_type='constraints group', grp_nb=grp_constraint)
+			constraint_avg, constraint_hist, _ = scores.get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['constraint'][grp_constraint]['beads'], grp_type='constraints group', grp_nb=grp_constraint)
 			constraints[grp_constraint]['AA']['avg'] = constraint_avg
 			constraints[grp_constraint]['AA']['hist'] = constraint_hist
 		else:  # use atomistic reference that was loaded by the optimization routines
@@ -1994,7 +1722,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 		if not ns.atom_only:
 			try:
-				constraint_avg, constraint_hist, _ = get_CG_bonds_distrib(ns, beads_ids=ns.cg_itp['constraint'][grp_constraint]['beads'], grp_type='constraint')
+				constraint_avg, constraint_hist, _ = scores.get_CG_bonds_distrib(ns, beads_ids=ns.cg_itp['constraint'][grp_constraint]['beads'], grp_type='constraint')
 				constraints[grp_constraint]['CG']['avg'] = constraint_avg
 				constraints[grp_constraint]['CG']['hist'] = constraint_hist
 
@@ -2039,7 +1767,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		bonds[grp_bond] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
 		if manual_mode:
-			bond_avg, bond_hist, _ = get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bonds group', grp_nb=grp_bond)
+			bond_avg, bond_hist, _ = scores.get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bonds group', grp_nb=grp_bond)
 			bonds[grp_bond]['AA']['avg'] = bond_avg
 			bonds[grp_bond]['AA']['hist'] = bond_hist
 		else:  # use atomistic reference that was loaded by the optimization routines
@@ -2053,7 +1781,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 		if not ns.atom_only:
 			try:
-				bond_avg, bond_hist, _ = get_CG_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bond')
+				bond_avg, bond_hist, _ = scores.get_CG_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bond')
 				bonds[grp_bond]['CG']['avg'] = bond_avg
 				bonds[grp_bond]['CG']['hist'] = bond_hist
 
@@ -2098,7 +1826,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		angles[grp_angle] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
 		if manual_mode:
-			angle_avg, angle_hist, _, _ = get_AA_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
+			angle_avg, angle_hist, _, _ = scores.get_AA_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
 			angles[grp_angle]['AA']['avg'] = angle_avg
 			angles[grp_angle]['AA']['hist'] = angle_hist
 		else:  # use atomistic reference that was loaded by the optimization routines
@@ -2111,7 +1839,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				angles[grp_angle]['AA']['y'].append(angles[grp_angle]['AA']['hist'][i])
 
 		if not ns.atom_only:
-			angle_avg, angle_hist, _, _ = get_CG_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
+			angle_avg, angle_hist, _, _ = scores.get_CG_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
 			angles[grp_angle]['CG']['avg'] = angle_avg
 			angles[grp_angle]['CG']['hist'] = angle_hist
 
@@ -2149,7 +1877,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		dihedrals[grp_dihedral] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
 		if manual_mode:
-			dihedral_avg, dihedral_hist, _, _ = get_AA_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
+			dihedral_avg, dihedral_hist, _, _ = scores.get_AA_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
 			dihedrals[grp_dihedral]['AA']['avg'] = dihedral_avg
 			dihedrals[grp_dihedral]['AA']['hist'] = dihedral_hist
 		else:  # use atomistic reference that was loaded by the optimization routines
@@ -2162,7 +1890,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				dihedrals[grp_dihedral]['AA']['y'].append(dihedrals[grp_dihedral]['AA']['hist'][i])
 
 		if not ns.atom_only:
-			dihedral_avg, dihedral_hist, _, _ = get_CG_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
+			dihedral_avg, dihedral_hist, _, _ = scores.get_CG_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
 			dihedrals[grp_dihedral]['CG']['avg'] = dihedral_avg
 			dihedrals[grp_dihedral]['CG']['hist'] = dihedral_hist
 
@@ -2650,26 +2378,6 @@ def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000,
 			fp.write(mdp_line+'\n')
 
 
-# execute command and return output
-def cmdline(command):
-
-	try:
-		output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True).decode()
-		success = True 
-	except subprocess.CalledProcessError as e:
-		output = e.output.decode()
-		success = False
-
-	return success, output
-
-
-# print forced stdout enabled
-def print_stdout_forced(*args, **kwargs):
-
-	with contextlib.redirect_stdout(sys.__stdout__):
-		print(*args, **kwargs, flush=True)
-
-
 # evaluation function to be optimized using FST-PSO
 def eval_function(parameters_set, ns):
 
@@ -2969,7 +2677,7 @@ def eval_function(parameters_set, ns):
 			all_dist_pairwise += str(config.sim_crash_EMD_indep_score)+' '
 		all_dist_pairwise += '\n'
 	else:
-		print_stdout_forced('  Total mismatch score:', round(fit_score_total, 3), '(Bonds/Constraints:', fit_score_constraints_bonds, '-- Angles:', fit_score_angles, '-- Dihedrals:', str(fit_score_dihedrals)+')')
+		print_stdout_forced('  Total mismatch score:', round(fit_score_total, 3), '(Bonds/Constraints:', fit_score_constraints_bonds, '-- Angles:', fit_score_angles, '-- Dihedrals:', str(fit_score_dihedrals) + ')')
 		if new_best_fit:
 			print_stdout_forced('    --> Selected as new best bonded parametrization')
 		# print_stdout_forced('  Opti context mismatch score:', round(eval_score, 3))
