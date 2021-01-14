@@ -1,5 +1,6 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
+
 warnings.filterwarnings("ignore")
 import re, random, os, shutil, subprocess, signal, time
 import warnings, collections
@@ -19,9 +20,8 @@ import swarmcg.simulations.vs_functions as vsf
 from swarmcg import config
 from swarmcg.shared import utils, styling
 from swarmcg.shared import exceptions
-
-from swarmcg.shared.io import print_stdout_forced, read_xvg_col
-from swarmcg.simulations.runner import exec_gmx, gmx_args
+from swarmcg.shared.io import print_stdout_forced
+from swarmcg.simulations.runner import gmx_args
 from swarmcg.simulations.potentials import (gmx_bonds_func_1, gmx_angles_func_1, gmx_angles_func_2,
 	gmx_dihedrals_func_1, gmx_dihedrals_func_2)
 
@@ -648,141 +648,6 @@ def get_beads_MDA_atomgroups(ns):
 				f"ID (here 0-indexed) could not be found:\n\n{str(e)}"
 			)
 			raise exceptions.MissformattedFile(msg)
-
-
-# compute average radius of gyration
-def compute_Rg(ns, traj_type):
-
-	if traj_type == 'AA':
-
-		gyr_aa = np.empty(len(ns.aa_universe.trajectory))
-		for ts in ns.aa_universe.trajectory:
-			gyr_aa[ts.frame] = ns.aa_universe.atoms[:len(ns.all_atoms)].radius_of_gyration(pbc=None, backend=ns.mda_backend)
-		ns.gyr_aa = round(np.average(gyr_aa) / 10, 3)  # retrieve nm
-		ns.gyr_aa_std = round(np.std(gyr_aa) / 10, 3)  # retrieve nm
-
-	elif traj_type == 'AA_mapped':
-
-		gyr_aa_mapped = np.empty(len(ns.aa_universe.trajectory))
-		for ts in ns.aa2cg_universe.trajectory:
-			gyr_aa_mapped[ts.frame] = ns.aa2cg_universe.atoms[:len(ns.cg_itp['atoms'])].radius_of_gyration(pbc=None, backend=ns.mda_backend)
-		ns.gyr_aa_mapped = round(np.average(gyr_aa_mapped) / 10 + ns.aa_rg_offset, 3)  # retrieve nm
-		ns.gyr_aa_mapped_std = round(np.std(gyr_aa_mapped) / 10, 3)  # retrieve nm
-
-	elif traj_type == 'CG':
-
-		gyr_cg = np.empty(len(ns.cg_universe.trajectory))
-		for ts in ns.cg_universe.trajectory:
-			gyr_cg[ts.frame] = ns.cg_universe.atoms[:len(ns.cg_itp['atoms'])].radius_of_gyration(pbc=None, backend=ns.mda_backend)
-		ns.gyr_cg = round(np.average(gyr_cg) / 10, 3)  # retrieve nm
-		ns.gyr_cg_std = round(np.std(gyr_cg) / 10, 3)  # retrieve nm
-
-	else:
-		raise RuntimeError('Unexpected error in function: compute_Rg')
-
-
-# compute average SASA
-# NOTE: currently this is just COM mappping via GMX to get the SASA, so it's approximative but that's OK
-#       this works with calls to GMX because only library MDTraj can compute SASA (not MDAnalysis)
-# TODO: MDA is working on it, keep an eye on this: https://github.com/MDAnalysis/mdanalysis/issues/2439
-def compute_SASA(ns, traj_type):
-
-	probe_radius = 0.26  # nm
-
-	if traj_type == 'AA':
-		raise exceptions.InvalidArgument('Compute_SASA not implemented for AA atm')
-
-	elif traj_type == 'AA_mapped':
-
-		# NOTE: here we assume the VS all come after the real beads in the ITP [ atoms ] field
-		#       we generate a new truncated TPR so that we can use GMX sasa, this is shit but no choice atm
-		nb_beads_real = len(ns.real_beads_ids)
-
-		# generate an cg_map.ndx file with the number of beads,
-		# so we can call SASA on this group and we will have exactly the content we want
-		ns.cg_ndx_filename = '../'+config.input_sim_files_dirname+'/cg_index.ndx'
-		with open(ns.cg_ndx_filename, 'w') as fp:
-			beads_ids_str = ' '.join(map(str, list(range(1, nb_beads_real+1))))  # includes VS if present
-			fp.write('[' + ns.cg_itp['moleculetype']['molname'] + ' ]\n' + beads_ids_str + '\n')
-
-		# TODO: all these paths need to be fixed to allow for SASA calculation within evaluate_model.py
-		#       that's why it's disabled atm
-
-		ns.aa_traj_whole_filename = '../'+config.input_sim_files_dirname+'/aa_traj_whole.xtc'
-		ns.aa_mapped_traj_whole_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_traj_whole.xtc'
-		ns.aa_mapped_sasa_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_sasa.xvg'
-		ns.aa_mapped_tpr_sasa_filename = '../'+config.input_sim_files_dirname+'/aa_mapped_tpr_sasa.tpr'
-
-		non_zero_return_code = False
-
-		# first make traj whole
-		gmx_cmd = f'seq 0 1 | {ns.gmx_path} trjconv -s ../../{ns.aa_tpr_filename} -f ../../{ns.aa_traj_filename} -pbc mol -o {ns.aa_traj_whole_filename}'
-		return_code = exec_gmx(gmx_cmd)
-		if return_code != 0:
-			non_zero_return_code = True
-
-		# then map AA traj
-		if not non_zero_return_code:
-			gmx_cmd = f'seq 0 {nb_beads_real - 1} | {ns.gmx_path} traj -f {ns.aa_traj_whole_filename} -s ../../{ns.aa_tpr_filename} -oxt {ns.aa_mapped_traj_whole_filename} -n ../../{ns.cg_map_filename} -com -ng {nb_beads_real}'
-			return_code = exec_gmx(gmx_cmd)
-			if return_code != 0:
-				non_zero_return_code = True
-
-		# truncate the CG TPR to get only real beads
-		if not non_zero_return_code:
-			gmx_cmd = f'{ns.gmx_path} convert-tpr -s md.tpr -n {ns.cg_ndx_filename} -o {ns.aa_mapped_tpr_sasa_filename}'
-			return_code = exec_gmx(gmx_cmd)
-			if return_code != 0:
-				non_zero_return_code = True
-
-		# finally get sasa
-		if not non_zero_return_code:
-			gmx_cmd = f'{ns.gmx_path} sasa -s {ns.aa_mapped_tpr_sasa_filename} -f {ns.aa_mapped_traj_whole_filename} -n {ns.cg_ndx_filename} -surface 0 -o {ns.aa_mapped_sasa_filename} -probe {probe_radius}'
-			return_code = exec_gmx(gmx_cmd)
-			if return_code != 0:
-				non_zero_return_code = True
-
-		if non_zero_return_code:
-			msg = (
-				"There were some errors while calculating SASA for AA-mapped trajectory.\n"
-				"Please check the error messages displayed above."
-			)
-			raise exceptions.ComputationError(msg)
-		else:
-			sasa_aa_mapped_per_frame = read_xvg_col(ns.aa_mapped_sasa_filename, 1)
-			ns.sasa_aa_mapped = round(np.mean(sasa_aa_mapped_per_frame), 2)
-			ns.sasa_aa_mapped_std = round(np.std(sasa_aa_mapped_per_frame), 2)
-
-	elif traj_type == 'CG':
-
-		ns.cg_traj_whole_filename = 'md_whole.xtc'
-		ns.cg_sasa_filename = 'cg_sasa.xvg'
-		non_zero_return_code = False
-
-		# first make traj whole
-		gmx_cmd = f'seq 0 1 | {ns.gmx_path} trjconv -s {ns.cg_tpr_filename} -f {ns.cg_traj_filename} -pbc mol -o {ns.cg_traj_whole_filename}'
-		return_code = exec_gmx(gmx_cmd)
-		if return_code != 0:
-			non_zero_return_code = True
-
-		# then compute SASA
-		if not non_zero_return_code:
-			# surface to choose the index group, 2 is the molecule even when there are ions (0 and 1 are System and Others)
-			gmx_cmd = f'{ns.gmx_path} sasa -s {ns.cg_tpr_filename} -f {ns.cg_traj_whole_filename} -n {ns.cg_ndx_filename} -surface 0 -o {ns.cg_sasa_filename} -probe {probe_radius}'
-			return_code = exec_gmx(gmx_cmd)
-			if return_code != 0:
-				non_zero_return_code = True
-
-		if non_zero_return_code or not os.path.isfile(ns.cg_sasa_filename):  # extra security
-			ns.sasa_cg, ns.sasa_cg_std = None, None
-		else:
-			sasa_cg_per_frame = read_xvg_col(ns.cg_sasa_filename, 1)
-			ns.sasa_cg = round(np.mean(sasa_cg_per_frame), 2)
-			ns.sasa_cg_std = round(np.std(sasa_cg_per_frame), 2)
-
-	else:
-		raise exceptions.ComputationError('Code error compute SASA')
-
 
 # update coarse-grain ITP
 def update_cg_itp_obj(ns, parameters_set, update_type):
@@ -1630,7 +1495,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	row_wise_ranges['max_range_constraints'], row_wise_ranges['max_range_bonds'], row_wise_ranges['max_range_angles'], row_wise_ranges['max_range_dihedrals'] = 0, 0, 0, 0
 
 	if ns.atom_only:
-		compute_Rg(ns, traj_type='AA')
+		scores.compute_Rg(ns, traj_type='AA')
 		print('Radius of gyration (AA reference, NOT CG-mapped):', ns.gyr_aa, 'nm')
 
 	# proceed with CG data
@@ -1668,19 +1533,19 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 		# this requires CG data for mapping -- especially, masses are taken from the CG TPR but the CG ITP is also used atm
 		if ns.gyr_aa_mapped == None:
-			compute_Rg(ns, traj_type='AA_mapped')
+			scores.compute_Rg(ns, traj_type='AA_mapped')
 			print()
 			print('Radius of gyration (AA reference, CG-mapped, no bonds scaling):', ns.gyr_aa_mapped, '+/-', ns.gyr_aa_mapped_std, 'nm')
 
-		compute_Rg(ns, traj_type='CG')
+		scores.compute_Rg(ns, traj_type='CG')
 		print('Radius of gyration (CG model):', ns.gyr_cg, '+/-', ns.gyr_cg_std, 'nm')
 
 		if calc_sasa:
 
 			if ns.sasa_aa_mapped == None:
-				compute_SASA(ns, traj_type='AA_mapped')
+				scores.compute_SASA(ns, traj_type='AA_mapped')
 
-			compute_SASA(ns, traj_type='CG')
+			scores.compute_SASA(ns, traj_type='CG')
 			print()
 
 			# this line checks that gmx trjconv could read the md.xtc trajectory from the opti
