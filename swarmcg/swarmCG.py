@@ -1,8 +1,6 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
 
-from swarmcg.io.write import write_cg_itp_file
-
 warnings.filterwarnings("ignore")
 import re, os, shutil, subprocess, signal, time
 import warnings, collections
@@ -18,6 +16,7 @@ from pyemd import emd
 from scipy.optimize import curve_fit
 
 import swarmcg.scoring as scores
+import swarmcg.io as io
 import swarmcg.simulations.vs_functions as vsf
 from swarmcg import config
 from swarmcg.shared import utils, styling
@@ -1638,7 +1637,7 @@ def eval_function(parameters_set, ns):
 		print_sections = ['constraint', 'bond', 'angle', 'exclusion']
 	else:
 		print_sections = ['constraint', 'bond', 'angle', 'dihedral', 'exclusion']
-	write_cg_itp_file(ns.out_itp, out_path_itp, print_sections=print_sections)
+	io.write_cg_itp_file(ns.out_itp, out_path_itp, print_sections=print_sections)
 
 	# enter current evaluation directory and stay there until all sims are finished or failed
 	os.chdir(current_eval_dir)
