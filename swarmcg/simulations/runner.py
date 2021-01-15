@@ -48,7 +48,7 @@ def cmdline(command):
 class SimulationStep:
 
     PREP_CMD = "{exec} grompp -c {gro} -f {mdp} -p {top} -n {index} -o {md_input}"
-    MD_CMD = "{exec} mdrun -s {md_input} -nt {n_cpu} -gpu_id {gpu_id} -deffnm {md_output}"
+    MD_CMD = "{exec} mdrun -deffnm {md_output} -nt {n_cpu} -gpu_id {gpu_id}"
 
     def __init__(self, sim_setup, step_name):
         self.sim_setup = sim_setup
@@ -67,8 +67,20 @@ class SimulationStep:
     def _prepare_cmd(self, **kwargs):
         return SimulationStep.PREP_CMD.format(**{**self.sim_setup, **kwargs})
 
-    def _run_cmd(self, **kwargs):
-        return SimulationStep.MD_CMD.format(**{**self.sim_setup, **kwargs})
+    def _run_cmd(self, aux_command, mpi=True):
+        cmd = SimulationStep.MD_CMD.format(**self.sim_setup)
+        if aux_command:
+            cmd = f"{cmd} {aux_command}"
+        threads = self.sim_setup.get("nb_threads")
+        if threads > 0:
+            cmd = f"{cmd} -nt {threads}"
+        gpu = self.sim_setup.get("gpu_id")
+        if gpu > 0:
+            cmd = f"{cmd} -gpu_id {gpu}"
+        mpi_tasks = self.sim_setup.get("mpi_tasks")
+        if mpi and mpi_tasks > 1:
+            cmd = f"mpirun -np {mpi_tasks} {cmd}"
+        return cmd
 
     def _run_prep(self, cmd):
         with subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE,
@@ -124,8 +136,8 @@ class SimulationStep:
         else:
             return gmx_process.returncode
 
-    def run(self):
+    def run(self, aux_command):
         prep_cmd = self._prepare_cmd()
-        md_cmd = self._run_cmd()
+        md_cmd = self._run_cmd(aux_command)
         return self._run_prep(prep_cmd)._run_md(md_cmd)
 

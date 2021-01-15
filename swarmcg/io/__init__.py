@@ -1,4 +1,4 @@
-from .read import read_aa_traj
+from .read import read_aa_traj, read_cg_itp_file
 from .write import write_cg_itp_file
 
 
