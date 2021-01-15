@@ -89,11 +89,12 @@ class Production(BaseSimulationConfig):
 
 
 def select_class(flag, ns):
+    filename = getattr(ns, flag)
     if "md" in flag:
-        return Production(ns.get(flag))
+        return Production(filename)
     elif "equi" in flag:
-        return Equilibration(ns.get(flag))
+        return Equilibration(filename)
     elif "mini" in flag:
-        return Minimisation(ns.get(flag))
+        return Minimisation(filename)
     else:
         ValueError(f"Flag {flag} does not correspond to any class.")
