@@ -42,27 +42,47 @@ class InvalidArgument(BaseError):
         super().__init__(self.message)
 
 
+class InputFileNotFound(BaseError):
+
+    base_msg = (
+        "Input filename {filename} was not found. Please check the path is correct. "
+        "{additional_info}"
+    )
+
+    def __init__(self, filename, value, additional_info=""):
+        self.filename = filename
+        self.additional_info = additional_info
+        self.message = self.base_msg.format(
+            filename=filename, additional_info=additional_info
+        )
+        super().__init__(self.message)
+
+
+class MissingMdpFile(InputFileNotFound):
+    pass
+
+
+class MissingCoordinateFile(InputFileNotFound):
+    pass
+
+
+class MissingTrajectoryFile(InputFileNotFound):
+    pass
+
+
+class MissingItpFile(InputFileNotFound):
+    pass
+
+
+class MissingIndexFile(InputFileNotFound):
+    pass
+
+
 class IncompleteOptimisationFile(BaseError):
     pass
 
 
 class OptimisationResultsError(BaseError):
-    pass
-
-
-class MissingCoordinateFile(BaseError):
-    pass
-
-
-class MissingTrajectoryFile(BaseError):
-    pass
-
-
-class MissingItpFile(BaseError):
-    pass
-
-
-class MissingIndexFile(BaseError):
     pass
 
 

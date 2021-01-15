@@ -47,22 +47,27 @@ def cmdline(command):
 
 class SimulationStep:
 
-    PREP_CMD = "{exec} grompp -c {gro} -f {mdp} -p {top} -n {index} -o {md_input}"
+    PREP_CMD = "{exec} grompp -c {gro} -f {mdp} -p {top} -o {md_output}"
     MD_CMD = "{exec} mdrun -deffnm {md_output} -nt {n_cpu} -gpu_id {gpu_id}"
 
-    def __init__(self, sim_setup, step_name):
-        self.sim_setup = sim_setup
-        self.step_name = step_name
-        self._validate_args()
+    REQUIRED_FIELDS = ["exec", "gro", "mdp", "top", "md_output"]
 
-    def _validate_args(self):
-        required_args = ["exec", "gro", "mdp", "top", "index", "md_input", "md_output"]
-        missing_args = ", ".join([i for i in required_args if i not in self.sim_setup.keys()])
+    def __init__(self, sim_setup):
+        self.sim_setup = sim_setup
+        self.step_name = sim_setup.get("step_name")
+        self._validate_init()
+
+    def _validate_init(self):
+        missing_args = ", ".join([i for i in SimulationStep.REQUIRED_FIELDS if i not in self.sim_setup.keys()])
         if missing_args:
             msg = (
                 "The following arguments are missing: {missing_args}. Please check you input."
             )
             raise exceptions.InputArgumentError(msg)
+
+    @property
+    def swarmcg_flag(self):
+        return self.sim_setup.get("swarmcg_flag")
 
     def _prepare_cmd(self, **kwargs):
         return SimulationStep.PREP_CMD.format(**{**self.sim_setup, **kwargs})
@@ -82,6 +87,9 @@ class SimulationStep:
             cmd = f"mpirun -np {mpi_tasks} {cmd}"
         return cmd
 
+    def _run_setup(self, exec_path):
+        self.sim_setup.get("simulation_config").to_file(exec_path)
+
     def _run_prep(self, cmd):
         with subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE) as gmx_process:
@@ -94,7 +102,7 @@ class SimulationStep:
             msg = (
                 f"Gromacs grompp failed at MD {self.step_name} step, see its error message above. " 
                 f"You may also want to check the parameters of the MDP file provided through "
-                f"argument -cg_sim_mdp_mini. If you think this is a bug, please consider opening "
+                f"argument {self.swarmcg_flag}. If you think this is a bug, please consider opening "
                 f"an issue on GitHub at {config.github_url}/issues."
             )
             raise exceptions.ComputationError(msg)
@@ -136,8 +144,24 @@ class SimulationStep:
         else:
             return gmx_process.returncode
 
-    def run(self, aux_command):
-        prep_cmd = self._prepare_cmd()
+    def run(self, exec_path, aux_command):
+        prep_cmd = self._prepare_cmd(exec_path)
         md_cmd = self._run_cmd(aux_command)
         return self._run_prep(prep_cmd)._run_md(md_cmd)
 
+
+def ns_to_runner(ns, sim_config, prev_gro):
+    return {
+        "exec": ns.gmx_path,
+        "gro": prev_gro,
+        "mdp": ns.mdp_md_basename,
+        "top": ns.top_input_basename,
+        "gpu_id": ns.gpu_id,
+        "mpi_tasks": ns.mpi_tasks,
+        "nb_threads": ns.nb_threads,
+
+        "swarmcg_flag": sim_config.swarmcg_flag,
+        "step_name": sim_config.step_name,
+        "md_output": sim_config.md_output,
+        "simulation_config": sim_config
+    }
