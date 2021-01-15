@@ -177,7 +177,7 @@ def ns_to_runner(ns, sim_config, prev_gro):
 
 
 def generate_steps(ns):
-    step_flags = ["cg_sim_mdp_mini", "cg_sim_mdp_equi", "cg_sim_mdp_md"]
+    step_flags = ["mdp_minimization_basename", "mdp_equi_basename", "mdp_md_basename"]
     prev_gro = ns.gro_input_basename
     for step in step_flags:
         sim_config = select_class(step, ns)
