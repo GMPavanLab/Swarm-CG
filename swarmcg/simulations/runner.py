@@ -3,6 +3,7 @@ import time, subprocess, os, signal
 import swarmcg.shared.exceptions as exceptions
 import swarmcg.config as config
 from swarmcg.utils import print_stdout_forced
+from swarmcg.simulations.simulation_steps import select_class
 
 
 def gmx_args(ns, gmx_cmd, mpi=True):
@@ -69,6 +70,10 @@ class SimulationStep:
     def swarmcg_flag(self):
         return self.sim_setup.get("swarmcg_flag")
 
+    @property
+    def output_gro(self):
+        return f"{self.sim_setup.get('md_output')}.gro"
+
     def _prepare_cmd(self, **kwargs):
         return SimulationStep.PREP_CMD.format(**{**self.sim_setup, **kwargs})
 
@@ -89,6 +94,7 @@ class SimulationStep:
 
     def _run_setup(self, exec_path):
         self.sim_setup.get("simulation_config").to_file(exec_path)
+        return self
 
     def _run_prep(self, cmd):
         with subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE,
@@ -102,7 +108,7 @@ class SimulationStep:
             msg = (
                 f"Gromacs grompp failed at MD {self.step_name} step, see its error message above. " 
                 f"You may also want to check the parameters of the MDP file provided through "
-                f"argument {self.swarmcg_flag}. If you think this is a bug, please consider opening "
+                f"argument -{self.swarmcg_flag}. If you think this is a bug, please consider opening "
                 f"an issue on GitHub at {config.github_url}/issues."
             )
             raise exceptions.ComputationError(msg)
@@ -139,15 +145,14 @@ class SimulationStep:
                 f"MD {self.step_name} run failed (unstable simulation was killed, with unstable "
                 f"= NOT writing in log file for {keep_alive_n_cycles * seconds_between_checks} sec)"
             )
-            raise exceptions.ComputationError(msg)
-
+            print_stdout_forced(msg)
         else:
             return gmx_process.returncode
 
     def run(self, exec_path, aux_command):
-        prep_cmd = self._prepare_cmd(exec_path)
+        prep_cmd = self._prepare_cmd()
         md_cmd = self._run_cmd(aux_command)
-        return self._run_prep(prep_cmd)._run_md(md_cmd)
+        return self._run_setup(exec_path)._run_prep(prep_cmd)._run_md(md_cmd)
 
 
 def ns_to_runner(ns, sim_config, prev_gro):
@@ -163,5 +168,19 @@ def ns_to_runner(ns, sim_config, prev_gro):
         "swarmcg_flag": sim_config.swarmcg_flag,
         "step_name": sim_config.step_name,
         "md_output": sim_config.md_output,
+
+        "monitor_file":  f"{sim_config.md_output}.log",
+        "keep_alive_n_cycles": ns.process_alive_nb_cycles_dead,
+        "seconds_between_checks": ns.process_alive_time_sleep,
         "simulation_config": sim_config
     }
+
+
+def generate_steps(ns):
+    step_flags = ["cg_sim_mdp_mini", "cg_sim_mdp_equi", "cg_sim_mdp_md"]
+    prev_gro = ns.gro_input_basename
+    for step in step_flags:
+        sim_config = select_class(step, ns)
+        simulation_step = SimulationStep(ns_to_runner(ns, sim_config, prev_gro))
+        prev_gro = simulation_step.output_gro
+        yield simulation_step

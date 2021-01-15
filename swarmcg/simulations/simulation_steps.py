@@ -71,19 +71,29 @@ class BaseSimulationConfig:
 
 
 class Minimisation(BaseSimulationConfig):
-
-    swarmcg_flag = "-cg_sim_mdp_mini"
+    swarmcg_flag = "cg_sim_mdp_mini"
     step_name = "minimisation"
     md_output = "mini"
 
 
 class Equilibration(BaseSimulationConfig):
-    swarmcg_flag = "-cg_sim_mdp_equi"
+    swarmcg_flag = "cg_sim_mdp_equi"
     step_name = "equilibration"
     md_output = "equi"
 
 
 class Production(BaseSimulationConfig):
-    swarmcg_flag = "-cg_sim_mdp_md"
+    swarmcg_flag = "cg_sim_mdp_md"
     step_name = "production"
     md_output = "md"
+
+
+def select_class(flag, ns):
+    if "md" in flag:
+        return Production(ns.get(flag))
+    elif "equi" in flag:
+        return Equilibration(ns.get(flag))
+    elif "mini" in flag:
+        return Minimisation(ns.get(flag))
+    else:
+        ValueError(f"Flag {flag} does not correspond to any class.")
