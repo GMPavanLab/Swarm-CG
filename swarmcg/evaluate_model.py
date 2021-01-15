@@ -10,6 +10,8 @@ import numpy as np
 import matplotlib
 
 import swarmcg.shared.styling
+import swarmcg.io as io
+import swarmcg.scoring as scores
 from swarmcg import swarmCG as scg
 from swarmcg import config
 from swarmcg.shared import exceptions
@@ -105,15 +107,15 @@ def run(ns):
 	except IndexError as e:
 		ns.plot_filename = ns.plot_filename+'.png'
 
-	scg.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
+	scores.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
 	scg.read_ndx_atoms2beads(ns)  # read mapping, get atoms accurences in beads
 	scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
 
-	scg.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
+	io.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
 	scg.process_scaling_str(ns)  # process the bonds scaling specified by user
 
 	print()
-	scg.read_aa_traj(ns)  # create universe and read traj
+	io.read_aa_traj(ns)  # create universe and read traj
 	scg.load_aa_data(ns)  # read atoms attributes
 	scg.make_aa_traj_whole_for_selected_mols(ns)
 
