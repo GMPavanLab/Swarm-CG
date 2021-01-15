@@ -18,10 +18,10 @@ from scipy.optimize import curve_fit
 import swarmcg.scoring as scores
 import swarmcg.io as io
 import swarmcg.simulations.vs_functions as vsf
+import swarmcg.simulations as sim
 from swarmcg import config
 from swarmcg.shared import utils, styling, exceptions
 from swarmcg.utils import print_stdout_forced, draw_float
-from swarmcg.simulations.runner import gmx_args
 from swarmcg.simulations.potentials import (gmx_bonds_func_1, gmx_angles_func_1, gmx_angles_func_2,
 	gmx_dihedrals_func_1, gmx_dihedrals_func_2)
 
@@ -1644,12 +1644,62 @@ def eval_function(parameters_set, ns):
 	# run simulation with new parameters
 	start_gmx_ts = datetime.now().timestamp()
 
-	for step in generate_steps(ns):
+	for step in sim.generate_steps(ns):
 		step.run()
 
-	eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
-	ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
-	ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
+	# to verify if MD run finished properly, we check for the .gro file printed in the end
+	if os.path.isfile('md.gro'):
+
+		# get distributions and evaluate fitness
+		ns.cg_tpr_filename = 'md.tpr'
+		ns.cg_traj_filename = 'md.xtc'
+		ns.plot_filename = 'distributions.png'
+		ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
+
+		start_model_eval_ts = datetime.now().timestamp()
+		ignore_dihedrals = False
+		if ns.opti_cycle['nb_geoms']['dihedral'] == 0:
+			ignore_dihedrals = True
+		fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals, all_dist_pairwise, all_emd_dist_geoms = compare_models(
+			ns, manual_mode=False, ignore_dihedrals=ignore_dihedrals, calc_sasa=True,
+			record_best_indep_params=True)
+		ns.total_model_eval_time += datetime.now().timestamp() - start_model_eval_ts
+
+		# if gmx sasa failed to compute, it's most likely because there were inconsistent shifts across PBC in the trajectory = failed run
+		if ns.sasa_cg is not None:
+
+			# store the distributions for each evaluation step
+			shutil.move('distributions.png',
+						f'../{config.distrib_plots_all_evals_dirname}/distributions_eval_step_{ns.nb_eval}.png')
+
+			eval_score = 0
+			if 'constraint' in ns.opti_cycle['geoms'] and 'bond' in ns.opti_cycle['geoms']:
+				eval_score += fit_score_constraints_bonds
+			if 'angle' in ns.opti_cycle['geoms']:
+				eval_score += fit_score_angles
+			if 'dihedral' in ns.opti_cycle['geoms']:
+				eval_score += fit_score_dihedrals
+
+			global_score = 0
+			if 'constraint' in ns.opti_geoms_all and 'bond' in ns.opti_geoms_all:
+				global_score += fit_score_constraints_bonds
+			if 'angle' in ns.opti_geoms_all:
+				global_score += fit_score_angles
+			if 'dihedral' in ns.opti_geoms_all:
+				global_score += fit_score_dihedrals
+
+			# model selection based only on bonded parametrization score
+			regular_eval = True
+			if regular_eval:
+				if global_score < ns.best_fitness[0]:
+					new_best_fit = True
+					ns.best_fitness = global_score, ns.nb_eval
+					ns.all_emd_dist_geoms = all_emd_dist_geoms
+
+		else:
+			eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
+			ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
+			ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
 
 	# exit current eval directory
 	os.chdir('..')
