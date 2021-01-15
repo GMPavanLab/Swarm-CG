@@ -1643,9 +1643,8 @@ def eval_function(parameters_set, ns):
 
 	# run simulation with new parameters
 	start_gmx_ts = datetime.now().timestamp()
-
 	for step in sim.generate_steps(ns):
-		step.run()
+		step.run(os.getcwd())
 
 	# to verify if MD run finished properly, we check for the .gro file printed in the end
 	if os.path.isfile('md.gro'):

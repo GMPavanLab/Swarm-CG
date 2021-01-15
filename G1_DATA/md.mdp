@@ -3,7 +3,6 @@ dt                       = 0.02
 nsteps                   = 15000
 comm-mode                = Linear
 nstcomm                  = 100
-comm-grps                = 
 
 nstxout                  = 0
 nstvout                  = 0

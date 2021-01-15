@@ -49,7 +49,7 @@ class InputFileNotFound(BaseError):
         "{additional_info}"
     )
 
-    def __init__(self, filename, value, additional_info=""):
+    def __init__(self, filename, additional_info=""):
         self.filename = filename
         self.additional_info = additional_info
         self.message = self.base_msg.format(
