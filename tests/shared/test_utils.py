@@ -43,6 +43,7 @@ def test_sma():
     expected = np.array([2, 3, 4, 5, 6, 7, 8, 9, 0, 0], dtype=float)
     assert_almost_equal(result, expected)
 
+
 def test_ema():
     # given:
     x = np.arange(10)

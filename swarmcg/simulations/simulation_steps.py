@@ -8,6 +8,7 @@ class BaseSimulationConfig:
     REQUIRED_FIELDS = []
 
     def __init__(self, filename):
+        print(filename)
         if not os.path.isfile(filename):
             raise exceptions.MissingMdpFile(filename)
         else:
@@ -75,6 +76,7 @@ class Minimisation(BaseSimulationConfig):
     swarmcg_flag = "cg_sim_mdp_mini"
     step_name = "minimisation"
     md_output = "mini"
+    mdp_base_name = "mdp_minimization_basename"
 
 
 class Equilibration(BaseSimulationConfig):
@@ -82,6 +84,7 @@ class Equilibration(BaseSimulationConfig):
     swarmcg_flag = "cg_sim_mdp_equi"
     step_name = "equilibration"
     md_output = "equi"
+    mdp_base_name = "mdp_equi_basename"
 
 
 class Production(BaseSimulationConfig):
@@ -89,6 +92,7 @@ class Production(BaseSimulationConfig):
     swarmcg_flag = "cg_sim_mdp_md"
     step_name = "production"
     md_output = "md"
+    mdp_base_name = "mdp_md_basename"
 
 
 def select_class(flag, ns):
