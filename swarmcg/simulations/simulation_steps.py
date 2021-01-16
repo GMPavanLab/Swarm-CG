@@ -20,7 +20,7 @@ class BaseSimulationConfig:
     def read_mdp(filename):
         with open(filename, "r") as f:
             raw_content = f.readlines()
-        CLEAN_PATTERN = "(.*[^;]);*(.*)"
+        CLEAN_PATTERN = "(.*[^;]);(.*)"
         SUB_PATTERN = "[\n\t\s]*"
         SPLIT_PATTER = "(.*)=(.*)"
         f_clean = lambda x: re.sub(
@@ -34,7 +34,7 @@ class BaseSimulationConfig:
     def to_string(self):
         output_string = ""
         for k, v in self.sim_setup.items():
-            output_string += f"{k}\t\t = {str(v)}"
+            output_string += f"{k}\t\t = {str(v)}\n"
         return output_string
 
     def _validate_init(self):
@@ -68,7 +68,7 @@ class BaseSimulationConfig:
         self.sim_setup["nstxout-compressed "] = int(new_nsteps / nb_frames)
 
     def to_file(self, destination_path):
-        open(os.join(destination_path, self.base_name), "w").writelines(self.to_string())
+        open(os.path.join(destination_path, self.base_name), "w").writelines(self.to_string())
 
 
 class Minimisation(BaseSimulationConfig):

@@ -81,14 +81,17 @@ class SimulationStep:
         cmd = SimulationStep.MD_CMD.format(**self.sim_setup)
         if aux_command:
             cmd = f"{cmd} {aux_command}"
+
         threads = int(self.sim_setup.get("nb_threads"))
         if threads > 0:
             cmd = f"{cmd} -nt {threads}"
-        gpu = int(self.sim_setup.get("gpu_id"))
-        if gpu > 0:
+
+        gpu = self.sim_setup.get("gpu_id")
+        if len(gpu) > 0:
             cmd = f"{cmd} -gpu_id {gpu}"
+
         mpi_tasks = int(self.sim_setup.get("mpi_tasks"))
-        if mpi and mpi_tasks > 1:
+        if mpi and mpi_tasks > 0:
             cmd = f"mpirun -np {mpi_tasks} {cmd}"
         return cmd
 
@@ -161,6 +164,7 @@ def ns_to_runner(ns, sim_config, prev_gro):
         "gro": prev_gro,
         "mdp": ns.mdp_md_basename,
         "top": ns.top_input_basename,
+
         "gpu_id": ns.gpu_id,
         "mpi_tasks": ns.mpi_tasks,
         "nb_threads": ns.nb_threads,
