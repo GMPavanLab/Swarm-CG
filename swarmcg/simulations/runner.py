@@ -158,8 +158,6 @@ class SimulationStep:
     def run(self, exec_path, aux_command=""):
         prep_cmd = self._prepare_cmd()
         md_cmd = self._run_cmd(aux_command)
-        print(prep_cmd)
-        print(md_cmd)
         return self._run_setup(exec_path)._run_prep(prep_cmd)._run_md(md_cmd)
 
 

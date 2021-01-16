@@ -8,7 +8,6 @@ class BaseSimulationConfig:
     REQUIRED_FIELDS = []
 
     def __init__(self, filename):
-        print(filename)
         if not os.path.isfile(filename):
             raise exceptions.MissingMdpFile(filename)
         else:
