@@ -20,16 +20,15 @@ class BaseSimulationConfig:
     def read_mdp(filename):
         with open(filename, "r") as f:
             raw_content = f.readlines()
-        CLEAN_PATTERN = "(.*[^;]);(.*)"
         SUB_PATTERN = "[\n\t\s]*"
         SPLIT_PATTER = "(.*)=(.*)"
-        f_clean = lambda x: re.sub(
-            SUB_PATTERN, "", re.match(CLEAN_PATTERN, x).groups()[0]
-        )
+        KEEP_PATTERN = "^[^;]*"
+        f_clean = lambda x: re.sub(SUB_PATTERN, "", x)
         f_split = lambda x: re.match(SPLIT_PATTER, x).groups()
+        f_keep = lambda x: re.match(KEEP_PATTERN, x).group()
         cleaned = filter(None, map(f_clean, raw_content))
         split = map(f_split, cleaned)
-        return {k: v for k, v in split}
+        return {k: f_keep(v) for k, v in split}
 
     def to_string(self):
         output_string = ""

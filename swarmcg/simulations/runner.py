@@ -48,7 +48,7 @@ def cmdline(command):
 
 class SimulationStep:
 
-    PREP_CMD = "{exec} grompp -c {gro} -f {mdp} -p {top} -o {md_output}"
+    PREP_CMD = "{exec} grompp -c {gro} -f {mdp} -p {top} -o {md_output} -maxwarn {maxwarn}"
     MD_CMD = "{exec} mdrun -deffnm {md_output}"
 
     REQUIRED_FIELDS = ["exec", "gro", "mdp", "top", "md_output"]
@@ -116,16 +116,19 @@ class SimulationStep:
             )
             raise exceptions.ComputationError(msg)
 
-    def _run_md(self, cmd, monitor_file, keep_alive_n_cycles, seconds_between_checks):
+    def _run_md(self, cmd):
         cycles_check, last_log_file_size = 0, 0
         _run_killed = False
+        monitor_file = self.sim_setup.get("monitor_file")
+        keep_alive_n_cycles = self.sim_setup.get("keep_alive_n_cycles")
+        seconds_between_checks = self.sim_setup.get("seconds_between_checks")
         with subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process:
             while gmx_process.poll() is None:  # while process is alive
-                time.sleep(seconds_between_checks)
+                time.sleep(keep_alive_n_cycles)
                 cycles_check += 1
 
-                if cycles_check % keep_alive_n_cycles == 0:
+                if cycles_check % self.sim_setup.get("keep_alive_n_cycles") == 0:
 
                     if os.path.isfile(monitor_file):
                         log_file_size = os.path.getsize(monitor_file)
@@ -168,6 +171,7 @@ def ns_to_runner(ns, sim_config, prev_gro):
         "gpu_id": ns.gpu_id,
         "mpi_tasks": ns.mpi_tasks,
         "nb_threads": ns.nb_threads,
+        "maxwarn": ns.mini_maxwarn,
 
         "swarmcg_flag": sim_config.swarmcg_flag,
         "step_name": sim_config.step_name,
