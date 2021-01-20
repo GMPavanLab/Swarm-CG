@@ -1,4 +1,4 @@
-name: Swarm-cg
+name: swarm-cg-tests
 
 on: pull_request
 
@@ -20,7 +20,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install pytest
         if [ -f environment.txt ]; then pip install -r environment.txt; fi
-
+    - name: Install package
+      run: |
+        python setup.py install
     - name: Test with pytest
       run: |
         pytest test/
