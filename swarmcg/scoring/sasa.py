@@ -22,7 +22,7 @@ def compute_SASA(ns, traj_type):
 
         # NOTE: here we assume the VS all come after the real beads in the ITP [ atoms ] field
         #       we generate a new truncated TPR so that we can use GMX sasa, this is shit but no choice atm
-        nb_beads_real = len(ns.real_beads_ids)
+        nb_beads_real = len(ns.cg_itp["real_beads_ids"])
 
         # generate an cg_map.ndx file with the number of beads,
         # so we can call SASA on this group and we will have exactly the content we want

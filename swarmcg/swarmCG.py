@@ -822,7 +822,7 @@ def process_scaling_str(ns):
 			while i < len(sp_str):
 				geom_id = sp_str[i][1:]
 				if sp_str[i][0].upper() == 'C':
-					if int(geom_id) > ns.nb_constraints:
+					if int(geom_id) > ns.cg_itp["nb_constraints"]:
 						info = "A constraint group id exceeds the number of constraints groups defined in the input CG ITP file."
 						raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
 					if not 'C' + geom_id in ns.bonds_scaling_specific:
@@ -834,7 +834,7 @@ def process_scaling_str(ns):
 						info = f"A constraint group id is provided multiple times (id: {geom_id})"
 						raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
 				elif sp_str[i][0].upper() == 'B':
-					if int(geom_id) > ns.nb_bonds:
+					if int(geom_id) > ns.cg_itp["nb_bonds"]:
 						info = "A bond group id exceeds the number of bonds groups defined in the input CG ITP file."
 						raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str, info)
 					if not 'B' + geom_id in ns.bonds_scaling_specific:
@@ -882,7 +882,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		# create fake bonds in the CG MDA universe, that will be used only for making the molecule whole
 		# we make bonds between each VS and their beads definition, so we retrieve the connectivity
 		# iteratively towards the real CG beads, that are all connected
-		if len(ns.vs_beads_ids) > 0:
+		if len(ns.cg_itp["vs_beads_ids"]) > 0:
 			fake_bonds = []
 			for vs_type in ['2', '3', '4', 'n']:
 				try:
@@ -931,11 +931,11 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 	# constraints
 	print('Processing constraints ...', flush=True)
-	diff_ordered_grp_constraints = list(range(ns.nb_constraints))
+	diff_ordered_grp_constraints = list(range(ns.cg_itp["nb_constraints"]))
 	avg_diff_grp_constraints, row_wise_ranges['constraints'] = [], {}
 	constraints = {}
 
-	for grp_constraint in range(ns.nb_constraints):
+	for grp_constraint in range(ns.cg_itp["nb_constraints"]):
 
 		constraints[grp_constraint] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
@@ -990,11 +990,11 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 	# bonds
 	print('Processing bonds ...', flush=True)
-	diff_ordered_grp_bonds = list(range(ns.nb_bonds))
+	diff_ordered_grp_bonds = list(range(ns.cg_itp["nb_bonds"]))
 	avg_diff_grp_bonds, row_wise_ranges['bonds'] = [], {}
 	bonds = {}
 
-	for grp_bond in range(ns.nb_bonds):
+	for grp_bond in range(ns.cg_itp["nb_bonds"]):
 
 		bonds[grp_bond] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
@@ -1049,11 +1049,11 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 	# angles
 	print('Processing angles ...', flush=True)
-	diff_ordered_grp_angles = list(range(ns.nb_angles))
+	diff_ordered_grp_angles = list(range(ns.cg_itp["nb_angles"]))
 	avg_diff_grp_angles, row_wise_ranges['angles'] = [], {}
 	angles = {}
 
-	for grp_angle in range(ns.nb_angles):
+	for grp_angle in range(ns.cg_itp["nb_angles"]):
 
 		angles[grp_angle] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
@@ -1100,11 +1100,11 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 	# dihedrals
 	print('Processing dihedrals ...', flush=True)
-	diff_ordered_grp_dihedrals = list(range(ns.nb_dihedrals))
+	diff_ordered_grp_dihedrals = list(range(ns.cg_itp["nb_dihedrals"]))
 	avg_diff_grp_dihedrals, row_wise_ranges['dihedrals'] = [], {}
 	dihedrals = {}
 
-	for grp_dihedral in range(ns.nb_dihedrals):
+	for grp_dihedral in range(ns.cg_itp["nb_dihedrals"]):
 		
 		dihedrals[grp_dihedral] = {'AA': {'x': [], 'y': []}, 'CG': {'x': [], 'y': []}}
 
@@ -1156,7 +1156,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	# DISPLAY DISTRIBUTIONS PLOTS #
 	###############################
 
-	larger_group = max(ns.nb_constraints, ns.nb_bonds, ns.nb_angles, ns.nb_dihedrals)
+	larger_group = max(ns.cg_itp["nb_constraints"], ns.cg_itp["nb_bonds"], ns.cg_itp["nb_angles"], ns.cg_itp["nb_dihedrals"])
 	nrow, nrows, ncols = -1, 4, min(ns.ncols_max, larger_group)
 	if ns.ncols_max == 0:
 		ncols = larger_group
@@ -1175,7 +1175,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 			print('Distributions groups will be displayed using the CG ITP file groups ordering')
 		else:
 			print('Distributions groups will be displayed using ranked mismatch score between pairwise AA-mapped and CG distributions')
-	nrows -= sum([ns.nb_constraints == 0, ns.nb_bonds == 0, ns.nb_angles == 0, ns.nb_dihedrals == 0])
+	nrows -= sum([ns.cg_itp["nb_constraints"] == 0, ns.cg_itp["nb_bonds"] == 0, ns.cg_itp["nb_angles"] == 0, ns.cg_itp["nb_dihedrals"] == 0])
 
 	# fig, ax = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols*3, nrows*3), squeeze=False)
 	# this fucking line was responsible of the big memory leak (figures were not closing) so I let this here for memory
@@ -1187,11 +1187,11 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	constraints_max_y, bonds_max_y, angles_max_y, dihedrals_max_y = 0, 0, 0, 0
 
 	# constraints
-	if ns.nb_constraints != 0:
+	if ns.cg_itp["nb_constraints"] != 0:
 		print()
 		nrow += 1
 		for i in range(ncols):
-			if i < ns.nb_constraints:
+			if i < ns.cg_itp["nb_constraints"]:
 				grp_constraint = diff_ordered_grp_constraints[i]
 
 				if config.use_hists:
@@ -1229,11 +1229,11 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				ax[nrow][i].set_visible(False)
 
 	# bonds
-	if ns.nb_bonds != 0:
+	if ns.cg_itp["nb_bonds"] != 0:
 		print()
 		nrow += 1
 		for i in range(ncols):
-			if i < ns.nb_bonds:
+			if i < ns.cg_itp["nb_bonds"]:
 				grp_bond = diff_ordered_grp_bonds[i]
 
 				if config.use_hists:
@@ -1271,11 +1271,11 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				ax[nrow][i].set_visible(False)
 
 	# angles
-	if ns.nb_angles != 0:
+	if ns.cg_itp["nb_angles"] != 0:
 		print()
 		nrow += 1
 		for i in range(ncols):
-			if i < ns.nb_angles:
+			if i < ns.cg_itp["nb_angles"]:
 				grp_angle = diff_ordered_grp_angles[i]
 
 				if config.use_hists:
@@ -1313,11 +1313,11 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 				ax[nrow][i].set_visible(False)
 
 	# dihedrals
-	if ns.nb_dihedrals != 0:
+	if ns.cg_itp["nb_dihedrals"] != 0:
 		print()
 		nrow += 1
 		for i in range(ncols):
-			if i < ns.nb_dihedrals:
+			if i < ns.cg_itp["nb_dihedrals"]:
 				grp_dihedral = diff_ordered_grp_dihedrals[i]
 
 				if config.use_hists:
@@ -1357,21 +1357,21 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	# now we have all the ylims, so make them all consistent
 	if ns.row_y_scaling:
 		nrow = -1
-		if ns.nb_constraints != 0:
+		if ns.cg_itp["nb_constraints"] != 0:
 			nrow += 1
-			for i in range(ns.nb_constraints):
+			for i in range(ns.cg_itp["nb_constraints"]):
 				ax[nrow][i].set_ylim(bottom=constraints_min_y, top=constraints_max_y)
-		if ns.nb_bonds != 0:
+		if ns.cg_itp["nb_bonds"] != 0:
 			nrow += 1
-			for i in range(ns.nb_bonds):
+			for i in range(ns.cg_itp["nb_bonds"]):
 				ax[nrow][i].set_ylim(bottom=bonds_min_y, top=bonds_max_y)
-		if ns.nb_angles != 0:
+		if ns.cg_itp["nb_angles"] != 0:
 			nrow += 1
-			for i in range(ns.nb_angles):
+			for i in range(ns.cg_itp["nb_angles"]):
 				ax[nrow][i].set_ylim(bottom=angles_min_y, top=angles_max_y)
-		if ns.nb_dihedrals != 0:
+		if ns.cg_itp["nb_dihedrals"] != 0:
 			nrow += 1
-			for i in range(ns.nb_dihedrals):
+			for i in range(ns.cg_itp["nb_dihedrals"]):
 				ax[nrow][i].set_ylim(bottom=dihedrals_min_y, top=dihedrals_max_y)
 
 	# calculate global fitness score and contributions from each geom type
@@ -1381,7 +1381,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 	if not ns.atom_only:
 		fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = 0, 0, 0, 0
 
-		for i in range(ns.nb_constraints):
+		for i in range(ns.cg_itp["nb_constraints"]):
 			dist_pairwise = avg_diff_grp_constraints[diff_ordered_grp_constraints[i]]
 			all_dist_pairwise += str(dist_pairwise)+' '
 			all_emd_dist_geoms['constraints'].append(dist_pairwise)
@@ -1395,7 +1395,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 			dist_pairwise = dist_pairwise ** 2
 			fit_score_constraints_bonds += dist_pairwise
 
-		for i in range(ns.nb_bonds):
+		for i in range(ns.cg_itp["nb_bonds"]):
 			dist_pairwise = avg_diff_grp_bonds[diff_ordered_grp_bonds[i]]
 			all_dist_pairwise += str(dist_pairwise)+' '
 			all_emd_dist_geoms['bonds'].append(dist_pairwise)
@@ -1409,7 +1409,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 			dist_pairwise = dist_pairwise ** 2
 			fit_score_constraints_bonds += dist_pairwise
 
-		for i in range(ns.nb_angles):
+		for i in range(ns.cg_itp["nb_angles"]):
 			dist_pairwise = avg_diff_grp_angles[diff_ordered_grp_angles[i]]
 			all_dist_pairwise += str(dist_pairwise)+' '
 			all_emd_dist_geoms['angles'].append(dist_pairwise)
@@ -1424,7 +1424,7 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 			fit_score_angles += dist_pairwise
 
 		# dihedrals_dist_pairwise = 0
-		for i in range(ns.nb_dihedrals):
+		for i in range(ns.cg_itp["nb_dihedrals"]):
 			dist_pairwise = avg_diff_grp_dihedrals[diff_ordered_grp_dihedrals[i]]
 			all_dist_pairwise += str(dist_pairwise)+' '
 			all_emd_dist_geoms['dihedrals'].append(dist_pairwise)
@@ -1456,10 +1456,10 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 
 		plt.tight_layout(rect=[0, 0, 1, 0.9])
 		eval_score = fit_score_total
-		if ignore_dihedrals and ns.nb_dihedrals > 0:
+		if ignore_dihedrals and ns.cg_itp["nb_dihedrals"] > 0:
 			eval_score -= fit_score_dihedrals
 		sup_title = f'FITNESS SCORE\nTotal: {round(eval_score, 3)} -- Constraints/Bonds: {fit_score_constraints_bonds} -- Angles: {fit_score_angles} -- Dihedrals: {fit_score_dihedrals}'
-		if ignore_dihedrals and ns.nb_dihedrals > 0:
+		if ignore_dihedrals and ns.cg_itp["nb_dihedrals"] > 0:
 			sup_title += ' (ignored)'
 		plt.suptitle(sup_title)
 	else:

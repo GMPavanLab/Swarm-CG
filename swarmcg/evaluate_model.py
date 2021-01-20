@@ -111,7 +111,8 @@ def run(ns):
 	scg.read_ndx_atoms2beads(ns)  # read mapping, get atoms accurences in beads
 	scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
 
-	io.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
+	ns.cg_itp = io.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
+	io.validate_cg_itp(ns.cg_itp)  # check ITP object is correct
 	scg.process_scaling_str(ns)  # process the bonds scaling specified by user
 
 	print()
