@@ -3,7 +3,7 @@ dscribe==0.4.0 # 0.3.5 available for linux
 matplotlib>=3.2.2 # warnings appear for lower versions, don't change
 mdanalysis>=1.0.0
 mypy
-numpy
+numpy>=1.19.1
 pandas
 pybind11==2.4.3 # 2.5.0 available
 pyemd==0.5.1
