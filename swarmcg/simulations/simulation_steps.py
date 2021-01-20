@@ -67,7 +67,8 @@ class BaseSimulationConfig:
         self.sim_setup["nstxout-compressed "] = int(new_nsteps / nb_frames)
 
     def to_file(self, destination_path):
-        open(os.path.join(destination_path, self.base_name), "w").writelines(self.to_string())
+        with open(os.path.join(destination_path, self.base_name), "w") as fp:
+            fp.writelines(self.to_string())
 
 
 class Minimisation(BaseSimulationConfig):

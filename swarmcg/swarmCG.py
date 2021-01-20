@@ -1,9 +1,9 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
-
 warnings.filterwarnings("ignore")
-import re, os, shutil, subprocess, signal, time
-import warnings, collections
+
+import re, os, shutil, time
+import collections
 from datetime import datetime
 
 # matplotlib new version has some problems with incorrectly uninstalled files at version upgrade and display a lot of warnings
@@ -1478,138 +1478,6 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		return
 
 
-# modify MDP file to adjust simulation length or other parameters
-def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000, energy_write_nb_frames_ratio=0.1):
-
-	# TODO: this gives an incorrect number of frames in some cases
-	# TODO: this whole function is really shit, but atm the MDP is user provided so we cannot use placeholders + not sure what kind of mistakes can be made in MDP files that are provided
-
-	# read input
-	with open(mdp_filename, 'r') as fp:
-		mdp_lines_in = fp.read().split('\n')
-		mdp_lines = [mdp_line.split(';')[0].strip() for mdp_line in mdp_lines_in] # split for comments
-
-	dt_line, nsteps_line = -1, -1 # line at which we have found dt and nsteps entries
-	nstlog_line = -1 # line at which we have found nstlog entry
-	nstxout_line, nstvout_line, nstfout_line = -1, -1, -1 # lines at which we have found nstxout, nstvout and nstfout entries
-	nstcalcenergy_line, nstenergy_line = -1, -1 # lines are which we have found nstcalcenergy and nstenergy
-	nstxout_compressed_line = -1 # line at which we have found nstxout-compressed entry
-
-	for i in range(len(mdp_lines)):
-		mdp_line = mdp_lines[i]
-
-		if mdp_line.startswith('dt'):
-			sp_dt_line = mdp_line.split('=')
-			if sp_dt_line[0].strip() == 'dt': # discard other lines that could start with 'dt'
-				dt_line = i
-				dt = float(sp_dt_line[1].strip())
-
-		elif mdp_line.startswith('nsteps'):
-			sp_nsteps_line = mdp_line.split('=')
-			if sp_nsteps_line[0].strip() == 'nsteps': # discard other lines that could start with 'nsteps'
-				nsteps_line = i
-				nsteps = int(sp_nsteps_line[1].strip())
-
-		elif mdp_line.startswith('nstlog'):
-			sp_nstlog_line = mdp_line.split('=')
-			if sp_nstlog_line[0].strip() == 'nstlog': # discard other lines that could start with 'nstlog'
-				nstlog_line = i
-
-		elif mdp_line.startswith('nstxout') and not mdp_line.startswith('nstxout-compressed'):
-			sp_nstxout_line = mdp_line.split('=')
-			if sp_nstxout_line[0].strip() == 'nstxout': # discard other lines that could start with 'nstxout'
-				nstxout_line = i
-
-		elif mdp_line.startswith('nstvout'):
-			sp_nstvout_line = mdp_line.split('=')
-			if sp_nstvout_line[0].strip() == 'nstvout': # discard other lines that could start with 'nstvout'
-				nstvout_line = i
-
-		elif mdp_line.startswith('nstfout'):
-			sp_nstfout_line = mdp_line.split('=')
-			if sp_nstfout_line[0].strip() == 'nstfout': # discard other lines that could start with 'nstfout'
-				nstfout_line = i
-
-		elif mdp_line.startswith('nstcalcenergy'):
-			sp_nstcalcenergy_line = mdp_line.split('=')
-			if sp_nstcalcenergy_line[0].strip() == 'nstcalcenergy': # discard other lines that could start with 'nstcalcenergy'
-				nstcalcenergy_line = i
-
-		elif mdp_line.startswith('nstenergy'):
-			sp_nstenergy_line = mdp_line.split('=')
-			if sp_nstenergy_line[0].strip() == 'nstenergy': # discard other lines that could start with 'nstenergy'
-				nstenergy_line = i
-
-		elif mdp_line.startswith('nstxout-compressed') or mdp_line.startswith('nstxtcout'):
-			sp_nstxout_compressed_line = mdp_line.split('=')
-			nstxout_compressed_line = i
-
-	# adjust simulation time according to timestep
-	if sim_time is not None:
-		if dt_line != -1 and nsteps_line != -1:
-			nsteps = int(sim_time*1000 / dt)
-			mdp_lines_in[nsteps_line] = f'{sp_nsteps_line[0]}= {nsteps}    ; automatically modified by Swarm-CG'
-		else:
-			msg = "The provided MD MDP file does not contain one of these entries: dt, nsteps."
-			raise exceptions.MissformattedFile(msg)
-
-	# force writting to the log file every given nb of steps, to make sure simulations won't be killed for
-	# insufficient writting to the log file (which we use to check for simulations that are stuck/bugged)
-	if nstlog_line != -1:
-		nstlog = log_write_freq
-		mdp_lines_in[nstlog_line] = f'{sp_nstlog_line[0]}= {nstlog}    ; automatically modified by Swarm-CG'
-	else:
-		msg = "The provided MD MDP file does not contain one of these entries: nstlog."
-		raise exceptions.MissformattedFile(msg)
-
-	# force NOT writting coordinates data, as this can only slow the simulation and we don't need it
-	nstxout = nsteps
-	if nstxout_line != -1:
-		mdp_lines_in[nstxout_line] = f'{sp_nstxout_line[0]}= {nstxout}    ; automatically modified by Swarm-CG'
-	else:
-		mdp_lines_in.append(f'nstxout = {nstxout}    ; automatically added by Swarm-CG')
-
-	# force NOT writting velocities data, as this can only slow the simulation and we don't need it
-	nstvout = nsteps
-	if nstvout_line != -1:
-		mdp_lines_in[nstvout_line] = f'{sp_nstvout_line[0]}= {nstvout}    ; automatically modified by Swarm-CG'
-	else:
-		mdp_lines_in.append(f'nstvout = {nstvout}    ; automatically added by Swarm-CG')
-
-	# force NOT writting forces data, as this can only slow the simulation and we don't need it
-	nstfout = nsteps
-	if nstfout_line != -1:
-		mdp_lines_in[nstfout_line] = f'{sp_nstfout_line[0]}= {nstfout}    ; automatically modified by Swarm-CG'
-	else:
-		mdp_lines_in.append(f'nstfout = {nstfout}    ; automatically added by Swarm-CG')
-
-	# force calculating and writing frames at given frequency, to not slow down
-	# the simulation too much but still allow for energy analysis
-	nstcalcenergy = int(nsteps / nb_frames / energy_write_nb_frames_ratio)
-	nstenergy = nstcalcenergy
-	if nstcalcenergy_line != -1:
-		mdp_lines_in[nstcalcenergy_line] = f'{sp_nstcalcenergy_line[0]}= {nstcalcenergy}    ; automatically modified by Swarm-CG'
-	else:
-		mdp_lines_in.append(f'nstcalcenergy = {nstcalcenergy}    ; automatically added by Swarm-CG')
-	if nstenergy_line != -1:
-		mdp_lines_in[nstenergy_line] = f'{sp_nstenergy_line[0]}= {nstenergy}    ; automatically modified by Swarm-CG'
-	else:
-		mdp_lines_in.append(f'nstenergy = {nstenergy}    ; automatically added by Swarm-CG')
-
-	# force writting compressed frames at given frequency, so that we obtain the desired number of frames for each CG simulation/evaluation step
-	nstxout_compressed = int(nsteps / nb_frames)
-	if nstxout_compressed_line != -1:
-		mdp_lines_in[nstxout_compressed_line] = f'{sp_nstxout_compressed_line[0]}= {nstxout_compressed}    ; automatically modified by Swarm-CG'
-	else:
-		# sys.exit(config.header_error+'The provided MD MDP file does not contain one of these entries: nstxout-compressed')
-		mdp_lines_in.append(f'nstxout-compressed = {nstxout_compressed}    ; automatically added by Swarm-CG')
-
-	# write output
-	with open(mdp_filename, 'w') as fp:
-		for mdp_line in mdp_lines_in:
-			fp.write(mdp_line+'\n')
-
-
 # evaluation function to be optimized using FST-PSO
 def eval_function(parameters_set, ns):
 
@@ -1642,6 +1510,7 @@ def eval_function(parameters_set, ns):
 	os.chdir(current_eval_dir)
 
 	# run simulation with new parameters
+	new_best_fit = False
 	start_gmx_ts = datetime.now().timestamp()
 	for step in sim.generate_steps(ns):
 		step.run(os.getcwd())

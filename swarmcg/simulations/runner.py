@@ -17,7 +17,7 @@ def gmx_args(ns, gmx_cmd, mpi=True):
         if len(ns.gpu_id) > 0:
             gmx_cmd = f"{gmx_cmd} -gpu_id {ns.gpu_id}"
     if mpi and ns.mpi_tasks > 1:
-        gmx_cmd = f"mpirun -np {ns.mpi_tasks} {ns.gmx_cmd}"
+        gmx_cmd = f"mpirun -np {ns.mpi_tasks} {gmx_cmd}"
 
     return gmx_cmd
 
