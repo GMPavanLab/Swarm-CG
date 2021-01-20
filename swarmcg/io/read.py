@@ -19,6 +19,18 @@ def read_aa_traj(ns):
     print('  Found', len(ns.aa_universe.trajectory), 'frames')
 
 
+def read_itp(filename):
+    """Read itp file and return string for processing"""
+    with open(filename, 'r') as fp:
+        try:
+            itp_lines = fp.read().split('\n')
+            itp_lines = [itp_line.split(';')[0].strip() for itp_line in itp_lines]
+        except UnicodeDecodeError:
+            msg = "Cannot read CG ITP, it seems you provided a binary file."
+            raise exceptions.MissformattedFile(msg)
+    return itp_lines
+
+
 def verify_handled_functions(geom, func, line_nb):
     """Check if functions present in CG ITP file can be used by this program, if not we throw
     an error authorized functions are defined in config.py (we switch them on in config.py
@@ -90,6 +102,19 @@ def vs_error_control(cg_itp, bead_id, vs_type, func, line_nb, vs_def_beads_ids=N
     return func
 
 
+def validate_cg_itp(cg_itp, **kwargs):
+    # verify we have as many real CG beads (i.e. NOT virtual sites) in the ITP than in the mapping file
+    if "all_beads" in kwargs:
+        if len(kwargs["all_beads"]) != len(cg_itp["real_beads_ids"]):
+            msg = (
+                "The CG beads mapping (NDX) file does NOT include as many CG beads as the ITP file.\n"
+                "Please check the NDX and ITP files you provided."
+            )
+            raise exceptions.MissformattedFile(msg)
+    else:
+        return True
+
+
 def read_cg_itp_file(ns):
     """Read coarse-grain ITP"""
     print('Reading Coarse-Grained (CG) ITP file')
@@ -99,13 +124,7 @@ def read_cg_itp_file(ns):
     real_beads_ids, vs_beads_ids = [], []
     nb_constraints, nb_bonds, nb_angles, nb_dihedrals = -1, -1, -1, -1
 
-    with open(ns.cg_itp_filename, 'r') as fp:
-        try:
-            itp_lines = fp.read().split('\n')
-            itp_lines = [itp_line.split(';')[0].strip() for itp_line in itp_lines]
-        except UnicodeDecodeError:
-            msg = "Cannot read CG ITP, it seems you provided a binary file."
-            raise exceptions.MissformattedFile(msg)
+    itp_lines = read_itp(ns.cg_itp_filename)
 
     section_read = {
         'moleculetype': False,
@@ -135,29 +154,29 @@ def read_cg_itp_file(ns):
         itp_line = itp_lines[i]
         if itp_line != '':
 
-            if bool(re.search('\[.*moleculetype.*\]', itp_line)):
+            if bool(re.search(r'\[.*moleculetype.*\]', itp_line)):
                 section_switch(section_read, 'moleculetype')
-            elif bool(re.search('\[.*atoms.*\]', itp_line)):
+            elif bool(re.search(r'\[.*atoms.*\]', itp_line)):
                 section_switch(section_read, 'atom')
-            elif bool(re.search('\[.*constraint.*\]', itp_line)):
+            elif bool(re.search(r'\[.*constraint.*\]', itp_line)):
                 section_switch(section_read, 'constraint')
-            elif bool(re.search('\[.*bond.*\]', itp_line)):
+            elif bool(re.search(r'\[.*bond.*\]', itp_line)):
                 section_switch(section_read, 'bond')
-            elif bool(re.search('\[.*angle.*\]', itp_line)):
+            elif bool(re.search(r'\[.*angle.*\]', itp_line)):
                 section_switch(section_read, 'angle')
-            elif bool(re.search('\[.*dihedral.*\]', itp_line)):
+            elif bool(re.search(r'\[.*dihedral.*\]', itp_line)):
                 section_switch(section_read, 'dihedral')
-            elif bool(re.search('\[.*virtual_sites2.*\]', itp_line)):
+            elif bool(re.search(r'\[.*virtual_sites2.*\]', itp_line)):
                 section_switch(section_read, 'vs_2')
-            elif bool(re.search('\[.*virtual_sites3.*\]', itp_line)):
+            elif bool(re.search(r'\[.*virtual_sites3.*\]', itp_line)):
                 section_switch(section_read, 'vs_3')
-            elif bool(re.search('\[.*virtual_sites4.*\]', itp_line)):
+            elif bool(re.search(r'\[.*virtual_sites4.*\]', itp_line)):
                 section_switch(section_read, 'vs_4')
-            elif bool(re.search('\[.*virtual_sitesn.*\]', itp_line)):
+            elif bool(re.search(r'\[.*virtual_sitesn.*\]', itp_line)):
                 section_switch(section_read, 'vs_n')
-            elif bool(re.search('\[.*exclusion.*\]', itp_line)):
+            elif bool(re.search(r'\[.*exclusion.*\]', itp_line)):
                 section_switch(section_read, 'exclusion')
-            elif bool(re.search('\[.*\]', itp_line)):  # all other sections
+            elif bool(re.search(r'\[.*\]', itp_line)):  # all other sections
                 section_switch(section_read, None)
 
             else:
@@ -224,7 +243,7 @@ def read_cg_itp_file(ns):
 
                     # beginning of a new group
                     if itp_lines[i - 1] == '' or itp_lines[i - 1].startswith(';') or bool(
-                            re.search('\[.*constraint.*\]', itp_lines[i - 1])):
+                            re.search(r'\[.*constraint.*\]', itp_lines[i - 1])):
                         nb_constraints += 1
                         if itp_lines[i - 1].startswith('; constraint type'):
                             geom_type = itp_lines[i - 1].split()[
@@ -256,7 +275,7 @@ def read_cg_itp_file(ns):
 
                     # beginning of a new group
                     if itp_lines[i - 1] == '' or itp_lines[i - 1].startswith(';') or bool(
-                            re.search('\[.*bond.*\]', itp_lines[i - 1])):
+                            re.search(r'\[.*bond.*\]', itp_lines[i - 1])):
                         nb_bonds += 1
                         if itp_lines[i - 1].startswith('; bond type'):
                             geom_type = itp_lines[i - 1].split()[
@@ -296,7 +315,7 @@ def read_cg_itp_file(ns):
 
                     # beginning of a new group
                     if itp_lines[i - 1] == '' or itp_lines[i - 1].startswith(';') or bool(
-                            re.search('\[.*angle.*\]', itp_lines[i - 1])):
+                            re.search(r'\[.*angle.*\]', itp_lines[i - 1])):
                         nb_angles += 1
                         if itp_lines[i - 1].startswith('; angle type'):
                             geom_type = itp_lines[i - 1].split()[
@@ -342,7 +361,7 @@ def read_cg_itp_file(ns):
 
                     # beginning of a new group
                     if itp_lines[i - 1] == '' or itp_lines[i - 1].startswith(';') or bool(
-                            re.search('\[.*dihedral.*\]', itp_lines[i - 1])):
+                            re.search(r'\[.*dihedral.*\]', itp_lines[i - 1])):
                         nb_dihedrals += 1
                         if itp_lines[i - 1].startswith('; dihedral type'):
                             geom_type = itp_lines[i - 1].split()[
@@ -523,14 +542,6 @@ def read_cg_itp_file(ns):
                     cg_itp[geom][grp_geom][var] = var_set.pop()
                 else:
                     raise exceptions.MissformattedFile(msg(geom, grp_geom))
-
-    # verify we have as many real CG beads (i.e. NOT virtual sites) in the ITP than in the mapping file
-    if len(real_beads_ids) != len(ns.all_beads):
-        msg = (
-            "The CG beads mapping (NDX) file does NOT include as many CG beads as the ITP file.\n"
-            "Please check the NDX and ITP files you provided."
-        )
-        raise exceptions.MissformattedFile(msg)
 
     nb_constraints += 1
     nb_bonds += 1

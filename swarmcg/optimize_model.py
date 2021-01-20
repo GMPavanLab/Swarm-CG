@@ -218,6 +218,7 @@ def run(ns):
     scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
 
     ns.cg_itp = swarmcg.io.read.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
+    io.validate_cg_itp(ns.cg_itp)  # check ITP object is correct
     scg.process_scaling_str(ns)  # process the bonds scaling specified by user
 
     print()
