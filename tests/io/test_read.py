@@ -34,7 +34,7 @@ def test_read_itp():
 
 def test_read_cg_itp_file(ns_opt):
     # given:
-    required_tip_fields = ["real_beads_ids", "vs_beads_ids", "nb_bonds", "nb_angles",
+    required_itp_fields = ["real_beads_ids", "vs_beads_ids", "nb_bonds", "nb_angles",
                            "nb_dihedrals", "nb_constraints",
                            "moleculetype", "atoms", "constraint", "bond", "angle", "dihedral",
                            "virtual_sites2", "virtual_sites3", "virtual_sites4", "virtual_sitesn",
@@ -47,7 +47,7 @@ def test_read_cg_itp_file(ns_opt):
     # then:
     result = read_cg_itp_file(ns)
     assert isinstance(result, dict)
-    assert all([field in result for field in required_tip_fields])
+    assert all([field in result for field in required_itp_fields])
     check_ipt_dict(result)
 
     # when:

@@ -93,7 +93,7 @@ def read_ndx_atoms2beads(ns):
 		ndx_lines = [ndx_line.strip().split(';')[0] for ndx_line in ndx_lines]  # split for comments
 
 		ns.atoms_occ_total = collections.Counter()
-		ns.all_beadsall_beads = dict()  # atoms id mapped to each bead
+		ns.all_beads = dict()  # atoms id mapped to each bead
 		bead_id = 0
 		current_section = 'Beginning of file'
 
