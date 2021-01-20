@@ -217,7 +217,7 @@ def run(ns):
     scg.read_ndx_atoms2beads(ns)  # read mapping, get atoms accurences in beads
     scg.get_atoms_weights_in_beads(ns)  # get weights of atoms within beads
 
-    swarmcg.io.read.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
+    ns.cg_itp = swarmcg.io.read.read_cg_itp_file(ns)  # load the ITP object and find out geoms grouping
     scg.process_scaling_str(ns)  # process the bonds scaling specified by user
 
     print()
@@ -262,10 +262,10 @@ def run(ns):
     # touch results files to be appended to later
     with open(ns.exec_folder+'/'+config.opti_perf_recap_file, 'w') as fp:
         # TODO: print that file has been generated with Swarm-CG etc -- do this for basically all files
-        fp.write(f'# nb constraints: {ns.nb_constraints}\n')
-        fp.write(f'# nb bonds: {ns.nb_bonds}\n')
-        fp.write(f'# nb angles: {ns.nb_angles}\n')
-        fp.write(f'# nb dihedrals: {ns.nb_dihedrals}\n')
+        fp.write(f'# nb constraints: {ns.cg_itp["nb_constraints"]}\n')
+        fp.write(f'# nb bonds: {ns.cg_itp["nb_bonds"]}\n')
+        fp.write(f'# nb angles: {ns.cg_itp["nb_angles"]}\n')
+        fp.write(f'# nb dihedrals: {ns.cg_itp["nb_dihedrals"]}\n')
         fp.write('#\n')
         fp.write('# opti_cycle nb_eval fit_score_all fit_score_cstrs_bonds fit_score_angles fit_score_dihedrals eval_score Rg_AA_mapped Rg_CG parameters_set eval_time current_total_time\n')
     with open(ns.exec_folder+'/'+config.opti_pairwise_distances_file, 'w'):
@@ -283,7 +283,7 @@ def run(ns):
 
     # create all ref atom histograms to be used for pairwise distributions comparisons + find average geoms values as first guesses (without BI at this point)
     # get ref atom hists + find very first distances guesses for constraints groups
-    for grp_constraint in range(ns.nb_constraints):
+    for grp_constraint in range(ns.cg_itp["nb_constraints"]):
 
         constraint_avg, constraint_hist, constraint_values = scores.get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['constraint'][grp_constraint]['beads'], grp_type='constraint group', grp_nb=grp_constraint)
         if ns.exec_mode == 1:
@@ -295,7 +295,7 @@ def run(ns):
         print(f'  Constraint grp {grp_constraint+1} -- Average value: '+str(round(constraint_avg, 2))+' nm -- Initial equilibrium value: '+str(round(ns.cg_itp['constraint'][grp_constraint]['value'], 2))+' nm')
 
     # get ref atom hists + find very first distances and force constants guesses for bonds groups
-    for grp_bond in range(ns.nb_bonds):
+    for grp_bond in range(ns.cg_itp["nb_bonds"]):
 
         bond_avg, bond_hist, bond_values = scores.get_AA_bonds_distrib(ns, beads_ids=ns.cg_itp['bond'][grp_bond]['beads'], grp_type='bond group', grp_nb=grp_bond)
         if ns.exec_mode == 1:
@@ -311,7 +311,7 @@ def run(ns):
         print(f'  Bond grp {grp_bond+1} -- Average value: '+str(round(bond_avg, 2))+' nm -- Initial equilibrium value: '+str(round(ns.cg_itp['bond'][grp_bond]['value'], 2))+' nm')
 
     # get ref atom hists + find very first values and force constants guesses for angles groups
-    for grp_angle in range(ns.nb_angles):
+    for grp_angle in range(ns.cg_itp["nb_angles"]):
 
         angle_avg, angle_hist, angle_values_deg, angle_values_rad = scores.get_AA_angles_distrib(ns, beads_ids=ns.cg_itp['angle'][grp_angle]['beads'])
         if ns.exec_mode == 1:
@@ -327,7 +327,7 @@ def run(ns):
         print(f'  Angle grp {grp_angle+1} -- Average value: ' + str(round(angle_avg, 2)) + ' degrees -- Initial equilibrium value: '+str(round(ns.cg_itp['angle'][grp_angle]['value'], 2))+' degrees')
 
     # get ref atom hists + find very first values and force constants guesses for dihedrals groups
-    for grp_dihedral in range(ns.nb_dihedrals):
+    for grp_dihedral in range(ns.cg_itp["nb_dihedrals"]):
 
         dihedral_avg, dihedral_hist, dihedral_values_deg, dihedral_values_rad = scores.get_AA_dihedrals_distrib(ns, beads_ids=ns.cg_itp['dihedral'][grp_dihedral]['beads'])
         if ns.exec_mode == 1:  # the dihedral equi value will be calculated from the BI fit, because for dihedrals it makes no sense to use the average
@@ -398,17 +398,17 @@ def run(ns):
     # previous best choice for versatile usage
     # Startegy 4
     # Settings: OPTIMAL / Should be fine with any type of molecule, big or small, as long as the BI keeps yielding close enough results, which should be the case
-    # sim_types = {0: {'sim_duration': 10, 'max_swarm_iter': int(5+np.sqrt(ns.nb_constraints+ns.nb_bonds+ns.nb_angles)), 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 1, 'fct_guess_fact': 0.35},
-    #        1: {'sim_duration': 10, 'max_swarm_iter': int(5+np.sqrt(ns.nb_angles+ns.nb_dihedrals)), 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
-    #        2: {'sim_duration': 10, 'max_swarm_iter': int(5+np.sqrt(ns.nb_constraints+ns.nb_bonds+ns.nb_angles+ns.nb_dihedrals)), 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.15, 'fct_guess_fact': 0.20}}
+    # sim_types = {0: {'sim_duration': 10, 'max_swarm_iter': int(5+np.sqrt(ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]+ns.cg_itp["nb_angles"])), 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 1, 'fct_guess_fact': 0.35},
+    #        1: {'sim_duration': 10, 'max_swarm_iter': int(5+np.sqrt(ns.cg_itp["nb_angles"]+ns.cg_itp["nb_dihedrals"])), 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
+    #        2: {'sim_duration': 10, 'max_swarm_iter': int(5+np.sqrt(ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]+ns.cg_itp["nb_angles"]+ns.cg_itp["nb_dihedrals"])), 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.15, 'fct_guess_fact': 0.20}}
     # opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
     # sim_cycles = [0, 1, 2] # simulations types
 
     # Startegy 5 -- Coupled to fewer particles
     # Settings: OPTIMAL / Should be fine with any type of molecule, big or small, as long as the BI keeps yielding close enough results, which should be the case
-    sim_types = {0: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': int(round(6+np.sqrt(ns.nb_constraints+ns.nb_bonds+ns.nb_angles))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
-         1: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': int(round(6+np.sqrt(ns.nb_angles+ns.nb_dihedrals))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
-         2: {'sim_duration': ns.sim_duration_long, 'max_swarm_iter': int(round(6+np.sqrt(ns.nb_constraints+ns.nb_bonds+ns.nb_angles+ns.nb_dihedrals))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.20}}
+    sim_types = {0: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': int(round(6+np.sqrt(ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]+ns.cg_itp["nb_angles"]))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
+         1: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': int(round(6+np.sqrt(ns.cg_itp["nb_angles"]+ns.cg_itp["nb_dihedrals"]))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
+         2: {'sim_duration': ns.sim_duration_long, 'max_swarm_iter': int(round(6+np.sqrt(ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]+ns.cg_itp["nb_angles"]+ns.cg_itp["nb_dihedrals"]))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.20}}
     # opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
     opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']]
     sim_cycles = [0, 1, 2]  # simulations types
@@ -426,7 +426,7 @@ def run(ns):
     ns.eval_nb_geoms = {'constraint': 0, 'bond': 0, 'angle': 0, 'dihedral': 0}  # geoms to optimize at each step
 
     # remove dihedrals from cycles if CG ITP file does NOT contain dihedrals
-    if ns.nb_dihedrals == 0:
+    if ns.cg_itp["nb_dihedrals"] == 0:
         opti_cycles_cp, sim_cycles_cp = [], []
         nb_poped = 0
         for i in range(len(opti_cycles)):
@@ -449,16 +449,16 @@ def run(ns):
     # storage for best independent set of parameters by geom, for initialization of a (few ?) special particle after 1st opti cycle
     ns.all_best_emd_dist_geoms = {'constraints': {}, 'bonds': {}, 'angles': {}, 'dihedrals': {}}
     ns.all_best_params_dist_geoms = {'constraints': {}, 'bonds': {}, 'angles': {}, 'dihedrals': {}}
-    for i in range(ns.nb_constraints):
+    for i in range(ns.cg_itp["nb_constraints"]):
         ns.all_best_emd_dist_geoms['constraints'][i] = config.sim_crash_EMD_indep_score
         ns.all_best_params_dist_geoms['constraints'][i] = {}
-    for i in range(ns.nb_bonds):
+    for i in range(ns.cg_itp["nb_bonds"]):
         ns.all_best_emd_dist_geoms['bonds'][i] = config.sim_crash_EMD_indep_score
         ns.all_best_params_dist_geoms['bonds'][i] = {}
-    for i in range(ns.nb_angles):
+    for i in range(ns.cg_itp["nb_angles"]):
         ns.all_best_emd_dist_geoms['angles'][i] = config.sim_crash_EMD_indep_score
         ns.all_best_params_dist_geoms['angles'][i] = {}
-    for i in range(ns.nb_dihedrals):
+    for i in range(ns.cg_itp["nb_dihedrals"]):
         ns.all_best_emd_dist_geoms['dihedrals'][i] = config.sim_crash_EMD_indep_score
         ns.all_best_params_dist_geoms['dihedrals'][i] = {}
 
@@ -486,14 +486,14 @@ def run(ns):
         if 'constraint' in ns.opti_cycle['geoms'] or 'bond' in ns.opti_cycle['geoms']:
           geoms_display.append('constraints/bonds')
         if 'constraint' in ns.opti_cycle['geoms']:
-          ns.opti_cycle['nb_geoms']['constraint'] = ns.nb_constraints
+          ns.opti_cycle['nb_geoms']['constraint'] = ns.cg_itp["nb_constraints"]
         if 'bond' in ns.opti_cycle['geoms']:
-          ns.opti_cycle['nb_geoms']['bond'] = ns.nb_bonds
+          ns.opti_cycle['nb_geoms']['bond'] = ns.cg_itp["nb_bonds"]
         if 'angle' in ns.opti_cycle['geoms']:
-          ns.opti_cycle['nb_geoms']['angle'] = ns.nb_angles
+          ns.opti_cycle['nb_geoms']['angle'] = ns.cg_itp["nb_angles"]
           geoms_display.append('angles')
         if 'dihedral' in ns.opti_cycle['geoms']:
-          ns.opti_cycle['nb_geoms']['dihedral'] = ns.nb_dihedrals
+          ns.opti_cycle['nb_geoms']['dihedral'] = ns.cg_itp["nb_dihedrals"]
           geoms_display.append('dihedrals')
         geoms_display = ' & '.join(geoms_display)
 
@@ -514,9 +514,9 @@ def run(ns):
 
         # ns.worst_fit_score = round(len(search_space_boundaries) * config.sim_crash_EMD_indep_score, 3)
         ns.worst_fit_score = round(\
-          np.sqrt((ns.nb_constraints+ns.nb_bonds) * config.sim_crash_EMD_indep_score) + \
-          np.sqrt(ns.nb_angles * config.sim_crash_EMD_indep_score) + \
-          np.sqrt(ns.nb_dihedrals * config.sim_crash_EMD_indep_score) \
+          np.sqrt((ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]) * config.sim_crash_EMD_indep_score) + \
+          np.sqrt(ns.cg_itp["nb_angles"] * config.sim_crash_EMD_indep_score) + \
+          np.sqrt(ns.cg_itp["nb_dihedrals"] * config.sim_crash_EMD_indep_score) \
           , 3)
         # nb_particles = int(10 + 2*np.sqrt(len(search_space_boundaries)))  # formula used by FST-PSO to choose nb of particles, which defines the number of initial guesses we can use
         nb_particles = int(round(2 + np.sqrt(len(search_space_boundaries))))  # adapted to have less particles and fitted to our problems, which has good initial guesses and error driven initialization
