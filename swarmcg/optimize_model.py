@@ -527,12 +527,12 @@ def run(ns):
 
         # actual optimization
         with open(os.devnull, 'w') as devnull:
-          with contextlib.redirect_stdout(devnull):
-            FP = FuzzyPSO()
-            FP.set_search_space(search_space_boundaries)
-            FP.set_swarm_size(nb_particles)
-            FP.set_fitness(fitness=scg.eval_function, arguments=ns, skip_test=True)
-            result = FP.solve_with_fstpso(max_iter=ns.max_swarm_iter, initial_guess_list=initial_guess_list, max_iter_without_new_global_best=ns.max_swarm_iter_without_new_global_best)
+            with contextlib.redirect_stdout(devnull):
+                FP = FuzzyPSO()
+                FP.set_search_space(search_space_boundaries)
+                FP.set_swarm_size(nb_particles)
+                FP.set_fitness(fitness=scg.eval_function, arguments=ns, skip_test=True)
+                result = FP.solve_with_fstpso(max_iter=ns.max_swarm_iter, initial_guess_list=initial_guess_list, max_iter_without_new_global_best=ns.max_swarm_iter_without_new_global_best)
 
         # update ITP object with the best solution using geoms considered at this given optimization step
         scg.update_cg_itp_obj(ns, parameters_set=result[0].X, update_type=2)

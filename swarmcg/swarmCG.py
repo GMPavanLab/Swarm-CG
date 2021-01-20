@@ -1,9 +1,9 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
 import warnings
-
 warnings.filterwarnings("ignore")
-import re, os, shutil, subprocess, signal, time
-import warnings, collections
+
+import re, os, shutil, time
+import collections
 from datetime import datetime
 
 # matplotlib new version has some problems with incorrectly uninstalled files at version upgrade and display a lot of warnings
@@ -18,11 +18,10 @@ from scipy.optimize import curve_fit
 import swarmcg.scoring as scores
 import swarmcg.io as io
 import swarmcg.simulations.vs_functions as vsf
+import swarmcg.simulations as sim
 from swarmcg import config
-from swarmcg.shared import utils, styling
-from swarmcg.shared import exceptions
+from swarmcg.shared import utils, styling, exceptions
 from swarmcg.utils import print_stdout_forced, draw_float
-from swarmcg.simulations.runner import gmx_args
 from swarmcg.simulations.potentials import (gmx_bonds_func_1, gmx_angles_func_1, gmx_angles_func_2,
 	gmx_dihedrals_func_1, gmx_dihedrals_func_2)
 
@@ -1479,138 +1478,6 @@ def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False
 		return
 
 
-# modify MDP file to adjust simulation length or other parameters
-def modify_mdp(mdp_filename, sim_time=None, nb_frames=1500, log_write_freq=5000, energy_write_nb_frames_ratio=0.1):
-
-	# TODO: this gives an incorrect number of frames in some cases
-	# TODO: this whole function is really shit, but atm the MDP is user provided so we cannot use placeholders + not sure what kind of mistakes can be made in MDP files that are provided
-
-	# read input
-	with open(mdp_filename, 'r') as fp:
-		mdp_lines_in = fp.read().split('\n')
-		mdp_lines = [mdp_line.split(';')[0].strip() for mdp_line in mdp_lines_in] # split for comments
-
-	dt_line, nsteps_line = -1, -1 # line at which we have found dt and nsteps entries
-	nstlog_line = -1 # line at which we have found nstlog entry
-	nstxout_line, nstvout_line, nstfout_line = -1, -1, -1 # lines at which we have found nstxout, nstvout and nstfout entries
-	nstcalcenergy_line, nstenergy_line = -1, -1 # lines are which we have found nstcalcenergy and nstenergy
-	nstxout_compressed_line = -1 # line at which we have found nstxout-compressed entry
-
-	for i in range(len(mdp_lines)):
-		mdp_line = mdp_lines[i]
-
-		if mdp_line.startswith('dt'):
-			sp_dt_line = mdp_line.split('=')
-			if sp_dt_line[0].strip() == 'dt': # discard other lines that could start with 'dt'
-				dt_line = i
-				dt = float(sp_dt_line[1].strip())
-
-		elif mdp_line.startswith('nsteps'):
-			sp_nsteps_line = mdp_line.split('=')
-			if sp_nsteps_line[0].strip() == 'nsteps': # discard other lines that could start with 'nsteps'
-				nsteps_line = i
-				nsteps = int(sp_nsteps_line[1].strip())
-
-		elif mdp_line.startswith('nstlog'):
-			sp_nstlog_line = mdp_line.split('=')
-			if sp_nstlog_line[0].strip() == 'nstlog': # discard other lines that could start with 'nstlog'
-				nstlog_line = i
-
-		elif mdp_line.startswith('nstxout') and not mdp_line.startswith('nstxout-compressed'):
-			sp_nstxout_line = mdp_line.split('=')
-			if sp_nstxout_line[0].strip() == 'nstxout': # discard other lines that could start with 'nstxout'
-				nstxout_line = i
-
-		elif mdp_line.startswith('nstvout'):
-			sp_nstvout_line = mdp_line.split('=')
-			if sp_nstvout_line[0].strip() == 'nstvout': # discard other lines that could start with 'nstvout'
-				nstvout_line = i
-
-		elif mdp_line.startswith('nstfout'):
-			sp_nstfout_line = mdp_line.split('=')
-			if sp_nstfout_line[0].strip() == 'nstfout': # discard other lines that could start with 'nstfout'
-				nstfout_line = i
-
-		elif mdp_line.startswith('nstcalcenergy'):
-			sp_nstcalcenergy_line = mdp_line.split('=')
-			if sp_nstcalcenergy_line[0].strip() == 'nstcalcenergy': # discard other lines that could start with 'nstcalcenergy'
-				nstcalcenergy_line = i
-
-		elif mdp_line.startswith('nstenergy'):
-			sp_nstenergy_line = mdp_line.split('=')
-			if sp_nstenergy_line[0].strip() == 'nstenergy': # discard other lines that could start with 'nstenergy'
-				nstenergy_line = i
-
-		elif mdp_line.startswith('nstxout-compressed') or mdp_line.startswith('nstxtcout'):
-			sp_nstxout_compressed_line = mdp_line.split('=')
-			nstxout_compressed_line = i
-
-	# adjust simulation time according to timestep
-	if sim_time is not None:
-		if dt_line != -1 and nsteps_line != -1:
-			nsteps = int(sim_time*1000 / dt)
-			mdp_lines_in[nsteps_line] = f'{sp_nsteps_line[0]}= {nsteps}    ; automatically modified by Swarm-CG'
-		else:
-			msg = "The provided MD MDP file does not contain one of these entries: dt, nsteps."
-			raise exceptions.MissformattedFile(msg)
-
-	# force writting to the log file every given nb of steps, to make sure simulations won't be killed for
-	# insufficient writting to the log file (which we use to check for simulations that are stuck/bugged)
-	if nstlog_line != -1:
-		nstlog = log_write_freq
-		mdp_lines_in[nstlog_line] = f'{sp_nstlog_line[0]}= {nstlog}    ; automatically modified by Swarm-CG'
-	else:
-		msg = "The provided MD MDP file does not contain one of these entries: nstlog."
-		raise exceptions.MissformattedFile(msg)
-
-	# force NOT writting coordinates data, as this can only slow the simulation and we don't need it
-	nstxout = nsteps
-	if nstxout_line != -1:
-		mdp_lines_in[nstxout_line] = f'{sp_nstxout_line[0]}= {nstxout}    ; automatically modified by Swarm-CG'
-	else:
-		mdp_lines_in.append(f'nstxout = {nstxout}    ; automatically added by Swarm-CG')
-
-	# force NOT writting velocities data, as this can only slow the simulation and we don't need it
-	nstvout = nsteps
-	if nstvout_line != -1:
-		mdp_lines_in[nstvout_line] = f'{sp_nstvout_line[0]}= {nstvout}    ; automatically modified by Swarm-CG'
-	else:
-		mdp_lines_in.append(f'nstvout = {nstvout}    ; automatically added by Swarm-CG')
-
-	# force NOT writting forces data, as this can only slow the simulation and we don't need it
-	nstfout = nsteps
-	if nstfout_line != -1:
-		mdp_lines_in[nstfout_line] = f'{sp_nstfout_line[0]}= {nstfout}    ; automatically modified by Swarm-CG'
-	else:
-		mdp_lines_in.append(f'nstfout = {nstfout}    ; automatically added by Swarm-CG')
-
-	# force calculating and writing frames at given frequency, to not slow down
-	# the simulation too much but still allow for energy analysis
-	nstcalcenergy = int(nsteps / nb_frames / energy_write_nb_frames_ratio)
-	nstenergy = nstcalcenergy
-	if nstcalcenergy_line != -1:
-		mdp_lines_in[nstcalcenergy_line] = f'{sp_nstcalcenergy_line[0]}= {nstcalcenergy}    ; automatically modified by Swarm-CG'
-	else:
-		mdp_lines_in.append(f'nstcalcenergy = {nstcalcenergy}    ; automatically added by Swarm-CG')
-	if nstenergy_line != -1:
-		mdp_lines_in[nstenergy_line] = f'{sp_nstenergy_line[0]}= {nstenergy}    ; automatically modified by Swarm-CG'
-	else:
-		mdp_lines_in.append(f'nstenergy = {nstenergy}    ; automatically added by Swarm-CG')
-
-	# force writting compressed frames at given frequency, so that we obtain the desired number of frames for each CG simulation/evaluation step
-	nstxout_compressed = int(nsteps / nb_frames)
-	if nstxout_compressed_line != -1:
-		mdp_lines_in[nstxout_compressed_line] = f'{sp_nstxout_compressed_line[0]}= {nstxout_compressed}    ; automatically modified by Swarm-CG'
-	else:
-		# sys.exit(config.header_error+'The provided MD MDP file does not contain one of these entries: nstxout-compressed')
-		mdp_lines_in.append(f'nstxout-compressed = {nstxout_compressed}    ; automatically added by Swarm-CG')
-
-	# write output
-	with open(mdp_filename, 'w') as fp:
-		for mdp_line in mdp_lines_in:
-			fp.write(mdp_line+'\n')
-
-
 # evaluation function to be optimized using FST-PSO
 def eval_function(parameters_set, ns):
 
@@ -1643,233 +1510,64 @@ def eval_function(parameters_set, ns):
 	os.chdir(current_eval_dir)
 
 	# run simulation with new parameters
+	new_best_fit = False
 	start_gmx_ts = datetime.now().timestamp()
-	mini_killed, equi_killed, md_run_killed, new_best_fit = False, False, False, False
+	for step in sim.generate_steps(ns):
+		step.run(os.getcwd())
 
-	# start from final conformation of previous best scored model -- that should improve precision of BP, especially using mode 2
-	# previous_best_final_conf = '../'+config.best_fitted_model_dirname+'/md.gro'
-	# if os.path.isfile(previous_best_final_conf):
-	# 	ns.gro_input_basename = previous_best_final_conf
+	# to verify if MD run finished properly, we check for the .gro file printed in the end
+	if os.path.isfile('md.gro'):
 
-	# grompp -- minimization
-	gmx_cmd = f'{ns.gmx_path} grompp -c {ns.gro_input_basename} -p {ns.top_input_basename} -f {ns.mdp_minimization_basename} -o mini -maxwarn {ns.mini_maxwarn}'
-	with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
-		gmx_out = gmx_process.communicate()[1].decode()
-		gmx_process.kill()
+		# get distributions and evaluate fitness
+		ns.cg_tpr_filename = 'md.tpr'
+		ns.cg_traj_filename = 'md.xtc'
+		ns.plot_filename = 'distributions.png'
+		ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
 
-	if gmx_process.returncode == 0:
-		# mdrun -- minimization
-		gmx_cmd = gmx_args(ns, 'mdrun -deffnm mini', mpi=False)
-		with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process:  # create a process group for the minimization run
+		start_model_eval_ts = datetime.now().timestamp()
+		ignore_dihedrals = False
+		if ns.opti_cycle['nb_geoms']['dihedral'] == 0:
+			ignore_dihedrals = True
+		fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals, all_dist_pairwise, all_emd_dist_geoms = compare_models(
+			ns, manual_mode=False, ignore_dihedrals=ignore_dihedrals, calc_sasa=True,
+			record_best_indep_params=True)
+		ns.total_model_eval_time += datetime.now().timestamp() - start_model_eval_ts
 
-			# check if minimization run is stuck because of instabilities
-			cycles_check = 0
-			last_log_file_size = 0
-			while gmx_process.poll() is None:  # while process is alive
-				time.sleep(ns.process_alive_time_sleep)
-				cycles_check += 1
+		# if gmx sasa failed to compute, it's most likely because there were inconsistent shifts across PBC in the trajectory = failed run
+		if ns.sasa_cg is not None:
 
-				if cycles_check % ns.process_alive_nb_cycles_dead == 0:  # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
-					if os.path.isfile(current_eval_dir+'/mini.log'):
-						log_file_size = os.path.getsize(current_eval_dir+'/mini.log')  # get size of .log file in bytes, as a mean of detecting the minimization run is stuck
-					else:
-						log_file_size = last_log_file_size  # minimization is stuck if the process was not able to create log file at start
-					if log_file_size == last_log_file_size:  # minimization is stuck if the process is not writing to log file anymore
-						os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL)  # kill all processes of process group
-						mini_killed = True
-					else:
-						last_log_file_size = log_file_size
-			gmx_process.kill()
+			# store the distributions for each evaluation step
+			shutil.move('distributions.png',
+						f'../{config.distrib_plots_all_evals_dirname}/distributions_eval_step_{ns.nb_eval}.png')
 
-	else:
-		msg = (
-			f"{gmx_out}\n\n"
-			f"Gromacs grompp failed at MD minimization step, see its error message above.\n"
-			f"You may also want to check the parameters of the MDP file provided through\n"
-			f"argument -cg_sim_mdp_mini. If you think this is a bug, please consider opening\n"
-			f"an issue on GitHub at {config.github_url}/issues."
-		)
-		raise exceptions.ComputationError(msg)
+			eval_score = 0
+			if 'constraint' in ns.opti_cycle['geoms'] and 'bond' in ns.opti_cycle['geoms']:
+				eval_score += fit_score_constraints_bonds
+			if 'angle' in ns.opti_cycle['geoms']:
+				eval_score += fit_score_angles
+			if 'dihedral' in ns.opti_cycle['geoms']:
+				eval_score += fit_score_dihedrals
 
-	# if minimization finished properly, we just check for the .gro file printed in the end
-	if os.path.isfile('mini.gro'):
+			global_score = 0
+			if 'constraint' in ns.opti_geoms_all and 'bond' in ns.opti_geoms_all:
+				global_score += fit_score_constraints_bonds
+			if 'angle' in ns.opti_geoms_all:
+				global_score += fit_score_angles
+			if 'dihedral' in ns.opti_geoms_all:
+				global_score += fit_score_dihedrals
 
-		# grompp -- EQUI
-		gmx_cmd = ns.gmx_path+' grompp -c mini.gro -p '+ns.top_input_basename+' -f '+ns.mdp_equi_basename+' -o equi'
-		with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
-			gmx_out = gmx_process.communicate()[1].decode()
-			gmx_process.kill()
-
-		if gmx_process.returncode == 0:
-			# mdrun -- EQUI
-			gmx_cmd = gmx_args(ns, 'mdrun -deffnm equi')
-			with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process:  # create a process group for the EQUI run
-
-				# check if EQUI run is stuck because of instabilities
-				cycles_check = 0
-				last_log_file_size = 0
-				while gmx_process.poll() is None:  # while process is alive
-					time.sleep(ns.process_alive_time_sleep)
-					cycles_check += 1
-
-					if cycles_check % ns.process_alive_nb_cycles_dead == 0:  # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
-						if os.path.isfile(current_eval_dir+'/equi.log'):
-							log_file_size = os.path.getsize(current_eval_dir+'/equi.log')  # get size of .log file in bytes, as a mean of detecting the EQUI run is stuck
-						else:
-							log_file_size = last_log_file_size  # EQUI is stuck if the process was not able to create log file at start
-						if log_file_size == last_log_file_size:  # EQUI is stuck if the process is not writing to log file anymore
-							os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL)  # kill all processes of process group
-							equi_killed = True
-						else:
-							last_log_file_size = log_file_size
-				gmx_process.kill()
+			# model selection based only on bonded parametrization score
+			regular_eval = True
+			if regular_eval:
+				if global_score < ns.best_fitness[0]:
+					new_best_fit = True
+					ns.best_fitness = global_score, ns.nb_eval
+					ns.all_emd_dist_geoms = all_emd_dist_geoms
 
 		else:
-			msg = (
-				f"{gmx_out}\n\n"
-				f"Gromacs grompp failed at MD equilibration step, see its error message above.\n"
-				f"You may also want to check the parameters of the MDP file provided through\n"
-				f"argument -cg_sim_mdp_equi. If you think this is a bug, please consider opening\n"
-				f"an issue on GitHub at {config.github_url}/issues."
-			)
-			raise exceptions.ComputationError(msg)
-
-		# if EQUI finished properly, we just check for the .gro file printed in the end
-		if os.path.isfile('equi.gro'):
-
-			# adapt duration of the simulation
-			modify_mdp(mdp_filename=ns.mdp_md_basename, sim_time=ns.prod_sim_time)
-
-			# grompp -- MD
-			gmx_cmd = ns.gmx_path+' grompp -c equi.gro -p '+ns.top_input_basename+' -f '+ns.mdp_md_basename+' -o md'
-			with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as gmx_process:
-				gmx_out = gmx_process.communicate()[1].decode()
-				gmx_process.kill()
-
-			if gmx_process.returncode == 0:
-				# mdrun -- MD
-				gmx_cmd = gmx_args(ns, 'mdrun -deffnm md')
-				with subprocess.Popen([gmx_cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process:  # create a process group for the MD run
-
-					# check if MD run is stuck because of instabilities
-					cycles_check = 0
-					last_log_file_size = 0
-					while gmx_process.poll() is None:  # while process is alive
-						time.sleep(ns.process_alive_time_sleep)
-						cycles_check += 1
-
-						if cycles_check % ns.process_alive_nb_cycles_dead == 0:  # every minute or so, kill process if we determine it is stuck because the .log file's bytes size has not changed
-							if os.path.isfile('md.log'):
-								log_file_size = os.path.getsize('md.log')  # get size of .log file in bytes, as a mean of detecting the MD run is stuck
-							else:
-								log_file_size = last_log_file_size  # MD run is stuck if the process was not able to create log file at start
-							if log_file_size == last_log_file_size:  # MD run is stuck if the process is not writing to log file anymore
-								os.killpg(os.getpgid(gmx_process.pid), signal.SIGKILL)  # kill all processes of process group
-								md_run_killed = True
-							else:
-								last_log_file_size = log_file_size
-					gmx_process.kill()
-
-			else:
-				msg = (
-					f"{gmx_out}\n\n"
-					f"Gromacs grompp failed at MD production step, see its error message above.\n"
-					f"You may also want to check the parameters of the MDP file provided through\n"
-					f"argument -cg_sim_mdp_md. If you think this is a bug, please consider opening\n"
-					f"an issue on GitHub at {config.github_url}/issues."
-				)
-				raise exceptions.ComputationError(msg)
-
-			# to verify if MD run finished properly, we check for the .gro file printed in the end
-			if os.path.isfile('md.gro'):
-
-				# get distributions and evaluate fitness
-				ns.cg_tpr_filename = 'md.tpr'
-				ns.cg_traj_filename = 'md.xtc'
-				ns.plot_filename = 'distributions.png'
-				ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
-
-				start_model_eval_ts = datetime.now().timestamp()
-				ignore_dihedrals = False
-				if ns.opti_cycle['nb_geoms']['dihedral'] == 0:
-					ignore_dihedrals = True
-				fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals, all_dist_pairwise, all_emd_dist_geoms = compare_models(ns, manual_mode=False, ignore_dihedrals=ignore_dihedrals, calc_sasa=True, record_best_indep_params=True)
-				ns.total_model_eval_time += datetime.now().timestamp() - start_model_eval_ts
-
-				# if gmx sasa failed to compute, it's most likely because there were inconsistent shifts across PBC in the trajectory = failed run
-				if ns.sasa_cg is not None:
-
-					# store the distributions for each evaluation step
-					shutil.move('distributions.png', f'../{config.distrib_plots_all_evals_dirname}/distributions_eval_step_{ns.nb_eval}.png')
-
-					eval_score = 0
-					if 'constraint' in ns.opti_cycle['geoms'] and 'bond' in ns.opti_cycle['geoms']:
-						eval_score += fit_score_constraints_bonds
-					if 'angle' in ns.opti_cycle['geoms']:
-						eval_score += fit_score_angles
-					if 'dihedral' in ns.opti_cycle['geoms']:
-						eval_score += fit_score_dihedrals
-
-					global_score = 0
-					if 'constraint' in ns.opti_geoms_all and 'bond' in ns.opti_geoms_all:
-						global_score += fit_score_constraints_bonds
-					if 'angle' in ns.opti_geoms_all:
-						global_score += fit_score_angles
-					if 'dihedral' in ns.opti_geoms_all:
-						global_score += fit_score_dihedrals
-
-					# model selection based only on bonded parametrization score
-					regular_eval = True
-					if regular_eval:
-						if global_score < ns.best_fitness[0]:
-							new_best_fit = True
-							ns.best_fitness = global_score, ns.nb_eval
-							ns.all_emd_dist_geoms = all_emd_dist_geoms
-
-				else:
-					print_stdout_forced("  MD run failed (molecule exploded)")
-					eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
-					ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
-					ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
-
-			else:
-				if md_run_killed:
-					print_stdout_forced(
-						f"  MD run failed (unstable simulation was killed, with unstable "
-						f"= NOT writing in log file for {str(ns.sim_kill_delay)} sec)"
-					)
-				else:
-					print_stdout_forced('  MD run failed (simulation process terminated with error)')
-				eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
-				ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
-				ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
-
-		else:
-			if equi_killed:
-				print_stdout_forced(
-					f"  Equilibration run failed (unstable simulation was killed, with unstable "
-					f"= NOT writing in log file for {str(ns.sim_kill_delay)} sec)"
-				)
-			else:
-				print_stdout_forced(
-					"  Equilibration run failed (simulation process terminated with error)"
-				)
 			eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
 			ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
 			ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
-	else:
-		if mini_killed:
-			print_stdout_forced(
-				f"  Minimization run failed (unstable simulation was killed, with unstable "
-				f"= NOT writing in log file for {str(ns.sim_kill_delay)} sec)"
-			)
-		else:
-			print_stdout_forced(
-				"  Minimization run failed (simulation process terminated with error)"
-			)
-		eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
-		ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
-		ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
 
 	# exit current eval directory
 	os.chdir('..')

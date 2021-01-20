@@ -1,23 +1,17 @@
 integrator               = md
-dt                       = 0.02
-nsteps                   = 15000
-comm-mode                = Linear
-nstcomm                  = 100
-
-nstxout                  = 0
+dt                       = 0.005
+nsteps                   = 10000
+nstxout                  = 0 
 nstvout                  = 0
 nstfout                  = 0
-nstlog                   = 5000
-nstcalcenergy            = 1000
-nstenergy                = 50000
-nstxout-compressed       = 500
-compressed-x-precision   = 1000
+nstlog                   = 500 
+nstxout-compressed       = 100
+compressed-x-precision   = 100
 
 cutoff-scheme            = Verlet
 nstlist                  = 20
 ns_type                  = grid
-pbc                      = xyz 
-rlist                    = 1.1
+pbc                      = xyz
 verlet-buffer-tolerance  = 0.005
 
 coulombtype              = reaction-field 
@@ -32,6 +26,8 @@ tcoupl                   = v-rescale
 tc-grps                  = system
 tau-t                    = 1.0
 ref-t                    = 300  
+gen-vel                  = yes
+gen-temp                 = 300
 Pcoupl                   = berendsen
 Pcoupltype               = isotropic
 tau-p                    = 4.0
