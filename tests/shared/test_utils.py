@@ -40,7 +40,7 @@ def test_sma():
     result = utils.sma(x, window_size)
 
     # then:
-    expected = np.array([2, 3, 4, 5, 6, 7, 8, 9, 0, 0], dtype=float)
+    expected = np.array([0.6, 1.2, 2., 3., 4., 5., 6., 7., 6., 4.8], dtype=float)
     assert_almost_equal(result, expected)
 
 
