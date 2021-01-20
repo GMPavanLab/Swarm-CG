@@ -1,0 +1,17 @@
+cycler==0.10.0
+dscribe==0.4.0 # 0.3.5 available for linux
+matplotlib>=3.2.2 # warnings appear for lower versions, don't change
+mdanalysis>=1.0.0
+mypy==0.770
+numpy>=1.19.1
+pandas
+pybind11==2.4.3 # 2.5.0 available
+pyemd==0.5.1
+pylint==2.4.4
+pytest
+pytest-runner
+scikit-learn>=0.22.0
+scipy==1.4.1
+setuptools
+wheel
+fst-pso
