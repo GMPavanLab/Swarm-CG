@@ -4,3 +4,4 @@ from .dihedrals import get_AA_dihedrals_distrib, get_CG_dihedrals_distrib
 from .sasa import compute_SASA
 from .rg import compute_Rg
 from .distances import create_bins_and_dist_matrices
+from .evaluation_function import eval_function

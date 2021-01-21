@@ -66,6 +66,18 @@ class SimulationStep:
             )
             raise exceptions.InputArgumentError(msg)
 
+    @staticmethod
+    def _validate_exec(exec):
+        with open(os.devnull, 'w') as devnull:
+            try:
+                subprocess.call(exec, stdout=devnull, stderr=devnull)
+            except OSError:
+                msg = (
+                    f"Cannot find GROMACS using alias {exec}, please provide "
+                    f"the right GROMACS alias or path"
+                )
+                raise exceptions.ExecutableNotFound(msg)
+
     @property
     def swarmcg_flag(self):
         return self.sim_setup.get("swarmcg_flag")
@@ -125,10 +137,10 @@ class SimulationStep:
         with subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, preexec_fn=os.setsid) as gmx_process:
             while gmx_process.poll() is None:  # while process is alive
-                time.sleep(keep_alive_n_cycles)
+                time.sleep(seconds_between_checks)
                 cycles_check += 1
 
-                if cycles_check % self.sim_setup.get("keep_alive_n_cycles") == 0:
+                if cycles_check % keep_alive_n_cycles == 0:
 
                     if os.path.isfile(monitor_file):
                         log_file_size = os.path.getsize(monitor_file)

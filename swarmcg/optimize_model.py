@@ -13,6 +13,8 @@ import numpy as np
 import swarmcg.shared.styling
 import swarmcg.scoring as scores
 import swarmcg.io as io
+from swarmcg.scoring import eval_function
+from swarmcg.simulations import SimulationStep
 from swarmcg import config
 from swarmcg.shared import exceptions
 from swarmcg import swarmCG as scg
@@ -129,15 +131,7 @@ def run(ns):
                 raise FileNotFoundError(msg)
 
     # check that gromacs alias is correct
-    with open(os.devnull, 'w') as devnull:
-        try:
-            subprocess.call(ns.gmx_path, stdout=devnull, stderr=devnull)
-        except OSError:
-            msg = (
-                f"Cannot find GROMACS using alias {ns.gmx_path}, please provide "
-                f"the right GROMACS alias or path"
-            )
-            raise exceptions.ExecutableNotFound(msg)
+    SimulationStep._validate_exec(ns.gmx_path)
 
     # check that ITP filename for the model to optimize is indeed included in the TOP file of the simulation directory
     # then find all TOP includes for copying files for simulations at each iteration
@@ -158,7 +152,7 @@ def run(ns):
                     arg_dirname = '.'
                 top_includes_filenames.append(arg_dirname + '/' + top_include)
 
-    # check gmx arguments conflicts
+    # check gmx arguments conflictssimstep
     if ns.gmx_args_str != '' and (ns.nb_threads != 0 or ns.gpu_id != ''):
         print(
             swarmcg.shared.styling.header_warning + 'Argument -gmx_args_str is provided together with one of arguments: -nb_threads, -gpu_id\nOnly argument -gmx_args_str will be used during this execution')
@@ -532,7 +526,7 @@ def run(ns):
                 FP = FuzzyPSO()
                 FP.set_search_space(search_space_boundaries)
                 FP.set_swarm_size(nb_particles)
-                FP.set_fitness(fitness=scg.eval_function, arguments=ns, skip_test=True)
+                FP.set_fitness(fitness=eval_function, arguments=ns, skip_test=True)
                 result = FP.solve_with_fstpso(max_iter=ns.max_swarm_iter, initial_guess_list=initial_guess_list, max_iter_without_new_global_best=ns.max_swarm_iter_without_new_global_best)
 
         # update ITP object with the best solution using geoms considered at this given optimization step
