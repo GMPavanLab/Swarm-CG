@@ -10,7 +10,7 @@ import swarmcg.io as io
 import swarmcg.scoring as scores
 from swarmcg import swarmCG as scg
 from swarmcg import config
-from swarmcg.shared import exceptions, catch_warnings
+from swarmcg.shared import exceptions, catch_warnings, input_parameter_validation
 from swarmcg.shared.styling import EVALUATE_DESCR
 
 matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
@@ -46,43 +46,9 @@ def run(ns):
 	# scg.set_MDA_backend(ns)
 	ns.mda_backend = 'serial'  # actually serial is faster because MDA is not properly parallelized atm
 
-	if not os.path.isfile(ns.aa_tpr_filename):
-		msg = (
-			f"Cannot find topology file of the atomistic simulation at location: {ns.aa_tpr_filename}\n"
-			f"(TPR or other portable topology formats supported by MDAnalysis)"
-		)
-		raise exceptions.MissingCoordinateFile(msg)
-	if not os.path.isfile(ns.aa_traj_filename):
-		msg = (
-			f"Cannot find trajectory file of the atomistic simulation at location: {ns.aa_traj_filename}\n"
-			f"(XTC, TRR, or other trajectory formats supported by MDAnalysis)"
-		)
-		raise exceptions.MissingTrajectoryFile(msg)
-
-	if not os.path.isfile(ns.cg_map_filename):
-		msg = (
-			f"Cannot find CG beads mapping file at location: {ns.cg_map_filename}\n"
-			f"(NDX-like file format)"
-		)
-		raise exceptions.MissingIndexFile(msg)
-
-	if not os.path.isfile(ns.cg_itp_filename):
-		msg = f"Cannot find ITP file of the CG model at location: {ns.cg_itp_filename}"
-		raise exceptions.MissingItpFile(msg)
-
-	# check bonds scaling arguments conflicts
-	if (ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length) or (ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
-		msg = (
-			"Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length "
-			"can be provided. Please check your parameters"
-		)
-		raise exceptions.InputArgumentError(msg)
-
-	# check the mapping type
+	# TODO: this eventually will need to be taked out of this function when we can avoid adding new attributed to ns
 	ns.mapping_type = ns.mapping_type.upper()
-	if ns.mapping_type != 'COM' and ns.mapping_type != 'COG':
-		msg = "Mapping type provided via argument '-mapping' must be either COM or COG (Center of Mass or Center of Geometry)."
-		raise exceptions.InputArgumentError(msg)
+	input_parameter_validation(ns, config)
 
 	# display parameters for function compare_models
 	if not os.path.isfile(ns.cg_tpr_filename) or not os.path.isfile(ns.cg_traj_filename):
