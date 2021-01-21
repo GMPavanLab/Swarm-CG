@@ -1,12 +1,6 @@
-# some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
-import warnings
-warnings.filterwarnings("ignore")
-
 import re
 import collections
 
-# matplotlib new version has some problems with incorrectly uninstalled files at version upgrade and display a lot of warnings
-# also some numpy version have this ufunc warning at import
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -17,14 +11,12 @@ from scipy.optimize import curve_fit
 import swarmcg.scoring as scores
 import swarmcg.simulations.vs_functions as vsf
 from swarmcg import config
-from swarmcg.shared import math_utils, styling, exceptions
-from swarmcg.shared import catch_warnings
+from swarmcg.shared import math_utils, styling, exceptions, catch_warnings
 from swarmcg.utils import draw_float
 from swarmcg.simulations.potentials import (gmx_bonds_func_1, gmx_angles_func_1, gmx_angles_func_2,
 	gmx_dihedrals_func_1, gmx_dihedrals_func_2)
 
 matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
-warnings.resetwarnings()
 
 # TODO: When provided trajectory file does NOT contain PBC infos (box position and size for each frame, which are present in XTC format for example), we want to stil accept the provided trajectory format (if accepted by MDAnalysis) but we automatically disable the handling of PBC by the code
 
@@ -635,170 +627,168 @@ def make_aa_traj_whole_for_selected_mols(ns):
 			mda.lib.mdamath.make_whole(aa_mol, inplace=True)
 
 
-# update ITP force constants with Boltzmann inversion for selected geoms at this given optimization step
+@catch_warnings(RuntimeWarning)  # ignore the warning "divide by 0 encountered in true_divide" while calculating sigma
 def perform_BI(ns):
-	
+	"""Update ITP force constants with Boltzmann inversion for selected geoms at this
+	given optimization step"""
 	# NOTE: currently all of these are just BI, not BI to completion using only required ADDITIONAL amount of energy, which might make a difference when we perform the BI after bonds+angles optimization cycles
 	# TODO: refactorize BI in separate function to be used during both model_prep and at start of model_opti
 	# TODO: other dihedrals functions
-	# TODO: If the first opti run of BI fails, lower force constants by 10% and retry, again and again until it works, or tell the user something is very wrong after 20 tries with 50% of the force constants that all did NOT work 
+	# TODO: If the first opti run of BI fails, lower force constants by 10% and retry, again and again until it works, or tell the user something is very wrong after 20 tries with 50% of the force constants that all did NOT work
 
-	with warnings.catch_warnings():
-		warnings.filterwarnings("ignore", category=RuntimeWarning)  # ignore the warning "divide by 0 encountered in true_divide" while calculating sigma
+	if not ns.performed_init_BI['bond'] and ns.opti_cycle['nb_geoms']['bond'] > 0:
 
-		if not ns.performed_init_BI['bond'] and ns.opti_cycle['nb_geoms']['bond'] > 0:
+		if ns.verbose:
+			print()
+			print('Performing Direct Boltzmann Inversion (DBI) to estimate bonds force constants')
 
-			if ns.verbose:
-				print()
-				print('Performing Direct Boltzmann Inversion (DBI) to estimate bonds force constants')
+		for grp_bond in range(ns.opti_cycle['nb_geoms']['bond']):
 
-			for grp_bond in range(ns.opti_cycle['nb_geoms']['bond']):
+			hists_geoms_bi, std_grp_bond, avg_grp_bond, bi_xrange = ns.data_BI['bond'][grp_bond]
+			hist_geoms_modif = hists_geoms_bi**2 * (max(hists_geoms_bi) / max(hists_geoms_bi**2))
 
-				hists_geoms_bi, std_grp_bond, avg_grp_bond, bi_xrange = ns.data_BI['bond'][grp_bond]
-				hist_geoms_modif = hists_geoms_bi**2 * (max(hists_geoms_bi) / max(hists_geoms_bi**2))
+			nb_passes = 3
+			alpha = 0.55
+			for _ in range(nb_passes):
+				hist_geoms_modif = math_utils.ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins / 10))
 
-				nb_passes = 3
-				alpha = 0.55
-				for _ in range(nb_passes):
-					hist_geoms_modif = math_utils.ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins / 10))
+			y = -config.kB * ns.temp * np.log(hist_geoms_modif + 1)
+			x = np.linspace(bi_xrange[0], bi_xrange[1], config.bi_nb_bins, endpoint=True)
+			k = config.kB * ns.temp / std_grp_bond / std_grp_bond * 100 / 2
 
-				y = -config.kB * ns.temp * np.log(hist_geoms_modif + 1)
-				x = np.linspace(bi_xrange[0], bi_xrange[1], config.bi_nb_bins, endpoint=True)
-				k = config.kB * ns.temp / std_grp_bond / std_grp_bond * 100 / 2
+			params_guess = [k, avg_grp_bond*10, min(y)]  # multiply for amgstrom for BI
 
-				params_guess = [k, avg_grp_bond*10, min(y)]  # multiply for amgstrom for BI
+			# calculate derivative to use as sigma for fitting
+			y_forward_shift = collections.deque(y)
+			y_forward_shift.rotate(3)
+			deriv = abs(y - y_forward_shift)
+			deriv = collections.deque(deriv)
+			deriv.rotate(-3)
 
-				# calculate derivative to use as sigma for fitting
-				y_forward_shift = collections.deque(y)
-				y_forward_shift.rotate(3)
-				deriv = abs(y - y_forward_shift)
-				deriv = collections.deque(deriv)
-				deriv.rotate(-3)
+			nb_passes = 5
+			for _ in range(nb_passes):
+				deriv = math_utils.sma(deriv, int(config.bi_nb_bins / 5))
 
-				nb_passes = 5
-				for _ in range(nb_passes):
-					deriv = math_utils.sma(deriv, int(config.bi_nb_bins / 5))
+			deriv *= np.sqrt(y/min(y))
+			deriv = 1/deriv
+			sigma = np.where(y < max(y), deriv, np.inf)
 
-				deriv *= np.sqrt(y/min(y))
-				deriv = 1/deriv
-				sigma = np.where(y < max(y), deriv, np.inf)
-				
-				popt, pcov = curve_fit(gmx_bonds_func_1, x * 10, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)  # multiply for amgstrom for BI
+			popt, pcov = curve_fit(gmx_bonds_func_1, x * 10, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)  # multiply for amgstrom for BI
 
-				# here we just update the force constant, bond length is already set to the average of distribution
-				ns.out_itp['bond'][grp_bond]['fct'] = popt[0]*100
+			# here we just update the force constant, bond length is already set to the average of distribution
+			ns.out_itp['bond'][grp_bond]['fct'] = popt[0]*100
 
-				# stay within limits in case user requires low force constants
-				if not 0 <= ns.out_itp['bond'][grp_bond]['fct'] <= min(config.default_max_fct_bonds_bi, ns.default_max_fct_bonds_opti):
-					ns.out_itp['bond'][grp_bond]['fct'] = min(config.default_max_fct_bonds_bi, ns.default_max_fct_bonds_opti) / 2
-
-				if ns.verbose:
-					print('  Bond group', grp_bond+1, 'estimated force constant:', round(ns.out_itp['bond'][grp_bond]['fct'], 2))
-
-			ns.performed_init_BI['bond'] = True
-
-		if not ns.performed_init_BI['angle'] and ns.opti_cycle['nb_geoms']['angle'] > 0:
+			# stay within limits in case user requires low force constants
+			if not 0 <= ns.out_itp['bond'][grp_bond]['fct'] <= min(config.default_max_fct_bonds_bi, ns.default_max_fct_bonds_opti):
+				ns.out_itp['bond'][grp_bond]['fct'] = min(config.default_max_fct_bonds_bi, ns.default_max_fct_bonds_opti) / 2
 
 			if ns.verbose:
-				print()
-				print('Performing Direct Boltzmann Inversion (DBI) to estimate angles force constants')
+				print('  Bond group', grp_bond+1, 'estimated force constant:', round(ns.out_itp['bond'][grp_bond]['fct'], 2))
 
-			for grp_angle in range(ns.opti_cycle['nb_geoms']['angle']):
+		ns.performed_init_BI['bond'] = True
 
-				hists_geoms_bi, std_rad_grp_angle, bi_xrange = ns.data_BI['angle'][grp_angle]
-				y = -config.kB * ns.temp * np.log(hists_geoms_bi + 1)
-				x = np.linspace(np.deg2rad(bi_xrange[0]), np.deg2rad(bi_xrange[1]), config.bi_nb_bins, endpoint=True)
-				k = config.kB * ns.temp / std_rad_grp_angle / std_rad_grp_angle * 100 / 2
+	if not ns.performed_init_BI['angle'] and ns.opti_cycle['nb_geoms']['angle'] > 0:
 
-				sigma = np.where(y < max(y), 0.1, np.inf)  # this is definitely better when angles have bimodal distributions
+		if ns.verbose:
+			print()
+			print('Performing Direct Boltzmann Inversion (DBI) to estimate angles force constants')
 
-				# use appropriate angle function
-				func = ns.cg_itp['angle'][grp_angle]['func']
+		for grp_angle in range(ns.opti_cycle['nb_geoms']['angle']):
 
-				if func == 1:
-					params_guess = [k, std_rad_grp_angle, min(y)]
-					popt, pcov = curve_fit(gmx_angles_func_1, x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
-					popt[0] = abs(popt[0])  # just to be safe, in case the fit yielded negative fct values but this is very unlikely since we provide good starting parameters for the fit
+			hists_geoms_bi, std_rad_grp_angle, bi_xrange = ns.data_BI['angle'][grp_angle]
+			y = -config.kB * ns.temp * np.log(hists_geoms_bi + 1)
+			x = np.linspace(np.deg2rad(bi_xrange[0]), np.deg2rad(bi_xrange[1]), config.bi_nb_bins, endpoint=True)
+			k = config.kB * ns.temp / std_rad_grp_angle / std_rad_grp_angle * 100 / 2
 
-				elif func == 2:
-					params_guess = [max(y)-min(y), std_rad_grp_angle, min(y)]
-					try:
-						popt, pcov = curve_fit(gmx_angles_func_2, x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
-						if popt[0] < 0:  # correct the negative force constant that can result from the fit of stiff angles at values close to 180
-							popt[0] = config.default_max_fct_angles_bi * 0.8 # stiff is most probably max fct value, so get close to it
-						elif bi_xrange[1] == 180 - ns.bw_angles/2:
-							popt[0] += 10
-					except RuntimeError:  # curve fit did not converge
-						popt[0] = 30
+			sigma = np.where(y < max(y), 0.1, np.inf)  # this is definitely better when angles have bimodal distributions
 
-				# here we just update the force constant, angle value is already set to the average of distribution
-				ns.out_itp['angle'][grp_angle]['fct'] = popt[0]
+			# use appropriate angle function
+			func = ns.cg_itp['angle'][grp_angle]['func']
 
-				# stay within limits in case user requires low force constants
-				if func == 1:
-					if not 0 <= ns.out_itp['angle'][grp_angle]['fct'] <= min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f1):
-						ns.out_itp['angle'][grp_angle]['fct'] = min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f1) / 2
-				elif func == 2:
-					if not 0 <= ns.out_itp['angle'][grp_angle]['fct'] <= min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f2):
-						ns.out_itp['angle'][grp_angle]['fct'] = min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f2) / 2
+			if func == 1:
+				params_guess = [k, std_rad_grp_angle, min(y)]
+				popt, pcov = curve_fit(gmx_angles_func_1, x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
+				popt[0] = abs(popt[0])  # just to be safe, in case the fit yielded negative fct values but this is very unlikely since we provide good starting parameters for the fit
 
-				if ns.verbose:
-					print('  Angle group', grp_angle+1, 'estimated force constant:', round(ns.out_itp['angle'][grp_angle]['fct'], 2))
+			elif func == 2:
+				params_guess = [max(y)-min(y), std_rad_grp_angle, min(y)]
+				try:
+					popt, pcov = curve_fit(gmx_angles_func_2, x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
+					if popt[0] < 0:  # correct the negative force constant that can result from the fit of stiff angles at values close to 180
+						popt[0] = config.default_max_fct_angles_bi * 0.8 # stiff is most probably max fct value, so get close to it
+					elif bi_xrange[1] == 180 - ns.bw_angles/2:
+						popt[0] += 10
+				except RuntimeError:  # curve fit did not converge
+					popt[0] = 30
 
-			ns.performed_init_BI['angle'] = True
+			# here we just update the force constant, angle value is already set to the average of distribution
+			ns.out_itp['angle'][grp_angle]['fct'] = popt[0]
 
-		if not ns.performed_init_BI['dihedral'] and ns.opti_cycle['nb_geoms']['dihedral'] > 0:
+			# stay within limits in case user requires low force constants
+			if func == 1:
+				if not 0 <= ns.out_itp['angle'][grp_angle]['fct'] <= min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f1):
+					ns.out_itp['angle'][grp_angle]['fct'] = min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f1) / 2
+			elif func == 2:
+				if not 0 <= ns.out_itp['angle'][grp_angle]['fct'] <= min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f2):
+					ns.out_itp['angle'][grp_angle]['fct'] = min(config.default_max_fct_angles_bi, ns.default_max_fct_angles_opti_f2) / 2
 
 			if ns.verbose:
-				print()
-				print('Performing Direct Boltzmann Inversion (DBI) to estimate dihedrals force constants')
+				print('  Angle group', grp_angle+1, 'estimated force constant:', round(ns.out_itp['angle'][grp_angle]['fct'], 2))
 
-			for grp_dihedral in range(ns.opti_cycle['nb_geoms']['dihedral']):
+		ns.performed_init_BI['angle'] = True
 
-				# TODO: clearly the initial fit of dihedrals could be done better -- initial guesses are pretty bad
+	if not ns.performed_init_BI['dihedral'] and ns.opti_cycle['nb_geoms']['dihedral'] > 0:
 
-				hists_geoms_bi, std_rad_grp_dihedral, avg_rad_grp_dihedral, bi_xrange = ns.data_BI['dihedral'][grp_dihedral]
-				y = -config.kB * ns.temp * np.log(hists_geoms_bi + 1)
-				x = np.linspace(np.deg2rad(bi_xrange[0]), np.deg2rad(bi_xrange[1]), 2*config.bi_nb_bins, endpoint=True)
-				k = config.kB * ns.temp / std_rad_grp_dihedral / std_rad_grp_dihedral
-				
-				sigma = np.where(y < max(y), 0.1, np.inf)
-				
-				# use appropriate dihedral function
-				func = ns.cg_itp['dihedral'][grp_dihedral]['func']
+		if ns.verbose:
+			print()
+			print('Performing Direct Boltzmann Inversion (DBI) to estimate dihedrals force constants')
 
-				if ns.exec_mode == 2:  # in Mode 2, make the fit according to the equilibrium value provided by user
-					avg_rad_grp_dihedral = np.deg2rad(ns.cg_itp['dihedral'][grp_dihedral]['value_user'])
-					# NOTE: this could trigger some convergence issue of scipy's curve_fit
-				
-				if func in config.dihedral_func_with_mult:
-					multiplicity = ns.cg_itp['dihedral'][grp_dihedral]['mult']  # multiplicity stays the same as in input CG ITP, it's only during model_prep that we could compare between different multiplicities
-					params_guess = [max(y)-min(y), avg_rad_grp_dihedral, min(y)]
-					popt, pcov = curve_fit(gmx_dihedrals_func_1(mult=multiplicity), x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
+		for grp_dihedral in range(ns.opti_cycle['nb_geoms']['dihedral']):
 
-				elif func == 2:
-					params_guess = [k, avg_rad_grp_dihedral, min(y)]
-					popt, pcov = curve_fit(gmx_dihedrals_func_2, x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
+			# TODO: clearly the initial fit of dihedrals could be done better -- initial guesses are pretty bad
 
-				if ns.exec_mode == 1:  # in Mode 1, use the fitted value as equilibrium value (but stay within range)
-					# ns.out_itp['dihedral'][grp_dihedral]['value'] = max(min(np.rad2deg(popt[1]), ns.domains_val['dihedral'][grp_dihedral][1]), ns.domains_val['dihedral'][grp_dihedral][0])
-					ns.out_itp['dihedral'][grp_dihedral]['value'] = np.rad2deg(popt[1])  # we will apply limits of equilibrium values later
+			hists_geoms_bi, std_rad_grp_dihedral, avg_rad_grp_dihedral, bi_xrange = ns.data_BI['dihedral'][grp_dihedral]
+			y = -config.kB * ns.temp * np.log(hists_geoms_bi + 1)
+			x = np.linspace(np.deg2rad(bi_xrange[0]), np.deg2rad(bi_xrange[1]), 2*config.bi_nb_bins, endpoint=True)
+			k = config.kB * ns.temp / std_rad_grp_dihedral / std_rad_grp_dihedral
 
-				print('  Dihedral group', grp_dihedral+1, 'estimated force constant BEFORE MODIFIER:', round(popt[0], 2))
-				ns.out_itp['dihedral'][grp_dihedral]['fct'] = popt[0]
+			sigma = np.where(y < max(y), 0.1, np.inf)
 
-				# stay within limits in case user requires low force constants
-				if func in config.dihedral_func_with_mult:
-					if not max(-config.default_abs_range_fct_dihedrals_bi_func_with_mult, -ns.default_abs_range_fct_dihedrals_opti_func_with_mult) <= ns.out_itp['dihedral'][grp_dihedral]['fct'] <= min(-config.default_abs_range_fct_dihedrals_bi_func_with_mult, -ns.default_abs_range_fct_dihedrals_opti_func_with_mult):
-						ns.out_itp['dihedral'][grp_dihedral]['fct'] = np.sign(ns.out_itp['dihedral'][grp_dihedral]['fct']) * min(config.default_abs_range_fct_dihedrals_bi_func_with_mult, ns.default_abs_range_fct_dihedrals_opti_func_with_mult) / 2
-				else:
-					if not max(-config.default_abs_range_fct_dihedrals_bi_func_without_mult, -ns.default_abs_range_fct_dihedrals_opti_func_without_mult) <= ns.out_itp['dihedral'][grp_dihedral]['fct'] <= min(-config.default_abs_range_fct_dihedrals_bi_func_without_mult, -ns.default_abs_range_fct_dihedrals_opti_func_without_mult):
-						ns.out_itp['dihedral'][grp_dihedral]['fct'] = np.sign(ns.out_itp['dihedral'][grp_dihedral]['fct']) * min(config.default_abs_range_fct_dihedrals_bi_func_without_mult, ns.default_abs_range_fct_dihedrals_opti_func_without_mult) / 2
+			# use appropriate dihedral function
+			func = ns.cg_itp['dihedral'][grp_dihedral]['func']
 
-				if ns.verbose:
-					print('  Dihedral group', grp_dihedral+1, 'estimated force constant:', round(ns.out_itp['dihedral'][grp_dihedral]['fct'], 2))
+			if ns.exec_mode == 2:  # in Mode 2, make the fit according to the equilibrium value provided by user
+				avg_rad_grp_dihedral = np.deg2rad(ns.cg_itp['dihedral'][grp_dihedral]['value_user'])
+				# NOTE: this could trigger some convergence issue of scipy's curve_fit
 
-			ns.performed_init_BI['dihedral'] = True
+			if func in config.dihedral_func_with_mult:
+				multiplicity = ns.cg_itp['dihedral'][grp_dihedral]['mult']  # multiplicity stays the same as in input CG ITP, it's only during model_prep that we could compare between different multiplicities
+				params_guess = [max(y)-min(y), avg_rad_grp_dihedral, min(y)]
+				popt, pcov = curve_fit(gmx_dihedrals_func_1(mult=multiplicity), x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
+
+			elif func == 2:
+				params_guess = [k, avg_rad_grp_dihedral, min(y)]
+				popt, pcov = curve_fit(gmx_dihedrals_func_2, x, y, p0=params_guess, sigma=sigma, maxfev=99999, absolute_sigma=False)
+
+			if ns.exec_mode == 1:  # in Mode 1, use the fitted value as equilibrium value (but stay within range)
+				# ns.out_itp['dihedral'][grp_dihedral]['value'] = max(min(np.rad2deg(popt[1]), ns.domains_val['dihedral'][grp_dihedral][1]), ns.domains_val['dihedral'][grp_dihedral][0])
+				ns.out_itp['dihedral'][grp_dihedral]['value'] = np.rad2deg(popt[1])  # we will apply limits of equilibrium values later
+
+			print('  Dihedral group', grp_dihedral+1, 'estimated force constant BEFORE MODIFIER:', round(popt[0], 2))
+			ns.out_itp['dihedral'][grp_dihedral]['fct'] = popt[0]
+
+			# stay within limits in case user requires low force constants
+			if func in config.dihedral_func_with_mult:
+				if not max(-config.default_abs_range_fct_dihedrals_bi_func_with_mult, -ns.default_abs_range_fct_dihedrals_opti_func_with_mult) <= ns.out_itp['dihedral'][grp_dihedral]['fct'] <= min(-config.default_abs_range_fct_dihedrals_bi_func_with_mult, -ns.default_abs_range_fct_dihedrals_opti_func_with_mult):
+					ns.out_itp['dihedral'][grp_dihedral]['fct'] = np.sign(ns.out_itp['dihedral'][grp_dihedral]['fct']) * min(config.default_abs_range_fct_dihedrals_bi_func_with_mult, ns.default_abs_range_fct_dihedrals_opti_func_with_mult) / 2
+			else:
+				if not max(-config.default_abs_range_fct_dihedrals_bi_func_without_mult, -ns.default_abs_range_fct_dihedrals_opti_func_without_mult) <= ns.out_itp['dihedral'][grp_dihedral]['fct'] <= min(-config.default_abs_range_fct_dihedrals_bi_func_without_mult, -ns.default_abs_range_fct_dihedrals_opti_func_without_mult):
+					ns.out_itp['dihedral'][grp_dihedral]['fct'] = np.sign(ns.out_itp['dihedral'][grp_dihedral]['fct']) * min(config.default_abs_range_fct_dihedrals_bi_func_without_mult, ns.default_abs_range_fct_dihedrals_opti_func_without_mult) / 2
+
+			if ns.verbose:
+				print('  Dihedral group', grp_dihedral+1, 'estimated force constant:', round(ns.out_itp['dihedral'][grp_dihedral]['fct'], 2))
+
+		ns.performed_init_BI['dihedral'] = True
 
 
 def process_scaling_str(ns):
