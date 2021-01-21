@@ -1,4 +1,12 @@
-from swarmcg.simulations.runner import generate_steps, SimulationStep
+import time, os
+
+import pytest
+
+from swarmcg.simulations.runner import generate_steps, SimulationStep, ns_to_runner
+from swarmcg.simulations.simulation_steps import Minimisation
+from swarmcg.shared import exceptions
+
+TEST_DATA = "tests/data/"
 
 
 def test_generate_steps(ns_opt):
@@ -25,6 +33,12 @@ def test_generate_steps(ns_opt):
 
 
 class TestSimulationStep:
+
+    def cleanup(self, delete_files):
+        if isinstance(delete_files, str):
+            delete_files = [delete_files]
+        for f in delete_files:
+            os.remove(f)
 
     def test_init(self, simstep_mini):
         SimulationStep(simstep_mini)
@@ -90,3 +104,29 @@ class TestSimulationStep:
         expected = "mpirun -np 1 gmx mdrun -deffnm equi -nt 1"
         print(step.sim_setup, command)
         assert command == expected
+
+    def test__run_md(self, ns_opt):
+        # given:
+        ns = ns_opt(monitor_file="monitor.log", process_alive_nb_cycles_dead=2, process_alive_time_sleep=1)
+
+        filename = "./tests/data/md.mdp"
+        prev_gro = "./test/data/start_conf.gro"
+
+        # when:
+        sim_config = Minimisation(filename)
+        s = ns_to_runner(ns, sim_config, prev_gro)
+        simstep = SimulationStep(s)
+
+        # when:
+        t = time.time()
+        simstep._run_md(cmd="echo 1 > monitor.log && sleep 10")
+        assert time.time() - t < 10
+        self.cleanup("./monitor.log")
+
+    @pytest.mark.parametrize("exec, result", [("ls", "pass"), ("non_existing_cmd", "fail")])
+    def test__validate_exec(self, exec, result):
+        if result == "pass":
+            SimulationStep._validate_exec(exec)
+        else:
+            with pytest.raises(exceptions.ExecutableNotFound):
+                SimulationStep._validate_exec(exec)

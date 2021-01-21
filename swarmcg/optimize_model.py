@@ -13,6 +13,8 @@ import numpy as np
 import swarmcg.shared.styling
 import swarmcg.scoring as scores
 import swarmcg.io as io
+from swarmcg.scoring import eval_function
+from swarmcg.simulations import SimulationStep
 from swarmcg import config
 from swarmcg.shared import exceptions
 from swarmcg import swarmCG as scg
@@ -40,6 +42,7 @@ def run(ns):
     #####################################
 
     # namespace variables not directly linked to arguments for plotting or for global package interpretation
+    # TODO: we should not generate new vars here, but before we go into the function
     ns.mismatch_order = False
     ns.row_x_scaling = True
     ns.row_y_scaling = True
@@ -51,6 +54,7 @@ def run(ns):
     ns.bonds_rescaling_performed = False  # for user information display
 
     # get basenames for simulation files
+    # TODO: this can be methods of a ns object which implements these operations
     ns.cg_itp_basename = os.path.basename(ns.cg_itp_filename)
     ns.gro_input_basename = os.path.basename(ns.gro_input_filename)
     ns.top_input_basename = os.path.basename(ns.top_input_filename)
@@ -74,6 +78,7 @@ def run(ns):
     # TODO: find some fuzzy logic to determine number of swarm iterations + take some large margin to ensure it will optimize correctly
 
     # avoid overwriting an output directory of a previous optimization run
+    # TODO: this should be function or methods that checks before we go into the function
     if os.path.isfile(ns.exec_folder) or os.path.isdir(ns.exec_folder):
         msg = (
             "Provided output folder already exists, please delete existing folder "
@@ -88,6 +93,7 @@ def run(ns):
         raise exceptions.InputArgumentError(msg)
 
     # check that force constants limits make sense
+    # TODO: this should be functions or methods that perform these checks before ns is passed to the function
     if ns.default_max_fct_bonds_opti <= 0:
         msg = f"Please provide a value > 0 for argument -max_fct_bonds_f1."
         raise exceptions.InputArgumentError(msg)
@@ -129,15 +135,7 @@ def run(ns):
                 raise FileNotFoundError(msg)
 
     # check that gromacs alias is correct
-    with open(os.devnull, 'w') as devnull:
-        try:
-            subprocess.call(ns.gmx_path, stdout=devnull, stderr=devnull)
-        except OSError:
-            msg = (
-                f"Cannot find GROMACS using alias {ns.gmx_path}, please provide "
-                f"the right GROMACS alias or path"
-            )
-            raise exceptions.ExecutableNotFound(msg)
+    SimulationStep._validate_exec(ns.gmx_path)
 
     # check that ITP filename for the model to optimize is indeed included in the TOP file of the simulation directory
     # then find all TOP includes for copying files for simulations at each iteration
@@ -159,6 +157,7 @@ def run(ns):
                 top_includes_filenames.append(arg_dirname + '/' + top_include)
 
     # check gmx arguments conflicts
+    # TODO: this should be functions or methods that perform these checks before ns is passed to the function
     if ns.gmx_args_str != '' and (ns.nb_threads != 0 or ns.gpu_id != ''):
         print(
             swarmcg.shared.styling.header_warning + 'Argument -gmx_args_str is provided together with one of arguments: -nb_threads, -gpu_id\nOnly argument -gmx_args_str will be used during this execution')
@@ -179,6 +178,7 @@ def run(ns):
     ns.mda_backend = 'serial'  # actually serial is faster because MDA is not properly parallelized atm
 
     # directory to write all files for current execution of optimizations routines
+    # TODO: group this operations into a FileManager class
     os.mkdir(ns.exec_folder)
     os.mkdir(ns.exec_folder+'/.internal')
     os.mkdir(ns.exec_folder+'/'+config.distrib_plots_all_evals_dirname)
@@ -532,7 +532,7 @@ def run(ns):
                 FP = FuzzyPSO()
                 FP.set_search_space(search_space_boundaries)
                 FP.set_swarm_size(nb_particles)
-                FP.set_fitness(fitness=scg.eval_function, arguments=ns, skip_test=True)
+                FP.set_fitness(fitness=eval_function, arguments=ns, skip_test=True)
                 result = FP.solve_with_fstpso(max_iter=ns.max_swarm_iter, initial_guess_list=initial_guess_list, max_iter_without_new_global_best=ns.max_swarm_iter_without_new_global_best)
 
         # update ITP object with the best solution using geoms considered at this given optimization step
