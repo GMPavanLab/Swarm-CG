@@ -8,7 +8,7 @@ from swarmcg.simulations.simulation_steps import Minimisation, Equilibration, Pr
 TEST_DATA = "tests/data/"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def ns_opt():
 
     parameters = {
@@ -82,31 +82,31 @@ def ns_opt():
     return ns
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def mini():
     return Minimisation(f"{TEST_DATA}mini.mdp")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def equi():
     return Equilibration(f"{TEST_DATA}equi.mdp")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def md():
     return Production(f"{TEST_DATA}md.mdp")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def simstep_mini(ns_opt, mini):
     return ns_to_runner(ns_opt(), mini, f"{TEST_DATA}start_conf.gro")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def simstep_equi(ns_opt, equi):
     return ns_to_runner(ns_opt(), equi, f"{TEST_DATA}mini.gro")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def simstep_md(ns_opt, md):
     return ns_to_runner(ns_opt(), md, f"{TEST_DATA}equi.gro")
