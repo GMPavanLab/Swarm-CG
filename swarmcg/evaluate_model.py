@@ -1,7 +1,3 @@
-# some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
-import warnings
-
-warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
@@ -14,13 +10,13 @@ import swarmcg.io as io
 import swarmcg.scoring as scores
 from swarmcg import swarmCG as scg
 from swarmcg import config
-from swarmcg.shared import exceptions
+from swarmcg.shared import exceptions, catch_warnings
 from swarmcg.shared.styling import EVALUATE_DESCR
 
-warnings.resetwarnings()
 matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 
 
+@catch_warnings(np.VisibleDeprecationWarning) # filter MDAnalysis + numpy deprecation stuff that is annoying
 def run(ns):
 
 	print()
@@ -28,9 +24,6 @@ def run(ns):
 	print('| PRE-PROCESSING                                                                              |')
 	print(swarmcg.shared.styling.sep_close)
 	print()
-
-	from numpy import VisibleDeprecationWarning
-	warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)  # filter MDAnalysis + numpy deprecation stuff that is annoying
 
 	# TODO: make it possible to feed a delta/offset for Rg in case the model has bonds scaling ?
 

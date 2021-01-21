@@ -1,6 +1,4 @@
 # some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
-import warnings
-warnings.filterwarnings("ignore")
 import os, sys
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
@@ -11,18 +9,15 @@ from matplotlib.ticker import MaxNLocator
 
 import swarmcg.shared.styling
 from swarmcg import config
-from swarmcg.shared import exceptions
+from swarmcg.shared import exceptions, catch_warnings
 from swarmcg.shared.styling import ANALYSE_DESCR
 from swarmcg.shared.math_utils import forward_fill
 
-warnings.resetwarnings()
 
-
+@catch_warnings(DeprecationWarning)  # filter matplotlib warnings
+@catch_warnings(ImportWarning)  # filter Matplotlib mpl_toolkits missing __init__ stuff
+@catch_warnings(UserWarning) # filter working when reading scores for each geom at each fitness evaluation/simulation
 def run(ns):
-
-	# filter matplotlib warnings
-	warnings.filterwarnings("ignore", category=DeprecationWarning)
-	warnings.filterwarnings("ignore", category=ImportWarning)
 
 	# TODO: print some text to tell user if opti run finished or not -- then we can only look at the results files, not the running processes on the machine
 
@@ -43,9 +38,8 @@ def run(ns):
 	min_nb_cols = 9  # to be sure we have enough columns for opti process plots, even if number of bonds/angles/dihedrals is less than this
 
 	# read scores for each geom at each fitness evaluation/simulation
-	with warnings.catch_warnings():
-		warnings.filterwarnings("ignore", category=UserWarning)
-		iter_indep_scores = np.genfromtxt(ns.opti_dirname+'/'+config.opti_pairwise_distances_file, delimiter=' ')
+	iter_indep_scores = np.genfromtxt(ns.opti_dirname+'/'+config.opti_pairwise_distances_file, delimiter=' ')
+
 	try:
 		for i in range(1, iter_indep_scores.shape[1]):
 			iter_indep_scores[:, i] = forward_fill(iter_indep_scores[:,i], config.sim_crash_EMD_indep_score)

@@ -1,8 +1,4 @@
-# some numpy version have this ufunc warning at import + many packages call numpy and display annoying warnings
-import warnings
-
-warnings.filterwarnings("ignore")
-import os, sys, shutil, subprocess, time, copy, contextlib
+import os, sys, shutil, time, copy, contextlib
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
 from datetime import datetime
@@ -16,18 +12,15 @@ import swarmcg.io as io
 from swarmcg.scoring import eval_function
 from swarmcg.simulations import SimulationStep
 from swarmcg import config
-from swarmcg.shared import exceptions
+from swarmcg.shared import exceptions, catch_warnings
 from swarmcg import swarmCG as scg
 from swarmcg.shared.styling import OPTIMISE_DESCR
 
-warnings.resetwarnings()
 
-
+@catch_warnings(np.VisibleDeprecationWarning)  # filter MDAnalysis + numpy deprecation stuff that is annoying
+@catch_warnings(ImportWarning)  # filter Matplotlib mpl_toolkits missing __init__ stuff
+@catch_warnings(UserWarning) # filter working when reading scores for each geom at each fitness evaluation/simulation
 def run(ns):
-
-    from numpy import VisibleDeprecationWarning
-    warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)  # filter MDAnalysis + numpy deprecation stuff that is annoying
-    warnings.filterwarnings("ignore", category=ImportWarning)  # filter Matplotlib mpl_toolkits missing __init__ stuff
 
     # TODO: allow to feed a JSON file for cycles of optimization ?? this is more optional but useful for big stuff possibly
     # TODO: if using SASA through GMX SASA, ensure vdwradii.dat contains the MARTINI radii
