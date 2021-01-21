@@ -1,58 +1,25 @@
-import pytest
+import warnings
 
-import numpy as np
-from numpy.testing import assert_almost_equal
-
-from swarmcg.shared import utils
-from swarmcg.shared.exceptions import OptimisationResultsError
+from swarmcg.shared import catch_warnings
 
 
-# TODO: add test on failure but needs dedicated exceptions rather and sys.exit
-def test_forward_fill():
+def test_cath_warnings():
     # given:
-    x = [1, 2, 10, 4, None, None, 10, 10]
+    def func():
+        warnings.warn("This is a warning")
+        return 1
 
     # when:
-    cond_value = None
-    result = utils.forward_fill(x, cond_value)
+    with warnings.catch_warnings(record=True) as w:
+        _ = func()
 
     # then:
-    expected = [1, 2, 10, 4, 4, 4, 10, 10]
-    assert result == expected
-
-
-def test_forward_fill_fail():
-    # given:
-    x = [None, None]
+    assert len(w) == 1
 
     # when:
-    cond_value = None
-    with pytest.raises(OptimisationResultsError):
-        _ = utils.forward_fill(x, cond_value)
-
-
-def test_sma():
-    # given:
-    x = np.arange(10)
-
-    # when:
-    window_size = 5
-    result = utils.sma(x, window_size)
+    with warnings.catch_warnings(record=True) as w:
+        # this is equivalent to add @decorator above function definition
+        _ = catch_warnings(UserWarning)(func)()
 
     # then:
-    expected = np.array([0.6, 1.2, 2., 3., 4., 5., 6., 7., 6., 4.8], dtype=float)
-    assert_almost_equal(result, expected)
-
-
-def test_ema():
-    # given:
-    x = np.arange(10)
-
-    # when:
-    window_size = 5
-    result = utils.ewma(x, 1, window_size)
-
-    # then:
-    expected = np.array([2, 3, 4, 5, 6, 7, 8, 9, 0, 0], dtype=float)
-    assert_almost_equal(result, expected)
-
+    assert len(w) == 0
