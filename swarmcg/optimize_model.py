@@ -12,7 +12,7 @@ import swarmcg.io as io
 from swarmcg.scoring import eval_function
 from swarmcg.simulations import SimulationStep
 from swarmcg import config
-from swarmcg.shared import exceptions, catch_warnings
+from swarmcg.shared import exceptions, catch_warnings, input_parameter_validation
 from swarmcg import swarmCG as scg
 from swarmcg.shared.styling import OPTIMISE_DESCR
 
@@ -79,23 +79,9 @@ def run(ns):
         )
         raise exceptions.AvoidOverwritingFolder(msg)
 
-    # check the mapping type
+    # TODO: this eventually will need to be taked out of this function when we can avoid adding new attributed to ns
     ns.mapping_type = ns.mapping_type.upper()
-    if ns.mapping_type != 'COM' and ns.mapping_type != 'COG':
-        msg = "Mapping type provided via argument '-mapping' must be either COM or COG (Center of Mass or Center of Geometry)."
-        raise exceptions.InputArgumentError(msg)
-
-    # check that force constants limits make sense
-    # TODO: this should be functions or methods that perform these checks before ns is passed to the function
-    if ns.default_max_fct_bonds_opti <= 0:
-        msg = f"Please provide a value > 0 for argument -max_fct_bonds_f1."
-        raise exceptions.InputArgumentError(msg)
-    if ns.default_max_fct_angles_opti_f1 <= 0:
-        msg = f"Please provide a value > 0 for argument -max_fct_angles_opti_f1."
-        raise exceptions.InputArgumentError(msg)
-    if ns.default_max_fct_angles_opti_f2 <= 0:
-        msg = f"Please provide a value > 0 for argument -max_fct_angles_opti_f2."
-        raise exceptions.InputArgumentError(msg)
+    input_parameter_validation(ns, config, step="optimisation")
 
     # check if we can find files at user-provided location(s)
     # here the order of the args in the 2 lists below is important, be very careful if changing this or adding args
@@ -148,20 +134,6 @@ def run(ns):
                 if arg_dirname == '':
                     arg_dirname = '.'
                 top_includes_filenames.append(arg_dirname + '/' + top_include)
-
-    # check gmx arguments conflicts
-    # TODO: this should be functions or methods that perform these checks before ns is passed to the function
-    if ns.gmx_args_str != '' and (ns.nb_threads != 0 or ns.gpu_id != ''):
-        print(
-            swarmcg.shared.styling.header_warning + 'Argument -gmx_args_str is provided together with one of arguments: -nb_threads, -gpu_id\nOnly argument -gmx_args_str will be used during this execution')
-
-    # check bonds scaling arguments conflicts
-    if (ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length) or (ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
-        msg = (
-            "Only one of arguments -bonds_scaling, -bonds_scaling_str and "
-            "-min_bonds_length can be provided. Please check your parameters"
-        )
-        raise exceptions.InputArgumentError(msg)
 
     ##################
     # INITIALIZATION #
@@ -762,5 +734,7 @@ def main():
 
     run(ns)
 
+
 if __name__ == "__main__":
+
     main()
