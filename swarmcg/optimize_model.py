@@ -42,6 +42,7 @@ def run(ns):
     #####################################
 
     # namespace variables not directly linked to arguments for plotting or for global package interpretation
+    # TODO: we should not generate new vars here, but before we go into the function
     ns.mismatch_order = False
     ns.row_x_scaling = True
     ns.row_y_scaling = True
@@ -53,6 +54,7 @@ def run(ns):
     ns.bonds_rescaling_performed = False  # for user information display
 
     # get basenames for simulation files
+    # TODO: this can be methods of a ns object which implements these operations
     ns.cg_itp_basename = os.path.basename(ns.cg_itp_filename)
     ns.gro_input_basename = os.path.basename(ns.gro_input_filename)
     ns.top_input_basename = os.path.basename(ns.top_input_filename)
@@ -76,6 +78,7 @@ def run(ns):
     # TODO: find some fuzzy logic to determine number of swarm iterations + take some large margin to ensure it will optimize correctly
 
     # avoid overwriting an output directory of a previous optimization run
+    # TODO: this should be function or methods that checks before we go into the function
     if os.path.isfile(ns.exec_folder) or os.path.isdir(ns.exec_folder):
         msg = (
             "Provided output folder already exists, please delete existing folder "
@@ -90,6 +93,7 @@ def run(ns):
         raise exceptions.InputArgumentError(msg)
 
     # check that force constants limits make sense
+    # TODO: this should be functions or methods that perform these checks before ns is passed to the function
     if ns.default_max_fct_bonds_opti <= 0:
         msg = f"Please provide a value > 0 for argument -max_fct_bonds_f1."
         raise exceptions.InputArgumentError(msg)
@@ -152,7 +156,8 @@ def run(ns):
                     arg_dirname = '.'
                 top_includes_filenames.append(arg_dirname + '/' + top_include)
 
-    # check gmx arguments conflictssimstep
+    # check gmx arguments conflicts
+    # TODO: this should be functions or methods that perform these checks before ns is passed to the function
     if ns.gmx_args_str != '' and (ns.nb_threads != 0 or ns.gpu_id != ''):
         print(
             swarmcg.shared.styling.header_warning + 'Argument -gmx_args_str is provided together with one of arguments: -nb_threads, -gpu_id\nOnly argument -gmx_args_str will be used during this execution')
@@ -173,6 +178,7 @@ def run(ns):
     ns.mda_backend = 'serial'  # actually serial is faster because MDA is not properly parallelized atm
 
     # directory to write all files for current execution of optimizations routines
+    # TODO: group this operations into a FileManager class
     os.mkdir(ns.exec_folder)
     os.mkdir(ns.exec_folder+'/.internal')
     os.mkdir(ns.exec_folder+'/'+config.distrib_plots_all_evals_dirname)
