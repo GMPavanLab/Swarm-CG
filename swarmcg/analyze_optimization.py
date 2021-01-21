@@ -13,10 +13,9 @@ import swarmcg.shared.styling
 from swarmcg import config
 from swarmcg.shared import exceptions
 from swarmcg.shared.styling import ANALYSE_DESCR
-from swarmcg.shared.utils import forward_fill
+from swarmcg.shared.math_utils import forward_fill
 
 warnings.resetwarnings()
-
 
 def run(ns):
 

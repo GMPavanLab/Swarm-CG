@@ -17,7 +17,8 @@ from scipy.optimize import curve_fit
 import swarmcg.scoring as scores
 import swarmcg.simulations.vs_functions as vsf
 from swarmcg import config
-from swarmcg.shared import utils, styling, exceptions
+from swarmcg.shared import math_utils, styling, exceptions
+from swarmcg.shared import catch_warnings
 from swarmcg.utils import draw_float
 from swarmcg.simulations.potentials import (gmx_bonds_func_1, gmx_angles_func_1, gmx_angles_func_2,
 	gmx_dihedrals_func_1, gmx_dihedrals_func_2)
@@ -26,11 +27,6 @@ matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend sui
 warnings.resetwarnings()
 
 # TODO: When provided trajectory file does NOT contain PBC infos (box position and size for each frame, which are present in XTC format for example), we want to stil accept the provided trajectory format (if accepted by MDAnalysis) but we automatically disable the handling of PBC by the code
-
-
-# cast object as string, enclose by parentheses and return a string -- for arguments display in help
-def par_wrap(string):
-	return f'({string})'
 
 # read one or more molecules from the AA TPR and trajectory
 def load_aa_data(ns):
@@ -659,7 +655,7 @@ def perform_BI(ns):
 				nb_passes = 3
 				alpha = 0.55
 				for _ in range(nb_passes):
-					hist_geoms_modif = utils.ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins/10))
+					hist_geoms_modif = math_utils.ewma(hist_geoms_modif, alpha, int(config.bi_nb_bins / 10))
 
 				y = -config.kB * ns.temp * np.log(hist_geoms_modif + 1)
 				x = np.linspace(bi_xrange[0], bi_xrange[1], config.bi_nb_bins, endpoint=True)
@@ -676,7 +672,7 @@ def perform_BI(ns):
 
 				nb_passes = 5
 				for _ in range(nb_passes):
-					deriv = utils.sma(deriv, int(config.bi_nb_bins/5))
+					deriv = math_utils.sma(deriv, int(config.bi_nb_bins / 5))
 
 				deriv *= np.sqrt(y/min(y))
 				deriv = 1/deriv
