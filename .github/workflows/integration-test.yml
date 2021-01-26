@@ -1,4 +1,4 @@
-name: swarm-cg-integration-tests
+name: swarm-cg-itests
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
       - develop
 
 jobs:
-  build:
+  itests:
     runs-on: ubuntu-20.04
 
     steps:
