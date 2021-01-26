@@ -1,0 +1,7 @@
+FROM softmaxltd/swarmcg-base:latest
+
+ADD . .
+
+RUN python3 setup.py install
+
+RUN ["/bin/bash", "./itests/entrypoint.sh"]

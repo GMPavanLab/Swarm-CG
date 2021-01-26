@@ -1,0 +1,21 @@
+name: swarm-cg-integration-tests
+
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Docker build
+      run: |
+        docker build -f ./itests/Dockerfile.test -t swarmcg .
+
+    - name: Run tests
+      run: |
+        docker run swarmcg

@@ -1,0 +1,17 @@
+FROM ubuntu:20.04
+
+RUN export DEBIAN_FRONTEND=noninteractive && apt-get update \
+    && apt-get install -y --no-install-recommends build-essential git gcc libomp-dev python3-dev python3-pip wget cmake
+
+RUN wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-2020.5.tar.gz \
+    && tar zxvf gromacs-2020.5.tar.gz \
+    && cd gromacs-2020.5 && mkdir build && cd build \
+    && cmake .. -DGMX_BUILD_OWN_FFTW=ON && make && make install
+
+WORKDIR /root
+
+ADD environment.txt .
+
+RUN pip3 install -r environment.txt
+
+CMD ["/bin/bash"]
