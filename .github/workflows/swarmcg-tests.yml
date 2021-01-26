@@ -1,9 +1,12 @@
 name: swarm-cg-tests
 
-on: pull_request
-
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
 jobs:
-  build:
+  unittest:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -26,3 +29,17 @@ jobs:
     - name: Test with pytest
       run: |
         pytest tests/
+
+  itests:
+    needs: unittest
+    runs-on: ubuntu-20.04
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Docker build
+      run: |
+        docker build -f ./itests/Dockerfile.test -t swarmcg .
+
+    - name: Run tests
+      run: |
+        docker run swarmcg
