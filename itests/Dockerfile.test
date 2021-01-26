@@ -4,4 +4,4 @@ ADD . .
 
 RUN python3 setup.py install
 
-RUN ["/bin/bash", "./itests/entrypoint.sh"]
+CMD ["/bin/bash", "./itests/entrypoint.sh"]
