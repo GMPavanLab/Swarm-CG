@@ -6,7 +6,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt-get update \
 RUN wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-2020.5.tar.gz \
     && tar zxvf gromacs-2020.5.tar.gz \
     && cd gromacs-2020.5 && mkdir build && cd build \
-    && cmake .. -DGMX_BUILD_OWN_FFTW=ON && make && make install
+    && cmake .. -DGMX_BUILD_OWN_FFTW=ON && make && make install \
+    &&  ln -s /gromacs-2020.5/build/bin/gmx /bin/gmx
 
 WORKDIR /root
 
