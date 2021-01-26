@@ -10,7 +10,7 @@ import swarmcg.shared.styling
 import swarmcg.scoring as scores
 import swarmcg.io as io
 from swarmcg.scoring import eval_function
-from swarmcg.simulations import SimulationStep
+from swarmcg.simulations import SimulationStep, get_settings
 from swarmcg import config
 from swarmcg.shared import exceptions, catch_warnings, input_parameter_validation
 from swarmcg import swarmCG as scg
@@ -325,66 +325,7 @@ def run(ns):
     # ITERATIVE OPTIMIZATION PROCESS #
     ##################################
 
-    # parameters for each type of simulation during optimization cycles
-    # sim duration (ns), max nb of SWARM iterations, max nb SWARM iterations without finding new global best, percentage applied for generating variations around initial guesses/values fed humanly
-    # sim_type 0 is used for initialization exclusively + detecting too high force constants to lower them, no real optimization is expected from these runs
-
-    # Settings: TEST / utlra-fast settings only for debugging -- DIHEDRALS APPLIED IN THE END EXCLUSIVELY
-    # sim_types = {0: {'sim_duration': 0.3, 'max_swarm_iter': 1, 'max_swarm_iter_without_new_global_best': 1, 'val_guess_fact': 1.0, 'fct_guess_fact': 0.3},
-    #        1: {'sim_duration': 0.3, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 2, 'val_guess_fact': 1.0, 'fct_guess_fact': 0.3},
-    #        2: {'sim_duration': 0.3, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 2, 'val_guess_fact': 1.0, 'fct_guess_fact': 0.2},
-    #        3: {'sim_duration': 0.3, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 2, 'val_guess_fact': 0.4, 'fct_guess_fact': 0.1}}
-    # opti_cycles = [['constraint', 'bond', 'angle'], ['constraint', 'bond'], ['angle'], ['constraint', 'bond', 'angle'], ['dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
-    # sim_cycles = [0, 1, 1, 2, 2, 3] # simulations types
-
-    # Settings: TEST / utlra-fast settings only for debugging -- DIHEDRALS APPLIED IN THE END EXCLUSIVELY
-    # sim_types = {0: {'sim_duration': 0.3, 'max_swarm_iter': 1, 'max_swarm_iter_without_new_global_best': 1, 'val_guess_fact': 1.0, 'fct_guess_fact': 0.3},
-    #        1: {'sim_duration': 0.3, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 2, 'val_guess_fact': 1.0, 'fct_guess_fact': 0.3},
-    #        2: {'sim_duration': 0.3, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 2, 'val_guess_fact': 1.0, 'fct_guess_fact': 0.2},
-    #        3: {'sim_duration': 0.3, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 2, 'val_guess_fact': 0.4, 'fct_guess_fact': 0.1}}
-    # opti_cycles = [['constraint', 'bond', 'angle'], ['constraint', 'bond', 'angle'], ['dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
-    # sim_cycles = [0, 2, 2, 3] # simulations types
-
-    # Settings: ROBUST / Suited for big molecules
-    # sim_types = {0: {'sim_duration': 5, 'max_swarm_iter': 10, 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 1, 'fct_guess_fact': 0.30},
-    #        1: {'sim_duration': 8, 'max_swarm_iter': 10, 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.25},
-    #        2: {'sim_duration': 10, 'max_swarm_iter': 10, 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.25},
-    #        3: {'sim_duration': 15, 'max_swarm_iter': 20, 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.25}}
-    # opti_cycles = [['constraint', 'bond', 'angle'], ['constraint', 'bond'], ['angle'], ['constraint', 'bond', 'angle'], ['dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
-    # sim_cycles = [0, 1, 1, 3, 2, 3] # simulations types
-
-    # Strategy 1
-    # Settings: FASTER / Suited for small molecules or rapid optimization
-    # sim_types = {0: {'sim_duration': 10, 'max_swarm_iter': 10, 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
-    #        1: {'sim_duration': 10, 'max_swarm_iter': 10, 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
-    #        2: {'sim_duration': 15, 'max_swarm_iter': 15, 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.25}}
-    # opti_cycles = [['constraint', 'bond', 'angle'], ['dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
-    # sim_cycles = [0, 1, 2] # simulations types
-
-    # previous best choice for versatile usage
-    # Startegy 4
-    # Settings: OPTIMAL / Should be fine with any type of molecule, big or small, as long as the BI keeps yielding close enough results, which should be the case
-    # sim_types = {0: {'sim_duration': 10, 'max_swarm_iter': int(5+np.sqrt(ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]+ns.cg_itp["nb_angles"])), 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 1, 'fct_guess_fact': 0.35},
-    #        1: {'sim_duration': 10, 'max_swarm_iter': int(5+np.sqrt(ns.cg_itp["nb_angles"]+ns.cg_itp["nb_dihedrals"])), 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
-    #        2: {'sim_duration': 10, 'max_swarm_iter': int(5+np.sqrt(ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]+ns.cg_itp["nb_angles"]+ns.cg_itp["nb_dihedrals"])), 'max_swarm_iter_without_new_global_best': 5, 'val_guess_fact': 0.15, 'fct_guess_fact': 0.20}}
-    # opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
-    # sim_cycles = [0, 1, 2] # simulations types
-
-    # Startegy 5 -- Coupled to fewer particles
-    # Settings: OPTIMAL / Should be fine with any type of molecule, big or small, as long as the BI keeps yielding close enough results, which should be the case
-    sim_types = {0: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': int(round(6+np.sqrt(ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]+ns.cg_itp["nb_angles"]))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
-         1: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': int(round(6+np.sqrt(ns.cg_itp["nb_angles"]+ns.cg_itp["nb_dihedrals"]))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
-         2: {'sim_duration': ns.sim_duration_long, 'max_swarm_iter': int(round(6+np.sqrt(ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]+ns.cg_itp["nb_angles"]+ns.cg_itp["nb_dihedrals"]))), 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.20}}
-    # opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
-    opti_cycles = [['constraint', 'bond', 'angle'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']]
-    sim_cycles = [0, 1, 2]  # simulations types
-
-    # for tests
-    # sim_types = {0: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
-    #        1: {'sim_duration': ns.sim_duration_short, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
-    #        2: {'sim_duration': ns.sim_duration_long, 'max_swarm_iter': 2, 'max_swarm_iter_without_new_global_best': 6, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.20}}
-    # opti_cycles = [['constraint', 'bond', 'angle', 'dihedral'], ['angle', 'dihedral'], ['constraint', 'bond', 'angle', 'dihedral']] # optimization cycles to perform with given geom objects
-    # sim_cycles = [0, 1, 2] # simulations types
+    sim_types, opti_cycles, sim_cycles = get_settings("OPTIMAL", ns)
 
     # NOTE: currently, due to an issue in FST-PSO, number of swarm iterations performed is +2 when compared to the numbers we feed
 
