@@ -325,7 +325,7 @@ def run(ns):
     # ITERATIVE OPTIMIZATION PROCESS #
     ##################################
 
-    sim_types, opti_cycles, sim_cycles = get_settings("OPTIMAL", ns)
+    sim_types, opti_cycles, sim_cycles = get_settings(ns)
 
     # NOTE: currently, due to an issue in FST-PSO, number of swarm iterations performed is +2 when compared to the numbers we feed
 
@@ -534,6 +534,9 @@ def main():
     sim_filenames_args.add_argument('-cg_mdp_md', dest='mdp_md_filename',
                                   help='MDP file used for the MD runs analyzed for optimization',
                                   type=str, default='md.mdp', metavar='         (md.mdp)')
+    sim_filenames_args.add_argument('-sim_type', dest='sim_type',
+                                  help='Simulation type setting',
+                                  type=str, default='OPTIMAL', metavar='         (OPTIMAL)')
 
     optional_args4 = args_parser.add_argument_group(
     opt_args_header + '\n\n' + bullet + 'FILES HANDLING')

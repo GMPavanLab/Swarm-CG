@@ -3,13 +3,13 @@ import numpy as np
 from swarmcg.shared import exceptions
 
 
-def get_settings(sim_type, ns):
-    if sim_type == "OPTIMAL":
+def get_settings(ns):
+    if ns.sim_type == "OPTIMAL":
         return _optimal(ns)
-    elif sim_type == "FAST":
+    elif ns.sim_type == "FAST":
         return _fast(ns)
     else:
-        msg = f"Simulation type {sim_type} is not valid. (OPTIMAL, FAST)"
+        msg = f"Simulation type {ns.sim_type} is not valid. (OPTIMAL, FAST)"
         raise exceptions.InvalidArgument(msg)
 
 
