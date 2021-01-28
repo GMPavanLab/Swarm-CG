@@ -181,3 +181,5 @@ def get_optimize_args():
     optional_args3.add_argument("-h", "--help", help="Show this help message and exit", action="help")
     optional_args3.add_argument("-v", "--verbose", dest="verbose", help=config.help_verbose,
                                 action="store_true", default=False)
+
+    return args_parser
