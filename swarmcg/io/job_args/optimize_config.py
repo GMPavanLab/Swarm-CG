@@ -68,6 +68,9 @@ def get_optimize_args():
     sim_filenames_args.add_argument("-cg_mdp_md", dest="mdp_md_filename",
                                     help="MDP file used for the MD runs analyzed for optimization",
                                     type=str, default="md.mdp", metavar=f"         (md.mdp)")
+    sim_filenames_args.add_argument('-sim_type', dest='sim_type',
+                                    help='Simulation type setting',
+                                    type=str, default='OPTIMAL', metavar='         (OPTIMAL)')
 
     optional_args4 = args_parser.add_argument_group(
     opt_args_header + "\n\n" + bullet + "FILES HANDLING")

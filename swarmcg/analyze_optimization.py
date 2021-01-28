@@ -7,8 +7,8 @@ import numpy as np
 from matplotlib.ticker import MaxNLocator
 
 import swarmcg.shared.styling
+import swarmcg.io as io
 from swarmcg import config
-from swarmcg.io.job_args import get_analyze_args
 from swarmcg.shared import exceptions, catch_warnings
 from swarmcg.shared.math_utils import forward_fill
 
@@ -548,7 +548,8 @@ def run(ns):
 
 def main():
 
-	args_parser = get_analyze_args()
+	args_parser = io.get_analyze_args()
+
 	# display help if script was called without arguments
 	if len(sys.argv) == 1:
 		args_parser.print_help()

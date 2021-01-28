@@ -6,7 +6,6 @@ import matplotlib
 
 import swarmcg.shared.styling
 import swarmcg.io as io
-from swarmcg.io.job_args import get_evaluate_args
 import swarmcg.scoring as scores
 from swarmcg import swarmCG as scg
 from swarmcg import config
@@ -91,7 +90,7 @@ def run(ns):
 
 def main():
 
-	args_parser = get_evaluate_args()
+	args_parser = io.get_evaluate_args()
 
 	# arguments handling, display command line if help or no arguments provided
 	ns = args_parser.parse_args()
