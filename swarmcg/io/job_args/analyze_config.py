@@ -8,7 +8,6 @@ def get_analyze_args():
     print(styling.header_package("Module: Optimization run analysis\n"))
 
     formatter = lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52)
-
     args_parser = ArgumentParser(
         description=styling.ANALYSE_DESCR,
         formatter_class=formatter,

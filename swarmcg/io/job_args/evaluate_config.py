@@ -5,8 +5,8 @@ from swarmcg import config
 
 
 def get_evaluate_args():
-    print(styling.header_package(
-        "                Module: Model bonded terms assessment\n"))
+
+    print(styling.header_package("                Module: Model bonded terms assessment\n"))
 
     formatter = lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52)
     args_parser = ArgumentParser(
