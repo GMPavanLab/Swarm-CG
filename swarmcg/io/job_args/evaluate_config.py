@@ -104,3 +104,5 @@ def get_evaluate_args():
                                 help="Show this help message and exit")
     optional_args2.add_argument("-v", "--verbose", dest="verbose", help=config.help_verbose,
                                 action="store_true", default=False)
+
+    return args_parser
