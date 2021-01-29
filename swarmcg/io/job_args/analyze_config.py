@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 
 from swarmcg.shared import styling
+from swarmcg.io.job_args import defaults
 
 
 def get_analyze_args():
@@ -19,18 +20,11 @@ def get_analyze_args():
     bullet = " "
 
     required_args = args_parser.add_argument_group(args_header + "\n\n" + bullet + "INPUT/OUTPUT")
-    required_args.add_argument("-opti_dir", dest="opti_dirname",
-                               help="Directory created by module \"scg_optimize\" that contains all files\ngenerated during the optimization procedure",
-                               type=str, metavar="")
-    required_args.add_argument("-o", dest="plot_filename",
-                               help="Filename for the output plot, produced in directory -opti_dir.\nExtension/format can be one of: eps, pdf, pgf, png, ps, raw, rgba,\nsvg, svgz",
-                               type=str, default="opti_summary.png",
-                               metavar="    (opti_summary.png)")
+    required_args.add_argument("-opti_dir", **defaults.opti_dir.args)
+    required_args.add_argument("-o", **defaults.o_an.args)
 
     optional_args = args_parser.add_argument_group(bullet + "OTHERS")
-    optional_args.add_argument("-plot_scale", dest="plot_scale", help="Scale factor of the plot",
-                               type=float, default=1.0, metavar="        (1.0)")
-    optional_args.add_argument("-h", "--help", help="Show this help message and exit",
-                               action="help")
+    optional_args.add_argument("-plot_scale", **defaults.plot_scale.args)
+    optional_args.add_argument("-h", "-help", **defaults.help.args)
 
     return args_parser
