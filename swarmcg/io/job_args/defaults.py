@@ -35,7 +35,7 @@ sim_type = BaseField(
 gmx = BaseField(
     dest="gmx_path",
     type=str,
-    default="gmx",
+    default=config.gmx_path,
     help="Your Gromacs alias/path",
 )
 nt = BaseField(
@@ -79,19 +79,19 @@ sim_kill_delay = BaseField(
 aa_tpr = BaseField(
     dest="aa_tpr_filename",
     type=str,
-    default="aa_topol.tpr",
+    default=config.metavar_aa_tpr,
     help="Topology binary file of your reference AA simulation (TPR)",
 )
 aa_traj = BaseField(
     dest="aa_traj_filename",
     type=str,
-    default="aa_traj.xtc",
+    default=config.metavar_aa_traj,
     help="Trajectory file of the reference AA simulation (XTC, TRR)\nPBC are handled internally if trajectory contains box dimensions",
 )
 cg_map = BaseField(
     dest="cg_map_filename",
     type=str,
-    default="cg_map.ndx",
+    default=config.metavar_cg_map,
     help="Mapping file of the atoms to CG beads (NDX-like file format)",
 )
 mapping = BaseField(
@@ -105,7 +105,7 @@ mapping = BaseField(
 cg_itp = BaseField(
     dest="cg_itp_filename",
     type=str,
-    default="cg_model.itp",
+    default=config.metavar_cg_itp,
     help="ITP file of the CG model to optimize",
 )
 user_params = BaseField(
@@ -117,25 +117,25 @@ user_params = BaseField(
 cg_gro = BaseField(
     dest="gro_input_filename",
     type=str,
-    default="start_conf.gro",
+    default=config.metavar_cg_gro,
     help="Starting GRO file used for iterative simulation\nWill be minimized and relaxed before each MD run",
 )
 cg_top = BaseField(
     dest="top_input_filename",
     type=str,
-    default="system.top",
+    default=config.metavar_cg_top,
     help="TOP file used for iterative simulation",
 )
 cg_tpr = BaseField(
     dest="cg_tpr_filename",
     type=str,
-    default="cg_topol.tpr",
+    default=config.metavar_cg_tpr,
     help="TPR file of your CG simulation (omit for solo AA inspection)",
 ),
 cg_traj = BaseField(
     dest="cg_traj_filename",
     type=str,
-    default="cg_traj.xtc",
+    default=config.metavar_cg_traj,
     help="XTC file of your CG trajectory (omit for solo AA inspection)",
 ),
 cg_mdp_mini = BaseField(
@@ -192,31 +192,31 @@ o_ev = BaseField(
 max_fct_bonds_f1 = BaseField(
     dest="default_max_fct_bonds_opti",
     type=float,
-    default=18000,
+    default=config.default_max_fct_bonds_opti,
     help="Max. force constants for bonds function 1 (kJ.mol⁻¹.nm⁻²)",
 )
 max_fct_angles_f1 = BaseField(
     dest="default_max_fct_angles_opti_f1",
     type=float,
-    default=1700,
+    default=config.default_max_fct_angles_opti_f1,
     help="Max. force ct. for angles function 1 (kJ.mol⁻¹.rad⁻²)",
 )
 max_fct_angles_f2 = BaseField(
     dest="default_max_fct_angles_opti_f2",
     type=float,
-    default=1700,
+    default=config.default_max_fct_angles_opti_f2,
     help="Max. force ct. for angles function 2 (kJ.mol⁻¹)",
 )
 max_fct_dihedrals_f149 = BaseField(
     dest="default_abs_range_fct_dihedrals_opti_func_with_mult",
     type=float,
-    default=15,
+    default=config.default_abs_range_fct_dihedrals_opti_func_with_mult,
     help="Max. force ct. for dihedrals functions 1, 4, 9 (abs. kJ.mol⁻¹)",
 )
 max_fct_dihedrals_f2 = BaseField(
     dest="default_abs_range_fct_dihedrals_opti_func_without_mult",
     type=float,
-    default=1500,
+    default=config.default_abs_range_fct_dihedrals_opti_func_without_mult,
     help="Max. force ct. for dihedrals function 2 (abs. kJ.mol⁻¹.rad⁻²)",
 )
 # MODEL SCORING
@@ -235,38 +235,32 @@ cg_time_long = BaseField(
 b2a_score_fact = BaseField(
     dest="bonds2angles_scoring_factor",
     type=float,
-    default=500.0,  # multiplier applied to constraints/bonds EMD scores to retrieve angles/dihedrals mismatches that are comparable, for the opti scoring function
+    default=config.bonds2angles_scoring_factor,
     help="Weight of bonds vs. angles/dihedrals (constant C in the paper)\nAt 500, bonds mismatch 0.4 Å == angles/dihedrals mismatch 20°\nDecreasing would linearly increase the weight of bonds",
 ),
 bw_constraints = BaseField(
     dest="bw_constraints",
     type=float,
-    default=0.002,  # nm
+    default=config.bw_constraints,
     help="Bandwidth for constraints distributions processing (nm)",
 ),
-bw_bonds=BaseField(
+bw_bonds = BaseField(
     dest="bw_bonds",
     type=float,
-    default=0.01,  # nm
+    default=config.bw_bonds,
     help="Bandwidth for bonds distributions processing (nm)",
 ),
-bw_angles=BaseField(
+bw_angles = BaseField(
     dest="bw_angles",
     type=float,
-    default=2.5,  # degrees
+    default=config.bw_angles,
     help="Bandwidth for angles distributions processing (degrees)",
 ),
-bw_dihedrals=BaseField(
+bw_dihedrals = BaseField(
     dest="bw_dihedrals",
     type=float,
-    default=2.5,  # degrees
+    default=config.bw_dihedrals,
     help="Bandwidth for dihedrals distributions processing (degrees)",
-),
-bonds_max_range=BaseField(
-    dest="",
-    type="",
-    default=15,
-    help="Max. range of grid for bonds/constraints distributions (nm)",
 ),
 disable_x_scaling = BaseField(
     dest="row_x_scaling",
@@ -283,13 +277,13 @@ disable_y_scaling = BaseField(
 bonds_max_range = BaseField(
     dest="bonded_max_range",
     type=float,
-    default=15,  # nm 15 -- used to define grid for EMD calculations
+    default=config.bonds_max_range,  # nm 15 -- used to define grid for EMD calculations
     help="Max. range of grid for bonds/constraints distributions (nm)",
 ),
 
 
 # MODEL SCALING
-aa_rg_offset=BaseField(
+aa_rg_offset = BaseField(
     dest="aa_rg_offset",
     type=float,
     default=0.0,
@@ -329,7 +323,7 @@ ncols = BaseField(
     help="Max. nb of columns displayed in figure",
     action="",
 ),  # TODO: make this a line return in plot instead of ignoring groups
-plot_scale=BaseField(
+plot_scale = BaseField(
     dest="plot_scale",
     type=float,
     default=1.0,
@@ -340,7 +334,7 @@ plot_scale=BaseField(
 temp = BaseField(
     dest="temp",
     type=float,
-    default=300,  # Kelvin
+    default=config.sim_temperature,  # Kelvin
     help="Temperature used to perform Boltzmann inversion (K)",
 )
 keep_all_sims = BaseField(
