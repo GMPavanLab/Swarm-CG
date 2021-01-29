@@ -7,14 +7,18 @@ class BaseField(SimpleNamespace):
 
     @property
     def metavar(self):
-        if getattr(self, "default") is not None:
+        if "default" in vars(self):
             return f"({str(self.default)})".rjust(25, " ")
         else:
             return ""
 
     @property
     def args(self):
-        return {**vars(self), "metavar": self.metavar}
+        attributes = vars(self)
+        if not "action" in attributes:
+            return {**attributes, "metavar": self.metavar}
+        else:
+            return attributes
 
 
 # EXECUTION MODE
@@ -131,13 +135,13 @@ cg_tpr = BaseField(
     type=str,
     default=config.metavar_cg_tpr,
     help="TPR file of your CG simulation (omit for solo AA inspection)",
-),
+)
 cg_traj = BaseField(
     dest="cg_traj_filename",
     type=str,
     default=config.metavar_cg_traj,
     help="XTC file of your CG trajectory (omit for solo AA inspection)",
-),
+)
 cg_mdp_mini = BaseField(
     dest="mdp_minimization_filename",
     type=str,
@@ -170,17 +174,17 @@ out_dir = BaseField(
     default="",
     help="Directory where to store all outputs of this program\nDefault -out_dir is named after timestamp",
 )
-opti_dir=BaseField(
+opti_dir = BaseField(
     dest="opti_dirname",
     type=str,
     help="Directory created by module 'scg_optimize' that contains all files\ngenerated during the optimization procedure",
-),
+)
 o_an = BaseField(
     dest="plot_filename",
     type=str,
     default="opti_summary.png",
     help="Filename for the output plot, produced in directory -opti_dir.\nExtension/format can be one of: eps, pdf, pgf, png, ps, raw, rgba,\nsvg, svgz",
-),
+)
 o_ev = BaseField(
     dest="plot_filename",
     type=str,
@@ -231,55 +235,55 @@ cg_time_long = BaseField(
     type=float,
     default=25.0,
     help="Simulation time (ns) of the MD runs analyzed for optimization\nIn opti. cycle 3, this will modify MDP file for the MD runs",
-),
+)
 b2a_score_fact = BaseField(
     dest="bonds2angles_scoring_factor",
     type=float,
     default=config.bonds2angles_scoring_factor,
     help="Weight of bonds vs. angles/dihedrals (constant C in the paper)\nAt 500, bonds mismatch 0.4 Å == angles/dihedrals mismatch 20°\nDecreasing would linearly increase the weight of bonds",
-),
+)
 bw_constraints = BaseField(
     dest="bw_constraints",
     type=float,
     default=config.bw_constraints,
     help="Bandwidth for constraints distributions processing (nm)",
-),
+)
 bw_bonds = BaseField(
     dest="bw_bonds",
     type=float,
     default=config.bw_bonds,
     help="Bandwidth for bonds distributions processing (nm)",
-),
+)
 bw_angles = BaseField(
     dest="bw_angles",
     type=float,
     default=config.bw_angles,
     help="Bandwidth for angles distributions processing (degrees)",
-),
+)
 bw_dihedrals = BaseField(
     dest="bw_dihedrals",
     type=float,
     default=config.bw_dihedrals,
     help="Bandwidth for dihedrals distributions processing (degrees)",
-),
+)
 disable_x_scaling = BaseField(
     dest="row_x_scaling",
     default=True,
     help="Disable auto-scaling of X axis across each row of the plot",
     action="store_false",
-),
+)
 disable_y_scaling = BaseField(
     dest="row_y_scaling",
     default=True,
     help="Disable auto-scaling of Y axis across each row of the plot",
     action="store_false",
-),
+)
 bonds_max_range = BaseField(
     dest="bonded_max_range",
     type=float,
     default=config.bonds_max_range,  # nm 15 -- used to define grid for EMD calculations
     help="Max. range of grid for bonds/constraints distributions (nm)",
-),
+)
 
 
 # MODEL SCALING
@@ -306,7 +310,7 @@ min_bonds_length = BaseField(
     dest="min_bonds_length",
     type=float,
     default=config.min_bonds_length,
-    help="Required minimum length of a bond or constraint between 2 CG\nbeads (distributions avg in nm), used both as:\n1. Threshold to identify ALL short AA-mapped bonds/constraints\n2. Target avg to rescale ALL those bonds/constraints",
+    help="Required minimum length of a bond or constraint between 2 CG\nbeads (distributions avg in nm) used both as:\n1. Threshold to identify ALL short AA-mapped bonds/constraints\n2. Target avg to rescale ALL those bonds/constraints",
 )
 
 # FIGURE DISPLAY
@@ -315,20 +319,19 @@ mismatch_ordering = BaseField(
     default=False,
     help="Enables ordering of bonds/angles/dihedrals by mismatch score\nbetween pairwise AA-mapped/CG distributions (can help diagnosis)",
     action="store_true",
-),
+)
 ncols = BaseField(
     dest="ncols_max",
     type=int,
     default=0,
     help="Max. nb of columns displayed in figure",
-    action="",
-),  # TODO: make this a line return in plot instead of ignoring groups
+)  # TODO: make this a line return in plot instead of ignoring groups
 plot_scale = BaseField(
     dest="plot_scale",
     type=float,
     default=1.0,
     help="Scale factor of the plot",
-),
+)
 
 # OTHERS
 temp = BaseField(

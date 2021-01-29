@@ -59,7 +59,7 @@ def get_optimize_args():
         optional_args2.add_argument(f"-{arg}", **getattr(defaults, arg).args)
 
     optional_args3 = args_parser.add_argument_group(bullet + "OTHERS")
-    for arg in ["temp", "keep_all_sims", "bonds_scaling_str", "min_bonds_length"]:
+    for arg in ["temp", "keep_all_sims"]:
         optional_args2.add_argument(f"-{arg}", **getattr(defaults, arg).args)
 
     optional_args3.add_argument("-h", "--help", **defaults.help.args)
