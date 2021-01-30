@@ -57,10 +57,10 @@ def _test(ns):
     """ Simulation strategy TEST -
     Suited for test"""
     sim_types = {
-        0: {'sim_duration': 10, 'max_swarm_iter': 1, 'max_swarm_iter_without_new_global_best': 1, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
-        1: {'sim_duration': 10, 'max_swarm_iter': 1, 'max_swarm_iter_without_new_global_best': 1, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
-        2: {'sim_duration': 15, 'max_swarm_iter': 1, 'max_swarm_iter_without_new_global_best': 1, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.25}
+        0: {'sim_duration': 0.5, 'max_swarm_iter': 1, 'max_swarm_iter_without_new_global_best': 1, 'val_guess_fact': 1, 'fct_guess_fact': 0.40},
+        1: {'sim_duration': 0.5, 'max_swarm_iter': 1, 'max_swarm_iter_without_new_global_best': 1, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.30},
+        2: {'sim_duration': 0.5, 'max_swarm_iter': 1, 'max_swarm_iter_without_new_global_best': 1, 'val_guess_fact': 0.25, 'fct_guess_fact': 0.25}
     }
     opti_cycles = [['constraint', 'bond', 'angle'], ['dihedral'], ['constraint', 'bond', 'angle', 'dihedral']]
-    sim_cycles = [0, 1, 2] # simulations types
+    sim_cycles = [0, 1, 2]  # simulations types
     return sim_types, opti_cycles, sim_cycles
