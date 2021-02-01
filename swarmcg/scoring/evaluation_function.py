@@ -41,6 +41,7 @@ def eval_function(parameters_set, ns):
     # run simulation with new parameters
     new_best_fit = False
     start_gmx_ts = datetime.now().timestamp()
+
     for step in sim.generate_steps(ns):
         step.run(os.getcwd())
 

@@ -50,7 +50,6 @@ class BaseSimulationConfig:
 
     def modify_mdp(self, sim_time=None, nb_frames=1500, log_write_freq=5000,
                    energy_write_nb_frames_ratio=0.1):
-
         if self.edit_mpd:
             if sim_time is not None:
                 new_nsteps = int(sim_time * 1000 / self.sim_setup["dt"])
@@ -67,7 +66,7 @@ class BaseSimulationConfig:
             output_energy_freq = int(new_nsteps / nb_frames / energy_write_nb_frames_ratio)
             self.sim_setup["nstcalcenergy"] = output_energy_freq
             self.sim_setup["nstenergy"] = output_energy_freq
-            self.sim_setup["nstxout-compressed "] = int(new_nsteps / nb_frames)
+            self.sim_setup["nstxout-compressed"] = int(new_nsteps / nb_frames)
 
         return self
 
