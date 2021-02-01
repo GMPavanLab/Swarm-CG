@@ -81,7 +81,8 @@ class SimulationStep:
         return cmd
 
     def _run_setup(self, exec_path):
-        self.sim_setup.get("simulation_config").to_file(exec_path)
+        sim_time = self.sim_setup.get("step_name")
+        self.sim_setup.get("simulation_config").modify_mdp(sim_time).to_file(exec_path)
         return self
 
     def _run_prep(self, cmd):

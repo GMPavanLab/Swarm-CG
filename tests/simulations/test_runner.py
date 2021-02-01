@@ -93,7 +93,6 @@ class TestSimulationStep:
 
         # then:
         expected = "gmx mdrun -deffnm equi -nt 1"
-        print(step.sim_setup, command)
         assert command == expected
 
         # when:
@@ -102,7 +101,6 @@ class TestSimulationStep:
 
         # then:
         expected = "mpirun -np 1 gmx mdrun -deffnm equi -nt 1"
-        print(step.sim_setup, command)
         assert command == expected
 
     def test__run_md(self, ns_opt):
