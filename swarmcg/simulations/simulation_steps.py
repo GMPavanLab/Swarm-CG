@@ -50,9 +50,9 @@ class BaseSimulationConfig:
                    energy_write_nb_frames_ratio=0.1):
 
         if sim_time is not None:
-            new_nsteps = int(sim_time * 1000 / int(self.sim_setop["df"]))
+            new_nsteps = int(sim_time * 1000 / int(self.sim_setup["df"]))
         else:
-            new_nsteps = int(self.sim_setop["nsteps"])
+            new_nsteps = int(self.sim_setup["nsteps"])
 
         self.sim_setup["nsteps"] = new_nsteps
         self.sim_setup["nb_frames"] = nb_frames

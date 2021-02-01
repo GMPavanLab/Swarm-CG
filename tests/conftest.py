@@ -49,7 +49,7 @@ def ns_opt():
         "aa_rg_offset": 0.0,
         "bonds_scaling": config.bonds_scaling,
         "bonds_scaling_str": config.bonds_scaling_str,
-        "min_bonds_length": config.help_min_bonds_length,
+        "min_bonds_length": config.min_bonds_length,
         "temp": config.sim_temperature,
         "keep_all_sims": False,
         "v": True
