@@ -82,7 +82,8 @@ class SimulationStep:
 
     def _run_setup(self, exec_path):
         sim_time = self.sim_setup.get("sim_duration")
-        self.sim_setup.get("simulation_config").modify_mdp(sim_time).to_file(exec_path)
+        nb_frames = self.sim_setup.get("prod_nb_frames")
+        self.sim_setup.get("simulation_config").modify_mdp(sim_time, nb_frames).to_file(exec_path)
         return self
 
     def _run_prep(self, cmd):
@@ -170,6 +171,9 @@ def ns_to_runner(ns, sim_config, prev_gro):
     }
     if hasattr(ns, "prod_sim_time"):
         simulation_setup["sim_duration"] = getattr(ns, "prod_sim_time")
+    if hasattr(ns, "prod_nb_frames"):
+        simulation_setup["prod_nb_frames"] = getattr(ns, "prod_nb_frames")
+
     return simulation_setup
 
 

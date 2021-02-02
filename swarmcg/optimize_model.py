@@ -14,7 +14,6 @@ from swarmcg.simulations import SimulationStep, get_settings
 from swarmcg import config
 from swarmcg.shared import exceptions, catch_warnings, input_parameter_validation
 from swarmcg import swarmCG as scg
-from swarmcg.shared.styling import OPTIMISE_DESCR
 
 
 @catch_warnings(np.VisibleDeprecationWarning)  # filter MDAnalysis + numpy deprecation stuff that is annoying
@@ -325,7 +324,7 @@ def run(ns):
     # ITERATIVE OPTIMIZATION PROCESS #
     ##################################
 
-    sim_types, opti_cycles, sim_cycles = get_settings(ns)
+    sim_types, opti_cycles, sim_cycles, particle_setter = get_settings(ns)
 
     # NOTE: currently, due to an issue in FST-PSO, number of swarm iterations performed is +2 when compared to the numbers we feed
 
@@ -383,6 +382,8 @@ def run(ns):
         # ns.best_fitness_Rg_combined = 0 # id of the best model based on bonded fitness + Rg selection
 
         ns.prod_sim_time = sim_types[sim_cycles[i]]['sim_duration']
+        ns.prod_nb_frames = sim_types[sim_cycles[i]]['prod_nb_frames']
+
         ns.val_guess_fact = sim_types[sim_cycles[i]]['val_guess_fact']
         ns.fct_guess_fact = sim_types[sim_cycles[i]]['fct_guess_fact']
         ns.max_swarm_iter = sim_types[sim_cycles[i]]['max_swarm_iter']
@@ -426,10 +427,7 @@ def run(ns):
           np.sqrt(ns.cg_itp["nb_dihedrals"] * config.sim_crash_EMD_indep_score) \
           , 3)
         # nb_particles = int(10 + 2*np.sqrt(len(search_space_boundaries)))  # formula used by FST-PSO to choose nb of particles, which defines the number of initial guesses we can use
-        nb_particles = int(round(2 + np.sqrt(len(search_space_boundaries))))  # adapted to have less particles and fitted to our problems, which has good initial guesses and error driven initialization
-        if nb_particles < 3:  # actually we probably should make this an open parameter soon (not the minimum, but the REQUIRED number of particles)
-            nb_particles = 3
-        # nb_particles = 2 # for tests
+        nb_particles = particle_setter(search_space_boundaries)  # adapted to have less particles and fitted to our problems, which has good initial guesses and error driven initialization
         initial_guess_list = scg.get_initial_guess_list(ns, nb_particles)
 
         # actual optimization
