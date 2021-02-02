@@ -3,7 +3,13 @@ import numpy as np
 
 
 def get_AA_angles_distrib(ns, beads_ids):
-    """Calculate angles distribution from AA trajectory"""
+    """Calculate angles distribution from AA trajectory.
+
+    ns requires:
+        aa2cg_universe
+        mda_backend
+        bw_angles
+    """
     angle_values_rad = np.empty(len(ns.aa2cg_universe.trajectory) * len(beads_ids))
     frame_values = np.empty(len(beads_ids))
     bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
@@ -29,7 +35,13 @@ def get_AA_angles_distrib(ns, beads_ids):
 
 
 def get_CG_angles_distrib(ns, beads_ids):
-    """Calculate angles using MDAnalysis"""
+    """Calculate angles using MDAnalysis.
+
+    ns requires:
+        cg_universe
+        mda_backend
+        bw_angles
+    """
     angle_values_rad = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
     frame_values = np.empty(len(beads_ids))
     bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)

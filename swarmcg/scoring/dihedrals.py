@@ -3,7 +3,14 @@ import numpy as np
 
 
 def get_AA_dihedrals_distrib(ns, beads_ids):
-    """Calculate dihedrals distribution from AA trajectory"""
+    """Calculate dihedrals distribution from AA trajectory.
+
+    ns requires:
+        aa2cg_universe
+        mda_backend
+        bw_dihedrals
+        bins_dihedrals
+    """
     dihedral_values_rad = np.empty(len(ns.aa2cg_universe.trajectory) * len(beads_ids))
     frame_values = np.empty(len(beads_ids))
     bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
@@ -33,7 +40,14 @@ def get_AA_dihedrals_distrib(ns, beads_ids):
 
 
 def get_CG_dihedrals_distrib(ns, beads_ids):
-    """Calculate dihedrals using MDAnalysis"""
+    """Calculate dihedrals using MDAnalysis.
+
+    ns requires:
+        cg_universe
+        mda_backend
+        bw_dihedrals
+        bins_dihedrals
+    """
     dihedral_values_rad = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
     frame_values = np.empty(len(beads_ids))
     bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)

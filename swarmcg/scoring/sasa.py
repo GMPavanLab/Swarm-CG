@@ -11,7 +11,32 @@ PROBE_RADIUS = 0.26  # nm
 
 
 def compute_SASA(ns, traj_type):
-    """Compute average SASA"""
+    """Compute average SASA.
+
+    ns requires:
+        cg_itp
+        gmx_path
+        aa_tpr_filename
+        aa_traj_filename
+        cg_ndx_filename
+        aa_mapped_tpr_sasa_filename
+        cg_tpr_filename
+        cg_traj_filename
+        cg_sasa_filename
+
+    ns creates:
+        cg_ndx_filename
+        aa_traj_whole_filename
+        aa_mapped_traj_whole_filename
+        aa_mapped_sasa_filename
+        aa_mapped_tpr_sasa_filename
+        sasa_aa_mapped
+        sasa_aa_mapped_std
+        cg_traj_whole_filename
+        cg_sasa_filename
+        sasa_cg
+        sasa_cg_std
+    """
     # NOTE: currently this is just COM mappping via GMX to get the SASA, so it's approximative but that's OK
     #       this works with calls to GMX because only library MDTraj can compute SASA (not MDAnalysis)
     # TODO: MDA is working on it, keep an eye on this: https://github.com/MDAnalysis/mdanalysis/issues/2439

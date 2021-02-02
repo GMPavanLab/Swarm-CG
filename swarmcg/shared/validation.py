@@ -5,6 +5,14 @@ from swarmcg.shared.styling import header_warning
 
 
 def _file_validation(ns):
+    """Check for filename attributes.
+
+    ns requires:
+        aa_tpr_filename
+        aa_traj_filename
+        cg_map_filename
+        cg_itp_filename
+    """
     if not os.path.isfile(ns.aa_tpr_filename):
         msg = (
             f"Cannot find topology file of the atomistic simulation at location: {ns.aa_tpr_filename}\n"
@@ -31,6 +39,16 @@ def _file_validation(ns):
 
 
 def _optimisation_input_validation(ns):
+    """Check for some attributes required by the optimization.
+
+    ns requires:
+        default_max_fct_bonds_opti
+        default_max_fct_angles_opti_f1
+        default_max_fct_angles_opti_f2
+        gmx_args_str
+        nb_threads
+        gpu_id
+    """
     # check that force constants limits make sense
     if ns.default_max_fct_bonds_opti <= 0:
         msg = f"Please provide a value > 0 for argument -max_fct_bonds_f1."
@@ -52,6 +70,18 @@ def _optimisation_input_validation(ns):
 
 
 def input_parameter_validation(ns, config, step=None):
+    """Check for filename attributes.
+
+    ns requires:
+        mapping_type
+        bonds_scaling
+        min_bonds_length
+        bonds_scaling_str
+
+    pass ns to:
+         _file_validation
+        _optimisation_input_validation
+    """
     # check the mapping type
     _file_validation(ns)
 

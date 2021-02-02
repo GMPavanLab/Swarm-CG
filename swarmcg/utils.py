@@ -12,7 +12,11 @@ def print_stdout_forced(*args, **kwargs):
 
 
 def set_MDA_backend(ns):
-    """Set MDAnalysis backend and number of threads"""
+    """Set MDAnalysis backend and number of threads
+
+    ns creates:
+        mda_backend
+    """
     # NOTE: this is not used because MDA is not properly parallelized, in fact with OpenMP backend it's slower than in serial
     if mda.lib.distances.USED_OPENMP:  # if MDAnalysis was compiled with OpenMP support
         ns.mda_backend = 'OpenMP'

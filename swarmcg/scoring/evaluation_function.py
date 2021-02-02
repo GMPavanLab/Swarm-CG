@@ -9,7 +9,33 @@ from swarmcg.utils import print_stdout_forced
 
 
 def eval_function(parameters_set, ns):
-    """Evaluation function to be optimized using FST-PSO"""
+    """Evaluation function to be optimized using FST-PSO.
+
+    ns requires:
+        nb_eval (edited inplace)
+        best_fitness (edited inplace)
+        sasa_cg (edited inplace)
+        exec_folder
+        cg_itp_basename
+        opti_cycle
+        out_itp
+        worst_fit_score
+
+    ns creates:
+        cg_tpr_filename
+        cg_traj_filename
+        plot_filename
+        all_emd_dist_geoms
+        gyr_cg
+        gyr_cg_std
+        sasa_cg_std
+        total_gmx_time
+        total_eval_time
+        total_model_eval_time
+
+    pass ns to:
+       compare_models
+    """
     ns.nb_eval += 1
     start_eval_ts = datetime.now().timestamp()
 
