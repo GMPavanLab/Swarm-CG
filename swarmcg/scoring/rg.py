@@ -2,7 +2,22 @@ import numpy as np
 
 
 def compute_Rg(ns, traj_type):
-    """Compute average radius of gyration"""
+    """Compute average radius of gyration.
+
+    ns requires:
+        aa_universe
+        aa2cg_universe
+        cg_universe
+        mda_backend
+
+    ns creates:
+        gyr_aa
+        gyr_aa_std
+        gyr_aa_mapped
+        gyr_aa_mapped_std
+        gyr_cg
+        gyr_cg_std
+    """
     if traj_type == 'AA':
 
         gyr_aa = np.empty(len(ns.aa_universe.trajectory))

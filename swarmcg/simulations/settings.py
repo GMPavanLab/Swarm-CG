@@ -2,10 +2,21 @@ import numpy as np
 
 
 def _defatul_particle_setter(search_space_size):
+    """Function to determined the number of particles"""
     return max(int(round(2 + np.sqrt(len(search_space_size)))), 3)
 
 
 def get_settings(ns):
+    """Get simulation and optimzation settings.
+
+    ns requires:
+        sim_type
+
+    pass ns to:
+        _optimal
+        _fast
+        _test
+    """
     if ns.sim_type == "OPTIMAL":
         return _optimal(ns)
     elif ns.sim_type == "FAST":
@@ -18,9 +29,16 @@ def get_settings(ns):
 
 
 def _optimal(ns):
-    """OPTIMAL Simulation strategy
+    """OPTIMAL Simulation strategy.
+
     Should be fine with any type of molecule, big or small,
-    as long as the BI keeps yielding close enough results, which should be the case"""
+    as long as the BI keeps yielding close enough results, which should be the case
+
+    ns requires:
+        cg_itp
+        sim_duration_short
+        sim_duration_long
+    """
     sim_types = {
         0: {"sim_duration": ns.sim_duration_short,
             "prod_nb_frames": 15000,
@@ -47,8 +65,7 @@ def _optimal(ns):
 
 
 def _fast(ns):
-    """ Simulation strategy FAST -
-    Suited for small molecules or rapid optimization"""
+    """ Simulation strategy FAST - Suited for small molecules or rapid optimization"""
     sim_types = {
         0: {"sim_duration": 10, "prod_nb_frames": 5000, "max_swarm_iter": 10,
             "max_swarm_iter_without_new_global_best": 5, "val_guess_fact": 1, "fct_guess_fact": 0.40},
@@ -63,8 +80,7 @@ def _fast(ns):
 
 
 def _test(ns):
-    """ Simulation strategy TEST -
-    Suited for test"""
+    """ Simulation strategy TEST - Suited for test"""
     sim_types = {
         0: {"sim_duration": 0.5, "prod_nb_frames": 500, "max_swarm_iter": 1,
             "max_swarm_iter_without_new_global_best": 1, "val_guess_fact": 1, "fct_guess_fact": 0.40},

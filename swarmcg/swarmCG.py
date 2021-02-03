@@ -21,9 +21,16 @@ matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend sui
 # TODO: When provided trajectory file does NOT contain PBC infos (box position and size for each frame, which are present in XTC format for example), we want to stil accept the provided trajectory format (if accepted by MDAnalysis) but we automatically disable the handling of PBC by the code
 
 
-# read one or more molecules from the AA TPR and trajectory
 def load_aa_data(ns):
+	"""Read one or more molecules from the AA TPR and trajectory.
 
+	ns requires:
+		aa_universe
+
+	ns creates:
+		all_atoms
+		all_aa_mols
+	"""
 	ns.all_atoms = dict() # atom centered connectivity + atom type + heavy atom boolean + bead(s) to which the atom belongs (can belong to multiple beads depending on mapping)
 	ns.all_aa_mols = [] # atom groups for each molecule of interest, in case we use several and average the distributions across many molecules, as we would do for membranes analysis
 
@@ -70,9 +77,16 @@ def load_aa_data(ns):
 	# print('Net charge of the reference all atom model:', round(net_charge, 4))
 
 
-# load CG beads from NDX-like file
 def read_ndx_atoms2beads(ns):
+	"""Load CG beads from NDX-like file.
 
+	ns requires:
+		cg_map_filename
+
+	ns creates:
+		atoms_occ_total
+		all_beads
+	"""
 	with open(ns.cg_map_filename, 'r') as fp:
 
 		ndx_lines = fp.read().split('\n')
@@ -126,10 +140,19 @@ def read_ndx_atoms2beads(ns):
 			raise exceptions.MissformattedFile(msg)
 
 
-# calculate weight ratio of atom ID in given CG bead
-# this is for splitting atom weight in case an atom is mapped to several CG beads
 def get_atoms_weights_in_beads(ns):
+	"""Calculate weight ratio of atom ID in given CG bead.
 
+	This is for splitting atom weight in case an atom is mapped to several CG beads.
+
+	ns requires:
+		verbose
+		all_beads
+		mapping_type
+
+	ns creates:
+		atom_w
+	"""
 	ns.atom_w = dict()
 	if ns.verbose:
 		print('Calculating atoms weights ratio within mapped CG beads')
@@ -145,9 +168,19 @@ def get_atoms_weights_in_beads(ns):
 		print()
 
 
-# for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
 def get_beads_MDA_atomgroups(ns):
+	"""For each CG bead, create atom groups for trajectory geoms calculation using mass and atom
+	weights across beads.
 
+	ns requires:
+		mapping_type
+		atom_w
+		aa_universe
+
+	ns creates:
+		mda_beads_atom_grps
+		mda_weights_atom_grps
+	"""
 	ns.mda_beads_atom_grps, ns.mda_weights_atom_grps = dict(), dict()
 	for bead_id in ns.atom_w:
 		try:
@@ -167,9 +200,15 @@ def get_beads_MDA_atomgroups(ns):
 			)
 			raise exceptions.MissformattedFile(msg)
 
-# update coarse-grain ITP
-def update_cg_itp_obj(ns, parameters_set, update_type):
 
+def update_cg_itp_obj(ns, parameters_set, update_type):
+	"""Update coarse-grain ITP.
+
+	ns requires:
+		out_itp (edited inplace)
+		opti_cycle
+		exec_mode
+	"""
 	if update_type == 1:  # intermediary
 		itp_obj = ns.out_itp
 	elif update_type == 2:  # cycles optimized
@@ -207,9 +246,17 @@ def update_cg_itp_obj(ns, parameters_set, update_type):
 			itp_obj['dihedral'][i]['fct'] = round(parameters_set[ns.opti_cycle['nb_geoms']['bond'] + ns.opti_cycle['nb_geoms']['angle'] + i], 2)  # dihedral - force constant
 
 
-# set dimensions of the search space according to the type of optimization (= geom type(s) to optimize)
 def get_search_space_boundaries(ns):
+	"""Set dimensions of the search space according to the type of optimization
+	(= geom type(s) to optimize).
 
+	ns requires:
+		domains_val
+		default_max_fct_bonds_opti
+		opti_cycle
+		cg_itp
+		exec_mode
+	"""
 	search_space_boundaries = []
 
 	if ns.opti_cycle['nb_geoms']['constraint'] > 0:
@@ -244,13 +291,33 @@ def get_search_space_boundaries(ns):
 	return search_space_boundaries
 
 
-# build initial guesses for particles initialization, as variations around parameters obtained via Boltzmann inversion (BI)
-# this is done in an iterative fashion:
-#   1st read atom mapped traj constraints/bonds and perform BI to obtain the 1st set of parameters and then find variations in this function
-#   2nd read angles from the best constraints/bonds-only optimized model, perform BI and do the ratio with BI of the atom mapped traj to add only the required amount of energy and obtain 1st set of parameters
-#   3rd do dihedrals the similarly, using BI ratio
 def get_initial_guess_list(ns, nb_particles):
+	"""Build initial guesses for particles initialization, as variations around parameters obtained
+	via Boltzmann inversion (BI).
 
+	This is done in an iterative fashion:
+		- read atom mapped traj constraints/bonds and perform BI to obtain the 1st set of parameters
+		and then find variations in this function
+		- read angles from the best constraints/bonds-only optimized model, perform BI and do the
+		ratio with BI of the atom mapped traj to add only the required amount of energy and obtain
+		1st set of parameters
+		- do dihedrals the similarly, using BI ratio
+
+	ns requires:
+		exec_mode
+		opti_cycle
+		domains_val
+		out_itp
+		default_max_fct_bonds_opti
+		default_max_fct_angles_opti_f1
+		default_max_fct_angles_opti_f2
+		default_abs_range_fct_dihedrals_opti_func_without_mult
+		default_abs_range_fct_dihedrals_opti_func_with_mult
+		all_best_params_dist_geoms
+		all_emd_dist_geoms
+		bond_dist_guess_variation
+		val_guess_fact
+	"""
 	initial_guess_list = []  # array of arrays (inner arrays are the values used for particles initialization)
 
 	# the first particle is initialized as EXACTLY the values of the current CG ITP object (or BI in exec_mode 1)
@@ -522,7 +589,14 @@ def get_initial_guess_list(ns, nb_particles):
 
 
 def initialize_cg_traj(ns):
+	"""Initialize cg trajectory universe object.
 
+	ns requires:
+		cg_itp
+
+	ns creates:
+		aa2cg_universe
+	"""
 	masses = np.array([val['mass'] for val in ns.cg_itp['atoms']])
 	names = np.array([val['atom'] for val in ns.cg_itp['atoms']])
 	resnames = np.array([val['residue'] for val in ns.cg_itp['atoms']])
@@ -539,7 +613,30 @@ def initialize_cg_traj(ns):
 
 
 def map_aa2cg_traj(ns):
+	"""Initialize cg trajectory universe object.
 
+	ns requires:
+		cg_itp
+		mapping_type
+		mda_beads_atom_grps
+		aa_universe
+		aa2cg_universe (edited inplace)
+
+	ns creates:
+		aa2cg_universe
+
+	pass ns to:
+		vsn_func_1
+		vsn_func_2
+		vsn_func_3
+		vs2_func_1
+		vs2_func_2
+		vs3_func_1
+		vs3_func_2
+		vs3_func_3
+		vs3_func_4
+		vs4_func_2
+	"""
 	if ns.mapping_type == 'COM':
 		print('  Interpretation: Center of Mass (COM)')
 	elif ns.mapping_type == 'COG':
@@ -612,9 +709,13 @@ def map_aa2cg_traj(ns):
 	ns.aa2cg_universe.load_new(coord, format=mda.coordinates.memory.MemoryReader)
 
 
-# use selected whole molecules as MDA atomgroups and make their coordinates whole, inplace, across the complete tAA rajectory
 def make_aa_traj_whole_for_selected_mols(ns):
-	
+	"""Use selected whole molecules as MDA atomgroups and make their coordinates whole, inplace,
+	across the complete AA trajectory
+
+	ns requires:
+		aa_universe (edited inplace)
+	"""
 	# TODO: add an option to NOT read the PBC in case user would feed a trajectory that is already unwrapped for
 	#       molecule and their trajectory does NOT contain box dimensions (universe.dimensions)
 	#       (this was an issue I encountered with Davide B3T traj GRO)
@@ -626,7 +727,20 @@ def make_aa_traj_whole_for_selected_mols(ns):
 @catch_warnings(RuntimeWarning)  # ignore the warning "divide by 0 encountered in true_divide" while calculating sigma
 def perform_BI(ns):
 	"""Update ITP force constants with Boltzmann inversion for selected geoms at this
-	given optimization step"""
+	given optimization step.
+
+	ns requires:
+		performed_init_BI (edited inplace)
+		out_itp (edited inplace)
+		opti_cycle
+		data_BI
+		default_max_fct_bonds_bi
+		default_max_fct_bonds_opti
+		default_abs_range_fct_dihedrals_opti_func_with_mult
+		default_abs_range_fct_dihedrals_opti_func_without_mult
+		temp
+		verbose
+	"""
 	# NOTE: currently all of these are just BI, not BI to completion using only required ADDITIONAL amount of energy, which might make a difference when we perform the BI after bonds+angles optimization cycles
 	# TODO: refactorize BI in separate function to be used during both model_prep and at start of model_opti
 	# TODO: other dihedrals functions
@@ -788,8 +902,14 @@ def perform_BI(ns):
 
 
 def process_scaling_str(ns):
+	"""Process specific bonds scaling string, if provided.
 
-	# process specific bonds scaling string, if provided
+	ns requires:
+		bonds_scaling_str
+
+	ns creates:
+		bonds_scaling_specific
+	"""
 	ns.bonds_scaling_specific = None
 	if ns.bonds_scaling_str != config.bonds_scaling_str:
 		sp_str = ns.bonds_scaling_str.split()
@@ -834,9 +954,35 @@ def process_scaling_str(ns):
 			raise exceptions.InvalidArgument('bonds_scaling_str', ns.bonds_scaling_str)
 
 
-# compare 2 models -- atomistic and CG models with plotting
 def compare_models(ns, manual_mode=True, ignore_dihedrals=False, calc_sasa=False, record_best_indep_params=False):
+	"""Compare 2 models -- atomistic and CG models with plotting.
 
+	ns requires:
+		all_best_emd_dist_geoms (edited inplace)
+		all_best_params_dist_geoms (edited inplace)
+		atom_only
+		cg_tpr_filename
+		cg_traj_filename
+		cg_itp
+		aa2cg_universe
+		mismatch_order
+		row_x_scaling
+		ncols_max
+		plot_filename
+
+	ns creates:
+		cg_universe
+
+	pass ns to:
+		compute_Rg
+		compute_SASA
+		get_AA_bonds_distrib
+		get_CG_bonds_distrib
+		get_AA_angles_distrib
+		get_CG_angles_distrib
+		get_AA_dihedrals_distrib
+		get_CG_dihedrals_distrib
+	"""
 	# graphical parameters
 	plt.rcParams['grid.color'] = 'k' # plt grid appearance settings
 	plt.rcParams['grid.linestyle'] = ':'

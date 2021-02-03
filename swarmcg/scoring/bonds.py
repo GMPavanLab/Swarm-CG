@@ -5,7 +5,21 @@ from swarmcg import config
 
 
 def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
-    """calculate bonds distribution from AA trajectory"""
+    """Calculate bonds distribution from AA trajectory.
+
+    ns requires:
+        aa2cg_universe
+        mda_backend
+        bw_constraints
+        bw_bonds
+        bonds_scaling
+        bonds_scaling_specific
+        bins_constraints
+        bins_bonds
+
+    ns creates:
+        bonds_rescaling_performed
+    """
     bond_values = np.empty(len(ns.aa2cg_universe.trajectory) * len(beads_ids))
     frame_values = np.empty(len(beads_ids))
     bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
@@ -79,7 +93,15 @@ def get_AA_bonds_distrib(ns, beads_ids, grp_type, grp_nb):
 
 
 def get_CG_bonds_distrib(ns, beads_ids, grp_type):
-    """"Calculate bonds distribution from CG trajectory"""
+    """"Calculate bonds distribution from CG trajectory.
+
+    ns requires:
+        cg_universe
+        bw_bonds
+        bw_constraints
+        bins_constraints
+        bins_bonds
+    """
     bond_values = np.empty(len(ns.cg_universe.trajectory) * len(beads_ids))
     frame_values = np.empty(len(beads_ids))
     bead_pos_1 = np.empty((len(beads_ids), 3), dtype=np.float32)
