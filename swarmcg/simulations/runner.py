@@ -81,7 +81,9 @@ class SimulationStep:
         return cmd
 
     def _run_setup(self, exec_path):
-        self.sim_setup.get("simulation_config").to_file(exec_path)
+        sim_time = self.sim_setup.get("sim_duration")
+        nb_frames = self.sim_setup.get("prod_nb_frames")
+        self.sim_setup.get("simulation_config").modify_mdp(sim_time, nb_frames).to_file(exec_path)
         return self
 
     def _run_prep(self, cmd):
@@ -147,7 +149,7 @@ class SimulationStep:
 
 
 def ns_to_runner(ns, sim_config, prev_gro):
-    return {
+    simulation_setup = {
         "exec": ns.gmx_path,
         "gro": prev_gro,
         "mdp": getattr(ns, sim_config.mdp_base_name),
@@ -165,8 +167,14 @@ def ns_to_runner(ns, sim_config, prev_gro):
         "monitor_file":  f"{sim_config.md_output}.log",
         "keep_alive_n_cycles": ns.process_alive_nb_cycles_dead,
         "seconds_between_checks": ns.process_alive_time_sleep,
-        "simulation_config": sim_config
+        "simulation_config": sim_config,
     }
+    if hasattr(ns, "prod_sim_time"):
+        simulation_setup["sim_duration"] = getattr(ns, "prod_sim_time")
+    if hasattr(ns, "prod_nb_frames"):
+        simulation_setup["prod_nb_frames"] = getattr(ns, "prod_nb_frames")
+
+    return simulation_setup
 
 
 def generate_steps(ns):

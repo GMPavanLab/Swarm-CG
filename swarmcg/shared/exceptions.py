@@ -6,6 +6,7 @@ header_gmx_error = "\n\n  GMX ERROR MSG\n" + sep + "\n\n"
 
 # TODO: disable showing exceptions traceback for distributing to users ? maybe there is a way we can keep it active for our dev purpose though ?
 
+
 class BaseError(Exception):
     """
     Base exception class.

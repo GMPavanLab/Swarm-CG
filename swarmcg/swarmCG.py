@@ -21,10 +21,6 @@ matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend sui
 # TODO: When provided trajectory file does NOT contain PBC infos (box position and size for each frame, which are present in XTC format for example), we want to stil accept the provided trajectory format (if accepted by MDAnalysis) but we automatically disable the handling of PBC by the code
 
 
-def par_wrap(string):
-	return f'({string})'
-
-
 # read one or more molecules from the AA TPR and trajectory
 def load_aa_data(ns):
 

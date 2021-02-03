@@ -1,10 +1,21 @@
+import os
+
 import pytest
 
 from swarmcg.shared import exceptions
 from swarmcg.simulations.simulation_steps import Minimisation, Equilibration, Production
 
 
-class TestMinimisation:
+class BaseTest:
+
+    def cleanup(self, delete_files):
+        if isinstance(delete_files, str):
+            delete_files = [delete_files]
+        for f in delete_files:
+            os.remove(f)
+
+
+class TestMinimisation(BaseTest):
 
     filename = "./tests/data/mini.mdp"
 
@@ -29,8 +40,29 @@ class TestMinimisation:
     def test_read_mdp(self):
         assert isinstance(Minimisation.read_mdp(TestMinimisation.filename), dict)
 
+    def test_modify_mdp(self):
+        # given:
+        mini = Minimisation(TestEquilibration.filename)
 
-class TestEquilibration:
+        # then:
+        assert mini.sim_setup["nsteps"] == 10000
+
+        # when:
+        mini.modify_mdp(sim_time=10)
+
+        # then:
+        assert mini.sim_setup["nsteps"] == 10000
+
+        # when:
+        mini.to_file(".")
+
+        # then:
+        mini = Minimisation("./equi.mdp")
+        assert mini.sim_setup["nsteps"] == 10000
+        self.cleanup("./equi.mdp")
+
+
+class TestEquilibration(BaseTest):
 
     filename = "./tests/data/equi.mdp"
 
@@ -55,8 +87,29 @@ class TestEquilibration:
     def test_read_mdp(self):
         assert isinstance(Equilibration.read_mdp(TestEquilibration.filename), dict)
 
+    def test_modify_mdp(self):
+        # given:
+        equi = Equilibration(TestEquilibration.filename)
 
-class TestProduction:
+        # then:
+        assert equi.sim_setup["nsteps"] == 10000
+
+        # when:
+        equi.modify_mdp(sim_time=10)
+
+        # then:
+        assert equi.sim_setup["nsteps"] == 10000
+
+        # when:
+        equi.to_file(".")
+
+        # then:
+        equi = Production("./equi.mdp")
+        assert equi.sim_setup["nsteps"] == 10000
+        self.cleanup("./equi.mdp")
+
+
+class TestProduction(BaseTest):
 
     filename = "./tests/data/md.mdp"
 
@@ -79,3 +132,27 @@ class TestProduction:
 
     def test_read_mdp(self):
         assert isinstance(Production.read_mdp(TestProduction.filename), dict)
+
+    def test_modify_mdp(self):
+        # given:
+        prod = Production(TestProduction.filename)
+
+        # then:
+        assert prod.sim_setup["nsteps"] == 15000
+
+        # when:
+        prod.modify_mdp(sim_time=10)
+
+        # then:
+        assert prod.sim_setup["nsteps"] == 10 * 1000 / 0.02
+
+        # when:
+        prod.to_file(".")
+
+        # then:
+        prod = Production("./md.mdp")
+        assert prod.sim_setup["nsteps"] == 10 * 1000 / 0.02
+        self.cleanup("./md.mdp")
+
+
+

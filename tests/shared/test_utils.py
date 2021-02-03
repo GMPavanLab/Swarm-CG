@@ -1,6 +1,8 @@
 import warnings
 
-from swarmcg.shared import catch_warnings
+import pytest
+
+from swarmcg.shared.utils import catch_warnings, parse_string_args
 
 
 def test_cath_warnings():
@@ -23,3 +25,9 @@ def test_cath_warnings():
 
     # then:
     assert len(w) == 0
+
+
+@pytest.mark.parametrize("input, output", [("1.1", 1.1), ("1", 1), ("123niu", "123niu")])
+def test_parse_string_args(input, output):
+    assert output == parse_string_args(input)
+

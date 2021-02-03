@@ -1,6 +1,7 @@
 import os, re
 
 from swarmcg.shared import exceptions
+from swarmcg.shared.utils import parse_string_args
 
 
 class BaseSimulationConfig:
@@ -28,12 +29,13 @@ class BaseSimulationConfig:
         f_keep = lambda x: re.match(KEEP_PATTERN, x).group()
         cleaned = filter(None, map(f_clean, raw_content))
         split = map(f_split, cleaned)
-        return {k: f_keep(v) for k, v in split}
+        sim_setup = {k: f_keep(v) for k, v in split}
+        return {k: parse_string_args(v) for k, v in sim_setup.items()}
 
     def to_string(self):
         output_string = ""
         for k, v in self.sim_setup.items():
-            output_string += f"{k}\t\t = {str(v)}\n"
+            output_string += f"{k}".ljust(25, " ") + f"  = {str(v)}\n"
         return output_string
 
     def _validate_init(self):
@@ -48,23 +50,25 @@ class BaseSimulationConfig:
 
     def modify_mdp(self, sim_time=None, nb_frames=1500, log_write_freq=5000,
                    energy_write_nb_frames_ratio=0.1):
+        if self.edit_mpd:
+            if sim_time is not None:
+                new_nsteps = int(sim_time * 1000 / self.sim_setup["dt"])
+            else:
+                new_nsteps = int(self.sim_setup["nsteps"])
 
-        if sim_time is not None:
-            new_nsteps = int(sim_time * 1000 / int(self.sim_setup["df"]))
-        else:
-            new_nsteps = int(self.sim_setup["nsteps"])
+            self.sim_setup["nsteps"] = new_nsteps
+            self.sim_setup["nb_frames"] = nb_frames
+            self.sim_setup["nstlog"] = log_write_freq
+            self.sim_setup["nstvout"] = new_nsteps
+            self.sim_setup["nstxout"] = new_nsteps
+            self.sim_setup["nstfout"] = new_nsteps
 
-        self.sim_setup["nsteps"] = new_nsteps
-        self.sim_setup["nb_frames"] = nb_frames
-        self.sim_setup["nstlog"] = log_write_freq
-        self.sim_setup["nstvout"] = new_nsteps
-        self.sim_setup["nstxout"] = new_nsteps
-        self.sim_setup["nstfout"] = new_nsteps
+            output_energy_freq = int(new_nsteps / nb_frames / energy_write_nb_frames_ratio)
+            self.sim_setup["nstcalcenergy"] = output_energy_freq
+            self.sim_setup["nstenergy"] = output_energy_freq
+            self.sim_setup["nstxout-compressed"] = int(new_nsteps / nb_frames)
 
-        output_energy_freq = int(new_nsteps / nb_frames / energy_write_nb_frames_ratio)
-        self.sim_setup["nstcalcenergy"] = output_energy_freq
-        self.sim_setup["nstenergy"] = output_energy_freq
-        self.sim_setup["nstxout-compressed "] = int(new_nsteps / nb_frames)
+        return self
 
     def to_file(self, destination_path):
         with open(os.path.join(destination_path, self.base_name), "w") as fp:
@@ -77,6 +81,7 @@ class Minimisation(BaseSimulationConfig):
     step_name = "minimisation"
     md_output = "mini"
     mdp_base_name = "mdp_minimization_basename"
+    edit_mpd = False
 
 
 class Equilibration(BaseSimulationConfig):
@@ -85,6 +90,7 @@ class Equilibration(BaseSimulationConfig):
     step_name = "equilibration"
     md_output = "equi"
     mdp_base_name = "mdp_equi_basename"
+    edit_mpd = False
 
 
 class Production(BaseSimulationConfig):
@@ -93,6 +99,7 @@ class Production(BaseSimulationConfig):
     step_name = "production"
     md_output = "md"
     mdp_base_name = "mdp_md_basename"
+    edit_mpd = True
 
 
 def select_class(flag, ns):
