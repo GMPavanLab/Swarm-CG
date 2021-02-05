@@ -11,9 +11,7 @@ class BaseInput:
         self._ns = namespace
 
     def __getattr__(self, name):
-        if not hasattr(self, name):
-            return getattr(self._ns, name)
-        else:
+        if name not in vars(self):
             return getattr(self._ns, name)
 
     def _get_basename(self, name):
