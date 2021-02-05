@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 
 from . import exceptions
@@ -54,6 +52,5 @@ def ewma(hist, alpha, windowSize):
     """
     wghts = (1 - alpha) ** np.arange(windowSize)
     wghts = wghts / wghts.sum()
-    out = np.full(len(hist), np.nan)
     out = np.convolve(hist, wghts, 'same')
     return out

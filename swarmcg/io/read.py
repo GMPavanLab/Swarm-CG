@@ -4,18 +4,20 @@ import warnings
 import MDAnalysis as mda
 
 from swarmcg import config
-from swarmcg.shared import exceptions
+from swarmcg.shared import exceptions, catch_warnings
+from swarmcg.shared import catch_warnings
 
 
+@catch_warnings(ImportWarning)  # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
 def read_aa_traj(ns):
-    """Read atomistic trajectory"""
+    """Read atomistic trajectory
+
+    ns creates:
+        aa_universe
+    """
     print('Reading All Atom (AA) trajectory')
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore",
-                                category=ImportWarning)  # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
-        ns.aa_universe = mda.Universe(ns.aa_tpr_filename, ns.aa_traj_filename,
-                                      in_memory=True, refresh_offsets=True,
-                                      guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default in some MDA versions
+    ns.aa_universe = mda.Universe(ns.aa_tpr_filename, ns.aa_traj_filename,
+                                  in_memory=True, refresh_offsets=True, guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default in some MDA versions
     print('  Found', len(ns.aa_universe.trajectory), 'frames')
 
 
@@ -116,7 +118,14 @@ def validate_cg_itp(cg_itp, **kwargs):
 
 
 def read_cg_itp_file(ns):
-    """Read coarse-grain ITP"""
+    """Read coarse-grain ITP
+
+    ns required:
+        cg_itp_filename
+        user_input
+        default_max_fct_bonds_opti
+        default_max_fct_angles_opti_f1
+    """
     print('Reading Coarse-Grained (CG) ITP file')
     cg_itp = {'moleculetype': {'molname': '', 'nrexcl': 0}, 'atoms': [], 'constraint': [],
               'bond': [], 'angle': [], 'dihedral': [], 'virtual_sites2': {},
