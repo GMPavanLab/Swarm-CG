@@ -1,6 +1,7 @@
 import numpy as np
 import MDAnalysis as mda
 
+
 # All these functions for virtual sites definitions are explained
 # in the GROMACS manual part 5.5.7 (page 379 in manual version 2020)
 # Check also the bonded potentials table best viewed here:
@@ -21,7 +22,7 @@ def vs2_func_1(ns, traj, vs_def_beads_ids, vs_params):
     """
     i, j = vs_def_beads_ids
     a = vs_params  # weight
-    weights = np.array([1-a, a])
+    weights = np.array([1 - a, a])
 
     for ts in ns.aa2cg_universe.trajectory:
         traj[ts.frame] = ns.aa2cg_universe.atoms[[i, j]].center(weights)
@@ -96,7 +97,7 @@ def vs3_func_2(ns, traj, vs_def_beads_ids, vs_params):
         pos_k = ns.aa2cg_universe.atoms[k].position
         r_ij = pos_j - pos_i
         r_jk = pos_k - pos_j
-        comb_ijk = (1-a) * r_ij + a * r_jk
+        comb_ijk = (1 - a) * r_ij + a * r_jk
         traj[ts.frame] = pos_i + b * (comb_ijk / mda.lib.mdamath.norm(comb_ijk))
 
 
@@ -121,7 +122,8 @@ def vs3_func_3(ns, traj, vs_def_beads_ids, vs_params):
         r_ij = pos_j - pos_i
         r_jk = pos_k - pos_j
         comb_ijk = r_jk - (np.dot(r_ij, r_jk) / np.dot(r_ij, r_ij)) * r_ij
-        traj[ts.frame] = pos_i + d * np.cos(ang_rad) * (r_ij / mda.lib.mdamath.norm(r_ij)) + d * np.sin(ang_rad) * (comb_ijk / mda.lib.mdamath.norm(comb_ijk))
+        traj[ts.frame] = pos_i + d * np.cos(ang_rad) * (r_ij / mda.lib.mdamath.norm(r_ij)) + d * np.sin(ang_rad) * (
+                    comb_ijk / mda.lib.mdamath.norm(comb_ijk))
 
 
 def vs3_func_4(ns, traj, vs_def_beads_ids, vs_params):
@@ -142,7 +144,8 @@ def vs3_func_4(ns, traj, vs_def_beads_ids, vs_params):
         pos_k = ns.aa2cg_universe.atoms[k].position
         r_ij = pos_j - pos_i
         r_ik = pos_k - pos_i
-        traj[ts.frame] = pos_i + a * r_ij + b * r_ik - c * (r_ij / mda.lib.mdamath.norm(r_ij) * r_ik / mda.lib.mdamath.norm(r_ik))
+        traj[ts.frame] = pos_i + a * r_ij + b * r_ik - c * (
+                    r_ij / mda.lib.mdamath.norm(r_ij) * r_ik / mda.lib.mdamath.norm(r_ik))
 
 
 # Functions for virtual_sites4
@@ -202,11 +205,12 @@ def vsn_func_2(ns, traj, vs_def_beads_ids, bead_id):
     # because this is COM so 0 mass means a bead that was marked for defining the VS is in fact ignored
     zero_mass_beads_ids = []
     for bid in vs_def_beads_ids:
-        if bid in ns.cg_itp['virtual_sitesn']:
-            if ns.cg_itp['virtual_sitesn'][bid]['mass'] == 0:
+        if bid in ns.cg_itp["virtual_sitesn"]:
+            if ns.cg_itp["virtual_sitesn"][bid]["mass"] == 0:
                 zero_mass_beads_ids.append(bid)
     if len(zero_mass_beads_ids) > 0:
-        print('  WARNING: Virtual site ID {} uses function 2 for COM, but its definition contains IDs ' + ' '.join(zero_mass_beads_ids) + 'which have no mass'.format(bead_id + 1))
+        print("  WARNING: Virtual site ID {} uses function 2 for COM, but its definition contains IDs " + " ".join(
+            zero_mass_beads_ids) + "which have no mass".format(bead_id + 1))
 
     for ts in ns.aa2cg_universe.trajectory:
         traj[ts.frame] = ns.aa2cg_universe.atoms[vs_def_beads_ids].center_of_mass(pbc=None)
@@ -220,12 +224,7 @@ def vsn_func_3(ns, traj, vs_def_beads_ids, vs_params):
     ns requires:
         aa2cg_universe (edited inplace)
     """
-    masses_and_weights = np.array([ns.aa2cg_universe.atoms[vs_def_beads_ids[i]].mass * vs_params[i] for i in range(len(vs_def_beads_ids))])
+    masses_and_weights = np.array(
+        [ns.aa2cg_universe.atoms[vs_def_beads_ids[i]].mass * vs_params[i] for i in range(len(vs_def_beads_ids))])
     for ts in ns.aa2cg_universe.trajectory:
         traj[ts.frame] = ns.aa2cg_universe.atoms[vs_def_beads_ids].center(masses_and_weights)
-
-
-
-
-
-

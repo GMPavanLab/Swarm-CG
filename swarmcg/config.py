@@ -55,7 +55,8 @@ handled_functions = {
     "constraint": [1],  # tested and verified: 1
     "bond": [1],  # tested and verified: 1
     "angle": [1, 2],  # tested and verified: 1, 2
-    "dihedral": [1, 2, 4],  # tested and verified: 1, 2, 4 -- ongoing: 9 (need to merge the 1+ dihedrals groups on plots)
+    "dihedral": [1, 2, 4],
+    # tested and verified: 1, 2, 4 -- ongoing: 9 (need to merge the 1+ dihedrals groups on plots)
     "virtual_sites2": [1],  # tested and verified: 1 -- ongoing: 2 (need GMX 2020)
     "virtual_sites3": [1, 2, 3, 4],  # tested and verified: 1, 2, 3, 4
     "virtual_sites4": [2],  # tested and verified: 2 -- irrelevant: 1
@@ -92,10 +93,3 @@ opti_perf_recap_file = ".internal/opti_recap_evals_perfs_and_params.csv"
 opti_pairwise_distances_file = ".internal/opti_recap_evals_pairwise_distribs_diffs.csv"
 ref_distrib_plots = "reference_AA_distributions.png"
 best_distrib_plots = "optimized_CG_model_distributions.png"
-
-
-
-
-
-
-

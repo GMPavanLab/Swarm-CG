@@ -1,15 +1,16 @@
 import swarmcg
 from .. import config
 
-sep = '----------------------------------------------------------------------'
-sep_close = '+---------------------------------------------------------------------------------------------+'
-header_warning = '\n-- ! WARNING ! --\n'
-header_error = '\n-- ! ERROR ! --\n'
-header_gmx_error = sep + '\n  GMX ERROR MSG\n' + sep + '\n\n'
+sep = "----------------------------------------------------------------------"
+sep_close = "+---------------------------------------------------------------------------------------------+"
+header_warning = "\n-- ! WARNING ! --\n"
+header_error = "\n-- ! ERROR ! --\n"
+header_gmx_error = sep + "\n  GMX ERROR MSG\n" + sep + "\n\n"
 
-# String 'S m a r t  .  C G' Ivrit style Fitted/Full
+
+# String "S m a r t  .  C G" Ivrit style Fitted/Full
 def header_package(module_line):
-	return f"""
+    return f"""
             
         
              ███████╗██╗    ██╗ █████╗ ██████╗ ███╗   ███╗       ██████╗ ██████╗ 
@@ -17,7 +18,7 @@ def header_package(module_line):
              ███████╗██║ █╗ ██║███████║██████╔╝██╔████╔██║█████╗██║     ██║  ███╗
              ╚════██║██║███╗██║██╔══██║██╔══██╗██║╚██╔╝██║╚════╝██║     ██║   ██║
              ███████║╚███╔███╔╝██║  ██║██║  ██║██║ ╚═╝ ██║      ╚██████╗╚██████╔╝
-             ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝   v {swarmcg.__version__ }
+             ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝   v {swarmcg.__version__}
             {module_line}
 {sep_close}
 |                 Swarm-CG is distributed under the terms of the MIT License.                 |
@@ -36,9 +37,10 @@ def header_package(module_line):
 {sep_close}
 """
 
+
 ANALYSE_DESCR = """
 This module produces a visual summary (big plot) of an optimization procedure started with
-module 'scg_optimize' to refine the bonded terms of a coarse-grained (CG) molecular model.
+module "scg_optimize" to refine the bonded terms of a coarse-grained (CG) molecular model.
 It works whether the optimization is ongoing or finished. The plot will be produced in the
 directory provided via argument -opti_dir.
 
@@ -61,7 +63,7 @@ extended conformations).
 EVALUATE_DESCR = """
 This module enables quick evaluation of the fit of bond, angle and dihedral distributions between
 a CG model trajectory and a reference AA model trajectory of an identical molecule, in a single
-comprehensive figure. The figure's rows display bond, angle and dihedral distributions for groups
+comprehensive figure. The figure"s rows display bond, angle and dihedral distributions for groups
 present in your system according to the ITP file.
 
 Arguments allows to specify scaling of the AA bonds used as reference to optimize the CG model.
@@ -93,7 +95,7 @@ This module automatically optimizes the bonded parameters of a CG model to best 
 angles and dihedrals distributions of a reference AA model. Different sets of bonded parameters
 are explored via swarm optimization (FST-PSO) and iterative CG simulations. Bonded parameters are
 evaluated for the matching they produce between AA and CG distributions via a scoring function
-relying on the Earth Movers' Distance (EMD/Wasserstein). The process is designed to execute in
+relying on the Earth Movers" Distance (EMD/Wasserstein). The process is designed to execute in
 4-24h on a standard desktop machine, according to hardware, molecule size and simulations setup. 
 
 This module has 2 optimization modes:
@@ -115,7 +117,7 @@ Independently of parameters, the expected input is:
 
 You can prepare a directory using default input filenames, then provide only argument -in_dir.
 If -in_dir is provided, all filenames provided as arguments will also be searched for within
-this directory. Demonstration data are available at ''' + config.github_url + '''.
+this directory. Demonstration data are available at """ + config.github_url + """.
 
 Arguments allows to specify scaling of the AA bonds used as reference to optimize the CG model.
 An image displaying all AA reference distributions will be created at the very beginning of the

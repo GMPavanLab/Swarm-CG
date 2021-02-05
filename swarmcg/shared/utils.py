@@ -10,7 +10,9 @@ def catch_warnings(warning):
                 warnings.filterwarnings("ignore", category=warning)
                 result = function(*args, **kwargs)
             return result
+
         return wrapper
+
     return decorator
 
 
@@ -23,4 +25,3 @@ def parse_string_args(x):
             return int(to_float)
     except ValueError as _:
         return x
-

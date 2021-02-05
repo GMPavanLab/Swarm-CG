@@ -5,7 +5,6 @@ from swarmcg.io.job_args import defaults
 
 
 def get_optimize_args():
-
     print(styling.header_package("                    Module: CG model optimization\n"))
 
     formatter = lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52)
@@ -26,7 +25,7 @@ def get_optimize_args():
     bullet = " "
 
     optional_args0 = args_parser.add_argument_group(
-    req_args_header + "\n\n" + bullet + "EXECUTION MODE")
+        req_args_header + "\n\n" + bullet + "EXECUTION MODE")
     for arg in ["exec_mode", "sim_type"]:
         optional_args0.add_argument(f"-{arg}", **getattr(defaults, arg).args)
 
@@ -47,11 +46,13 @@ def get_optimize_args():
         optional_args1.add_argument(f"-{arg}", **getattr(defaults, arg).args)
 
     optional_args6 = args_parser.add_argument_group(bullet + "CG MODEL FORCE CONSTANTS")
-    for arg in ["max_fct_bonds_f1", "max_fct_angles_f1", "max_fct_angles_f2", "max_fct_dihedrals_f149", "max_fct_dihedrals_f2"]:
+    for arg in ["max_fct_bonds_f1", "max_fct_angles_f1", "max_fct_angles_f2", "max_fct_dihedrals_f149",
+                "max_fct_dihedrals_f2"]:
         optional_args6.add_argument(f"-{arg}", **getattr(defaults, arg).args)
 
     optional_args5 = args_parser.add_argument_group(bullet + "CG MODEL SCORING")
-    for arg in ["cg_time_short", "cg_time_long", "b2a_score_fact", "bw_constraints", "bw_bonds", "bw_angles", "bw_dihedrals", "bonds_max_range"]:
+    for arg in ["cg_time_short", "cg_time_long", "b2a_score_fact", "bw_constraints", "bw_bonds", "bw_angles",
+                "bw_dihedrals", "bonds_max_range"]:
         optional_args5.add_argument(f"-{arg}", **getattr(defaults, arg).args)
 
     optional_args2 = args_parser.add_argument_group(bullet + "CG MODEL SCALING")
