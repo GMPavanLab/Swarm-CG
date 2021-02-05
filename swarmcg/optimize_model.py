@@ -1,5 +1,4 @@
 import os, sys, shutil, time, copy, contextlib
-from argparse import ArgumentParser, RawTextHelpFormatter, SUPPRESS
 from shlex import quote as cmd_quote
 from datetime import datetime
 
@@ -496,7 +495,7 @@ def main():
     print("Command line:", input_cmdline)
     print("Results directory:", ns.exec_folder)
 
-    run(ns)
+    run(io.OptInput(ns))
 
 
 if __name__ == "__main__":
