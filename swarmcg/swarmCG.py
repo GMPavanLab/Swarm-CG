@@ -120,7 +120,7 @@ def read_ndx_atoms2beads(ns):
     for bead_id in ns.all_beads:
         if len(ns.all_beads[bead_id]["atoms_id"]) == 0:
             msg = (
-                f"The ITP file contains an empty section named {ns.all_beads[bead_id]["section"]} starting at line {ns.all_beads[bead_id]["line_nb"]}."
+                f"The ITP file contains an empty section named {ns.all_beads[bead_id]['section']} starting at line {ns.all_beads[bead_id]['line_nb']}."
                 f"Empty sections are NOT allowed, please fill or delete it."
             )
             raise exceptions.MissformattedFile(msg)
