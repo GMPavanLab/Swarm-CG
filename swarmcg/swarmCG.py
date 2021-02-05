@@ -12,7 +12,7 @@ import swarmcg.scoring as scores
 import swarmcg.simulations.vs_functions as vsf
 from swarmcg import config
 from swarmcg.shared import math_utils, styling, exceptions, catch_warnings
-from swarmcg.utils import draw_float
+from swarmcg.shared.math_utils import draw_float
 from swarmcg.simulations.potentials import (gmx_bonds_func_1, gmx_angles_func_1, gmx_angles_func_2,
 	gmx_dihedrals_func_1, gmx_dihedrals_func_2)
 
@@ -50,31 +50,11 @@ def load_aa_data(ns):
 				atom_heavy = False
 
 			ns.all_atoms[atom_id] = {'conn': set(), 'atom_type': atom_type, 'atom_charge': atom_charge, 'heavy': atom_heavy, 'beads_ids': set(), 'beads_types': set(), 'residue_names': set()}
-			# print(ns.aa_universe.atoms[i].id, ns.aa_universe.atoms[i])
 
 	# TODO: allow reading multiple instances of a molecule to build the reference distributions,
 	#       for extended usage with NOT just one flexible molecule in solvent
 	else:
 		pass
-
-	# print(ns.aa_universe.atoms[1000].segindex, ns.aa_universe.atoms[134].resindex, ns.aa_universe.atoms[134].molnum)
-
-	# for seg in ns.aa_universe.segments:
-
-	# 	print(seg.segid)
-	# 	sel = ns.aa_universe.select_atoms("segid "+str(seg.segid))
-	# 	print(sel.atoms)
-
-	# print(ns.aa_universe.atoms[0].segid)
-
-	# sel = ns.aa_universe.select_atoms("moltype SOL")
-	# for atom in sel.atoms:
-	# 	print(atom.id)
-	# 	print("  ", sel.atoms[atom.id].fragment)
-
-	# TODO: print this charge, if it is not null then we need to check for Q-type beads and for the 2 Q-types that have no defined charge value, raise a warning to tell the user he has to edit the file manually
-	# net_charge = molname_atom_group.total_charge()
-	# print('Net charge of the reference all atom model:', round(net_charge, 4))
 
 
 def read_ndx_atoms2beads(ns):
@@ -588,28 +568,22 @@ def get_initial_guess_list(ns, nb_particles):
 	return initial_guess_list
 
 
-def initialize_cg_traj(ns):
-	"""Initialize cg trajectory universe object.
+def initialize_cg_traj(cg_itp):
+	"""Initialize cg trajectory universe object."""
+	masses = np.array([val['mass'] for val in cg_itp['atoms']])
+	names = np.array([val['atom'] for val in cg_itp['atoms']])
+	resnames = np.array([val['residue'] for val in cg_itp['atoms']])
+	resid = np.array([val['resnr'] for val in cg_itp['atoms']])
+	nr = len(set([val['resnr'] for val in cg_itp['atoms']]))
 
-	ns requires:
-		cg_itp
-
-	ns creates:
-		aa2cg_universe
-	"""
-	masses = np.array([val['mass'] for val in ns.cg_itp['atoms']])
-	names = np.array([val['atom'] for val in ns.cg_itp['atoms']])
-	resnames = np.array([val['residue'] for val in ns.cg_itp['atoms']])
-	resid = np.array([val['resnr'] for val in ns.cg_itp['atoms']])
-	nr = len(set([val['resnr'] for val in ns.cg_itp['atoms']]))
-
-	ns.aa2cg_universe = mda.Universe.empty(len(ns.cg_itp['atoms']), n_residues=nr, atom_resindex=resid, n_segments=1, residue_segindex=np.ones(nr), trajectory=True)
-	ns.aa2cg_universe.add_TopologyAttr('masses')
-	ns.aa2cg_universe._topology.masses.values = np.array(masses)
-	ns.aa2cg_universe.add_TopologyAttr('names')
-	ns.aa2cg_universe._topology.names.values = names
-	ns.aa2cg_universe.add_TopologyAttr('resnames')
-	ns.aa2cg_universe._topology.resnames.values = resnames
+	aa2cg_universe = mda.Universe.empty(len(cg_itp['atoms']), n_residues=nr, atom_resindex=resid, n_segments=1, residue_segindex=np.ones(nr), trajectory=True)
+	aa2cg_universe.add_TopologyAttr('masses')
+	aa2cg_universe._topology.masses.values = np.array(masses)
+	aa2cg_universe.add_TopologyAttr('names')
+	aa2cg_universe._topology.names.values = names
+	aa2cg_universe.add_TopologyAttr('resnames')
+	aa2cg_universe._topology.resnames.values = resnames
+	return aa2cg_universe
 
 
 def map_aa2cg_traj(ns):

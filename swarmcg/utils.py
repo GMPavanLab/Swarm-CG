@@ -1,5 +1,4 @@
 import contextlib
-import random
 import sys
 
 import MDAnalysis as mda
@@ -22,8 +21,3 @@ def set_MDA_backend(ns):
         ns.mda_backend = 'OpenMP'
     else:
         ns.mda_backend = 'serial'
-
-
-def draw_float(low, high, dg_rnd):
-    """Draw random float between given range and apply rounding to given digit"""
-    return round(random.uniform(low, high), dg_rnd)  # low and high included

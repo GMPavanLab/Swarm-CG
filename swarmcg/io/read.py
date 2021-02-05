@@ -1,5 +1,4 @@
 import re
-import warnings
 
 import MDAnalysis as mda
 

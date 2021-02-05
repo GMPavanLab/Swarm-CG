@@ -1,5 +1,4 @@
-def write_cg_itp_file(itp_obj, out_path_itp,
-                      print_sections=['constraint', 'bond', 'angle', 'dihedral', 'exclusion']):
+def write_cg_itp_file(itp_obj, out_path_itp, print_sections=['constraint', 'bond', 'angle', 'dihedral', 'exclusion']):
     """Print coarse-grain ITP. Here we have a switch for print_sections because we might want
     to optimize constraints/bonds/angles/dihedrals separately, so we can leave some out with
     the switch and they will be optimized later"""

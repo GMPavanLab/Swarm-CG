@@ -81,7 +81,7 @@ def run(ns):
 	scg.get_beads_MDA_atomgroups(ns)
 
 	print('\nMapping the trajectory from AA to CG representation')
-	scg.initialize_cg_traj(ns)
+	ns.aa2cg_universe = scg.initialize_cg_traj(ns.cg_itp)
 	scg.map_aa2cg_traj(ns)
 	print()
 

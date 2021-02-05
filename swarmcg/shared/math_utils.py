@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 
 from . import exceptions
@@ -54,3 +56,8 @@ def ewma(hist, alpha, windowSize):
     wghts = wghts / wghts.sum()
     out = np.convolve(hist, wghts, 'same')
     return out
+
+
+def draw_float(low, high, dg_rnd):
+    """Draw random float between given range and apply rounding to given digit"""
+    return round(random.uniform(low, high), dg_rnd)  # low and high included
