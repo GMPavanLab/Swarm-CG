@@ -5,7 +5,6 @@ from swarmcg.io.job_args import defaults
 
 
 def get_analyze_args():
-
     print(styling.header_package("Module: Optimization run analysis\n"))
 
     formatter = lambda prog: RawTextHelpFormatter(prog, width=135, max_help_position=52)

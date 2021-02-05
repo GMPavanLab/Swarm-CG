@@ -7,7 +7,8 @@ from swarmcg.shared import exceptions, catch_warnings
 from swarmcg.shared import catch_warnings
 
 
-@catch_warnings(ImportWarning)  # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
+@catch_warnings(
+    ImportWarning)  # ignore warning: "bootstrap.py:219: ImportWarning: can't resolve package from __spec__ or __package__, falling back on __name__ and __path__"
 def read_aa_traj(ns):
     """Read atomistic trajectory
 
@@ -16,7 +17,8 @@ def read_aa_traj(ns):
     """
     print('Reading All Atom (AA) trajectory')
     ns.aa_universe = mda.Universe(ns.aa_tpr_filename, ns.aa_traj_filename,
-                                  in_memory=True, refresh_offsets=True, guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default in some MDA versions
+                                  in_memory=True, refresh_offsets=True,
+                                  guess_bonds=False)  # setting guess_bonds=False disables angles, dihedrals and improper_dihedrals guessing, which is activated by default in some MDA versions
     print('  Found', len(ns.aa_universe.trajectory), 'frames')
 
 
@@ -440,8 +442,8 @@ def read_cg_itp_file(ns):
                     vs_params = float(sp_itp_line[4])
                     cg_itp['atoms'][bead_id]['vs_type'] = vs_type
                     cg_itp['virtual_sites2'][bead_id] = {'bead_id': bead_id, 'func': func,
-                                                            'vs_def_beads_ids': vs_def_beads_ids,
-                                                            'vs_params': vs_params}
+                                                         'vs_def_beads_ids': vs_def_beads_ids,
+                                                         'vs_params': vs_params}
 
                 elif section_read['vs_3']:
 
@@ -458,8 +460,8 @@ def read_cg_itp_file(ns):
                         vs_params = [float(param) for param in sp_itp_line[5:8]]
                     cg_itp['atoms'][bead_id]['vs_type'] = vs_type
                     cg_itp['virtual_sites3'][bead_id] = {'bead_id': bead_id, 'func': func,
-                                                            'vs_def_beads_ids': vs_def_beads_ids,
-                                                            'vs_params': vs_params}
+                                                         'vs_def_beads_ids': vs_def_beads_ids,
+                                                         'vs_params': vs_params}
 
                 elif section_read['vs_4']:
 
@@ -473,8 +475,8 @@ def read_cg_itp_file(ns):
                     vs_params = [float(param) for param in sp_itp_line[6:9]]
                     cg_itp['atoms'][bead_id]['vs_type'] = vs_type
                     cg_itp['virtual_sites4'][bead_id] = {'bead_id': bead_id, 'func': func,
-                                                            'vs_def_beads_ids': vs_def_beads_ids,
-                                                            'vs_params': vs_params}
+                                                         'vs_def_beads_ids': vs_def_beads_ids,
+                                                         'vs_params': vs_params}
 
                 elif section_read['vs_n']:
 
@@ -497,8 +499,8 @@ def read_cg_itp_file(ns):
                                             vs_def_beads_ids)  # i is the line number
                     cg_itp['atoms'][bead_id]['vs_type'] = vs_type
                     cg_itp['virtual_sitesn'][bead_id] = {'bead_id': bead_id, 'func': func,
-                                                            'vs_def_beads_ids': vs_def_beads_ids,
-                                                            'vs_params': vs_params}
+                                                         'vs_def_beads_ids': vs_def_beads_ids,
+                                                         'vs_params': vs_params}
 
                 elif section_read['exclusion']:
 

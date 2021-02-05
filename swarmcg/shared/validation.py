@@ -89,15 +89,15 @@ def input_parameter_validation(ns, config, step=None):
     mapping_type = ns.mapping_type.upper()
     if mapping_type != 'COM' and mapping_type != 'COG':
         msg = (
-            "Mapping type provided via argument '-mapping' must be either COM or COG (Center of " 
+            "Mapping type provided via argument '-mapping' must be either COM or COG (Center of "
             "Mass or Center of Geometry)."
         )
         raise exceptions.InputArgumentError(msg)
 
     # check bonds scaling arguments conflicts
     if (ns.bonds_scaling != config.bonds_scaling and ns.min_bonds_length != config.min_bonds_length) or (
-        ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (
-        ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
+            ns.bonds_scaling != config.bonds_scaling and ns.bonds_scaling_str != config.bonds_scaling_str) or (
+            ns.min_bonds_length != config.min_bonds_length and ns.bonds_scaling_str != config.bonds_scaling_str):
         msg = (
             "Only one of arguments -bonds_scaling, -bonds_scaling_str and -min_bonds_length "
             "can be provided. Please check your parameters"
@@ -106,4 +106,3 @@ def input_parameter_validation(ns, config, step=None):
 
     if step == "optimisation":
         _optimisation_input_validation(ns)
-

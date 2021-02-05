@@ -285,7 +285,6 @@ bonds_max_range = BaseField(
     help="Max. range of grid for bonds/constraints distributions (nm)",
 )
 
-
 # MODEL SCALING
 aa_rg_offset = BaseField(
     dest="aa_rg_offset",

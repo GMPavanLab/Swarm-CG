@@ -20,7 +20,6 @@ def exec_gmx(gmx_cmd):
 
 
 class SimulationStep:
-
     PREP_CMD = "{exec} grompp -c {gro} -f {mdp} -p {top} -o {md_output} -maxwarn {maxwarn}"
     MD_CMD = "{exec} mdrun -deffnm {md_output}"
 
@@ -96,7 +95,7 @@ class SimulationStep:
             return self
         else:
             msg = (
-                f"Gromacs grompp failed at MD {self.step_name} step, see its error message above. " 
+                f"Gromacs grompp failed at MD {self.step_name} step, see its error message above. "
                 f"You may also want to check the parameters of the MDP file provided through "
                 f"argument -{self.swarmcg_flag}. If you think this is a bug, please consider opening "
                 f"an issue on GitHub at {config.github_url}/issues."
@@ -164,7 +163,7 @@ def ns_to_runner(ns, sim_config, prev_gro):
         "step_name": sim_config.step_name,
         "md_output": sim_config.md_output,
 
-        "monitor_file":  f"{sim_config.md_output}.log",
+        "monitor_file": f"{sim_config.md_output}.log",
         "keep_alive_n_cycles": ns.process_alive_nb_cycles_dead,
         "seconds_between_checks": ns.process_alive_time_sleep,
         "simulation_config": sim_config,

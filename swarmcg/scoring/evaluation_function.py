@@ -121,7 +121,8 @@ def eval_function(parameters_set, ns):
                     ns.all_emd_dist_geoms = all_emd_dist_geoms
 
         else:
-            eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [ns.worst_fit_score] * 5
+            eval_score, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals = [
+                                                                                                                  ns.worst_fit_score] * 5
             ns.gyr_cg, ns.gyr_cg_std, ns.sasa_cg, ns.sasa_cg_std = None, None, None, None
             ns.total_gmx_time += datetime.now().timestamp() - start_gmx_ts
 
@@ -129,20 +130,24 @@ def eval_function(parameters_set, ns):
     os.chdir('..')
 
     # store all log files
-    if os.path.isfile(current_eval_dir+'/md.log'):
-        shutil.copy(current_eval_dir+'/md.log', f'{config.log_files_all_evals_dirname}/md_sim_eval_step_{ns.nb_eval}.log')
-    if os.path.isfile(current_eval_dir+'/equi.log'):
-        shutil.copy(current_eval_dir+'/equi.log', f'{config.log_files_all_evals_dirname}/equi_sim_eval_step_{ns.nb_eval}.log')
-    if os.path.isfile(current_eval_dir+'/mini.log'):
-        shutil.copy(current_eval_dir+'/mini.log', f'{config.log_files_all_evals_dirname}/mini_sim_eval_step_{ns.nb_eval}.log')
+    if os.path.isfile(current_eval_dir + '/md.log'):
+        shutil.copy(current_eval_dir + '/md.log',
+                    f'{config.log_files_all_evals_dirname}/md_sim_eval_step_{ns.nb_eval}.log')
+    if os.path.isfile(current_eval_dir + '/equi.log'):
+        shutil.copy(current_eval_dir + '/equi.log',
+                    f'{config.log_files_all_evals_dirname}/equi_sim_eval_step_{ns.nb_eval}.log')
+    if os.path.isfile(current_eval_dir + '/mini.log'):
+        shutil.copy(current_eval_dir + '/mini.log',
+                    f'{config.log_files_all_evals_dirname}/mini_sim_eval_step_{ns.nb_eval}.log')
 
     # update the best results distrib plot in execution directory
     if new_best_fit:
-        shutil.copy(f'{config.distrib_plots_all_evals_dirname}/distributions_eval_step_{ns.nb_eval}.png', config.best_distrib_plots)
+        shutil.copy(f'{config.distrib_plots_all_evals_dirname}/distributions_eval_step_{ns.nb_eval}.png',
+                    config.best_distrib_plots)
 
     # keep all sim files if user wants to
     if ns.keep_all_sims:
-        shutil.copytree(current_eval_dir, config.sim_files_all_evals_dirname+'/'+current_eval_dir)
+        shutil.copytree(current_eval_dir, config.sim_files_all_evals_dirname + '/' + current_eval_dir)
 
     # keep BI files (the very first guess of bonded parameters) only for figures
     # TODO: remove ?? this is redundant because we already produce a directory with output for the best current model
@@ -160,16 +165,21 @@ def eval_function(parameters_set, ns):
     # when simulation crashes, write the worst possible score considering all geoms
     if eval_score == ns.worst_fit_score:
         all_dist_pairwise = ''
-        for _ in range(len(ns.cg_itp['constraint'])+len(ns.cg_itp['bond'])+len(ns.cg_itp['angle'])+len(ns.cg_itp['dihedral'])):
-            all_dist_pairwise += str(config.sim_crash_EMD_indep_score)+' '
+        for _ in range(len(ns.cg_itp['constraint']) + len(ns.cg_itp['bond']) + len(ns.cg_itp['angle']) + len(
+                ns.cg_itp['dihedral'])):
+            all_dist_pairwise += str(config.sim_crash_EMD_indep_score) + ' '
         all_dist_pairwise += '\n'
     else:
-        print_stdout_forced('  Total mismatch score:', round(fit_score_total, 3), '(Bonds/Constraints:', fit_score_constraints_bonds, '-- Angles:', fit_score_angles, '-- Dihedrals:', str(fit_score_dihedrals) + ')')
+        print_stdout_forced('  Total mismatch score:', round(fit_score_total, 3), '(Bonds/Constraints:',
+                            fit_score_constraints_bonds, '-- Angles:', fit_score_angles, '-- Dihedrals:',
+                            str(fit_score_dihedrals) + ')')
         if new_best_fit:
             print_stdout_forced('    --> Selected as new best bonded parametrization')
         # print_stdout_forced('  Opti context mismatch score:', round(eval_score, 3))
-        print_stdout_forced(f'  Rg CG:   {round(ns.gyr_cg, 2)} nm   (Error abs. {round(abs(1 - ns.gyr_cg / ns.gyr_aa_mapped) * 100, 1)}% -- Reference Rg AA-mapped: {ns.gyr_aa_mapped} nm)')
-        print_stdout_forced(f'  SASA CG: {ns.sasa_cg} nm2   (Error abs. {round(abs(1 - ns.sasa_cg / ns.sasa_aa_mapped) * 100, 1)}% -- Reference SASA AA-mapped: {ns.sasa_aa_mapped} nm2)')
+        print_stdout_forced(
+            f'  Rg CG:   {round(ns.gyr_cg, 2)} nm   (Error abs. {round(abs(1 - ns.gyr_cg / ns.gyr_aa_mapped) * 100, 1)}% -- Reference Rg AA-mapped: {ns.gyr_aa_mapped} nm)')
+        print_stdout_forced(
+            f'  SASA CG: {ns.sasa_cg} nm2   (Error abs. {round(abs(1 - ns.sasa_cg / ns.sasa_aa_mapped) * 100, 1)}% -- Reference SASA AA-mapped: {ns.sasa_aa_mapped} nm2)')
 
     current_total_time = round((datetime.now().timestamp() - ns.start_opti_ts) / (60 * 60), 2)
     current_eval_time = datetime.now().timestamp() - start_eval_ts
@@ -180,11 +190,14 @@ def eval_function(parameters_set, ns):
     # write all pairwise distances between atom mapped and CG geoms to file for later global optimization perf plotting
     with open(config.opti_pairwise_distances_file, 'a') as fp:
         if 'dihedral' in ns.opti_cycle['geoms']:
-            fp.write('1 '+all_dist_pairwise)
+            fp.write('1 ' + all_dist_pairwise)
         else:
-            fp.write('0 '+all_dist_pairwise)
+            fp.write('0 ' + all_dist_pairwise)
     with open(config.opti_perf_recap_file, 'a') as fp:
-        recap_line = ' '.join(list(map(str, (ns.opti_cycle['nb_cycle'], ns.nb_eval, fit_score_total, fit_score_constraints_bonds, fit_score_angles, fit_score_dihedrals, eval_score, ns.gyr_aa_mapped, ns.gyr_aa_mapped_std, ns.gyr_cg, ns.gyr_cg_std, ns.sasa_aa_mapped, ns.sasa_aa_mapped_std, ns.sasa_cg, ns.sasa_cg_std))))+' '
+        recap_line = ' '.join(list(map(str, (
+        ns.opti_cycle['nb_cycle'], ns.nb_eval, fit_score_total, fit_score_constraints_bonds, fit_score_angles,
+        fit_score_dihedrals, eval_score, ns.gyr_aa_mapped, ns.gyr_aa_mapped_std, ns.gyr_cg, ns.gyr_cg_std,
+        ns.sasa_aa_mapped, ns.sasa_aa_mapped_std, ns.sasa_cg, ns.sasa_cg_std)))) + ' '
         for i in range(len(ns.cg_itp['constraint'])):
             recap_line += f"{ns.out_itp['constraint'][i]['value']} "
         for i in range(len(ns.cg_itp['bond'])):
@@ -197,7 +210,7 @@ def eval_function(parameters_set, ns):
             else:
                 recap_line += f"{ns.out_itp['dihedral'][i]['value']} {ns.out_itp['dihedral'][i]['fct']} "
         recap_line += f'{current_eval_time} {current_total_time}'
-        fp.write(recap_line+'\n')
+        fp.write(recap_line + '\n')
 
     os.chdir('..')  # exit the execution directory
 

@@ -42,19 +42,22 @@ def _optimal(ns):
     sim_types = {
         0: {"sim_duration": ns.sim_duration_short,
             "prod_nb_frames": 15000,
-            "max_swarm_iter": int(round(6+np.sqrt(ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]+ns.cg_itp["nb_angles"]))),
+            "max_swarm_iter": int(
+                round(6 + np.sqrt(ns.cg_itp["nb_constraints"] + ns.cg_itp["nb_bonds"] + ns.cg_itp["nb_angles"]))),
             "max_swarm_iter_without_new_global_best": 6,
             "val_guess_fact": 1,
             "fct_guess_fact": 0.40},
         1: {"sim_duration": ns.sim_duration_short,
             "prod_nb_frames": 15000,
-            "max_swarm_iter": int(round(6+np.sqrt(ns.cg_itp["nb_angles"]+ns.cg_itp["nb_dihedrals"]))),
+            "max_swarm_iter": int(round(6 + np.sqrt(ns.cg_itp["nb_angles"] + ns.cg_itp["nb_dihedrals"]))),
             "max_swarm_iter_without_new_global_best": 6,
             "val_guess_fact": 0.25,
             "fct_guess_fact": 0.30},
         2: {"sim_duration": ns.sim_duration_long,
             "prod_nb_frames": 15000,
-            "max_swarm_iter": int(round(6+np.sqrt(ns.cg_itp["nb_constraints"]+ns.cg_itp["nb_bonds"]+ns.cg_itp["nb_angles"]+ns.cg_itp["nb_dihedrals"]))),
+            "max_swarm_iter": int(round(6 + np.sqrt(
+                ns.cg_itp["nb_constraints"] + ns.cg_itp["nb_bonds"] + ns.cg_itp["nb_angles"] + ns.cg_itp[
+                    "nb_dihedrals"]))),
             "max_swarm_iter_without_new_global_best": 6,
             "val_guess_fact": 0.25,
             "fct_guess_fact": 0.20}

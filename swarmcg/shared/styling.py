@@ -7,9 +7,10 @@ header_warning = '\n-- ! WARNING ! --\n'
 header_error = '\n-- ! ERROR ! --\n'
 header_gmx_error = sep + '\n  GMX ERROR MSG\n' + sep + '\n\n'
 
+
 # String 'S m a r t  .  C G' Ivrit style Fitted/Full
 def header_package(module_line):
-	return f"""
+    return f"""
             
         
              ███████╗██╗    ██╗ █████╗ ██████╗ ███╗   ███╗       ██████╗ ██████╗ 
@@ -17,7 +18,7 @@ def header_package(module_line):
              ███████╗██║ █╗ ██║███████║██████╔╝██╔████╔██║█████╗██║     ██║  ███╗
              ╚════██║██║███╗██║██╔══██║██╔══██╗██║╚██╔╝██║╚════╝██║     ██║   ██║
              ███████║╚███╔███╔╝██║  ██║██║  ██║██║ ╚═╝ ██║      ╚██████╗╚██████╔╝
-             ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝   v {swarmcg.__version__ }
+             ╚══════╝ ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝       ╚═════╝ ╚═════╝   v {swarmcg.__version__}
             {module_line}
 {sep_close}
 |                 Swarm-CG is distributed under the terms of the MIT License.                 |
@@ -35,6 +36,7 @@ def header_package(module_line):
 |  2018 Swarm Evo Comp, Nobile M.S., Cazzaniga P., Besozzi D., Colombo R., Mauri G., Pasia G. |
 {sep_close}
 """
+
 
 ANALYSE_DESCR = """
 This module produces a visual summary (big plot) of an optimization procedure started with

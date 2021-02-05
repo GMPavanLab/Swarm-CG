@@ -5,7 +5,6 @@ from swarmcg.shared.utils import parse_string_args
 
 
 class BaseSimulationConfig:
-
     REQUIRED_FIELDS = []
 
     def __init__(self, filename):
