@@ -89,7 +89,7 @@ def eval_function(parameters_set, ns):
             record_best_indep_params=True)
         ns.total_model_eval_time += datetime.now().timestamp() - start_model_eval_ts
 
-        # if gmx sasa failed to compute, it"s most likely because there were inconsistent shifts across PBC in the trajectory = failed run
+        # if gmx sasa failed to compute, it's most likely because there were inconsistent shifts across PBC in the trajectory = failed run
         if ns.sasa_cg is not None:
 
             # store the distributions for each evaluation step

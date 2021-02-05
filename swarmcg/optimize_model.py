@@ -130,7 +130,7 @@ def run(ns):
         top_lines = [top_line.strip().split(";")[0] for top_line in top_lines]  # the split removes comments
         for top_line in top_lines:
             if top_line.startswith("#include"):
-                top_include = top_line.split()[1].replace(""", "").replace(""",
+                top_include = top_line.split()[1].replace("'", "").replace("\"",
                                                                            "")  # remove potential single and double quotes around filenames
                 arg_dirname = os.path.dirname(arg_entries[user_provided_filenames[5]])
                 if arg_dirname == "":
@@ -173,7 +173,7 @@ def run(ns):
         nb_includes = 0
         for i in range(len(all_top_lines)):
             if all_top_lines[i].startswith("#include"):
-                all_top_lines[i] = "#include "" + os.path.basename(top_includes_filenames[nb_includes]) + """
+                all_top_lines[i] = "#include \"" + os.path.basename(top_includes_filenames[nb_includes]) + "\""
                 nb_includes += 1
         fp.writelines("\n".join(all_top_lines))
 
