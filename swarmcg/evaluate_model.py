@@ -11,14 +11,14 @@ from swarmcg import swarmCG as scg
 from swarmcg import config
 from swarmcg.shared import catch_warnings, input_parameter_validation
 
-matplotlib.use('AGG')  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
+matplotlib.use("AGG")  # use the Anti-Grain Geometry non-interactive backend suited for scripted PNG creation
 
 
 @catch_warnings(np.VisibleDeprecationWarning)  # filter MDAnalysis + numpy deprecation stuff that is annoying
 def run(ns):
     print()
     print(swarmcg.shared.styling.sep_close)
-    print('| PRE-PROCESSING                                                                              |')
+    print("| PRE-PROCESSING                                                                              |")
     print(swarmcg.shared.styling.sep_close)
     print()
 
@@ -41,7 +41,7 @@ def run(ns):
     ns.default_abs_range_fct_dihedrals_opti_func_without_mult = np.inf
 
     # scg.set_MDA_backend(ns)
-    ns.mda_backend = 'serial'  # actually serial is faster because MDA is not properly parallelized atm
+    ns.mda_backend = "serial"  # actually serial is faster because MDA is not properly parallelized atm
 
     # TODO: this eventually will need to be taked out of this function when we can avoid adding new attributed to ns
     ns.mapping_type = ns.mapping_type.upper()
@@ -50,18 +50,18 @@ def run(ns):
     # display parameters for function compare_models
     if not os.path.isfile(ns.cg_tpr_filename) or not os.path.isfile(ns.cg_traj_filename):
         # switch to atomistic mapping inspection exclusively (= do NOT plot the CG distributions)
-        print('Could not find file(s) for either CG topology or trajectory')
-        print('  Going for inspection of AA-mapped distributions exclusively')
+        print("Could not find file(s) for either CG topology or trajectory")
+        print("  Going for inspection of AA-mapped distributions exclusively")
         print()
         ns.atom_only = True
     else:
         ns.atom_only = False
 
     try:
-        if not ns.plot_filename.split('.')[-1] in ['eps', 'pdf', 'pgf', 'png', 'ps', 'raw', 'rgba', 'svg', 'svgz']:
-            ns.plot_filename = ns.plot_filename + '.png'
+        if not ns.plot_filename.split(".")[-1] in ["eps", "pdf", "pgf", "png", "ps", "raw", "rgba", "svg", "svgz"]:
+            ns.plot_filename = ns.plot_filename + ".png"
     except IndexError as e:
-        ns.plot_filename = ns.plot_filename + '.png'
+        ns.plot_filename = ns.plot_filename + ".png"
 
     scores.create_bins_and_dist_matrices(ns)  # bins for EMD calculations
     scg.read_ndx_atoms2beads(ns)  # read mapping, get atoms accurences in beads
@@ -79,7 +79,7 @@ def run(ns):
     # for each CG bead, create atom groups for trajectory geoms calculation using mass and atom weights across beads
     scg.get_beads_MDA_atomgroups(ns)
 
-    print('\nMapping the trajectory from AA to CG representation')
+    print("\nMapping the trajectory from AA to CG representation")
     ns.aa2cg_universe = scg.initialize_cg_traj(ns.cg_itp)
     scg.map_aa2cg_traj(ns)
     print()
@@ -92,9 +92,9 @@ def main():
 
     # arguments handling, display command line if help or no arguments provided
     ns = args_parser.parse_args()
-    input_cmdline = ' '.join(map(cmd_quote, sys.argv))
-    print('Working directory:', os.getcwd())
-    print('Command line:', input_cmdline)
+    input_cmdline = " ".join(map(cmd_quote, sys.argv))
+    print("Working directory:", os.getcwd())
+    print("Command line:", input_cmdline)
 
     run(ns)
 

@@ -205,12 +205,12 @@ def vsn_func_2(ns, traj, vs_def_beads_ids, bead_id):
     # because this is COM so 0 mass means a bead that was marked for defining the VS is in fact ignored
     zero_mass_beads_ids = []
     for bid in vs_def_beads_ids:
-        if bid in ns.cg_itp['virtual_sitesn']:
-            if ns.cg_itp['virtual_sitesn'][bid]['mass'] == 0:
+        if bid in ns.cg_itp["virtual_sitesn"]:
+            if ns.cg_itp["virtual_sitesn"][bid]["mass"] == 0:
                 zero_mass_beads_ids.append(bid)
     if len(zero_mass_beads_ids) > 0:
-        print('  WARNING: Virtual site ID {} uses function 2 for COM, but its definition contains IDs ' + ' '.join(
-            zero_mass_beads_ids) + 'which have no mass'.format(bead_id + 1))
+        print("  WARNING: Virtual site ID {} uses function 2 for COM, but its definition contains IDs " + " ".join(
+            zero_mass_beads_ids) + "which have no mass".format(bead_id + 1))
 
     for ts in ns.aa2cg_universe.trajectory:
         traj[ts.frame] = ns.aa2cg_universe.atoms[vs_def_beads_ids].center_of_mass(pbc=None)
