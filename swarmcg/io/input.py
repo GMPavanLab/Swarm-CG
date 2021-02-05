@@ -18,6 +18,10 @@ class BaseInput:
         return os.path.basename(getattr(self, name))
 
     @property
+    def vars(self):
+        return {**vars(self._ns), **vars(self)}
+
+    @property
     def mda_backend(self):
         if mda.lib.distances.USED_OPENMP:  # if MDAnalysis was compiled with OpenMP support
             return "OpenMP"
@@ -31,7 +35,7 @@ class BaseInput:
 class OptInput(BaseInput):
 
     def __init__(self, namespace):
-        super().__init__(self, namespace)
+        super().__init__(namespace)
         self._validate_output_folder()
 
     @property

@@ -12,6 +12,7 @@ TEST_DATA = "tests/data/"
 def ns_opt():
 
     parameters = {
+        "exec_folder": ".",
         "exec_mode": 1,
         "aa_tpr_filename": config.metavar_aa_tpr,
         "aa_traj_filename": config.metavar_aa_traj,
