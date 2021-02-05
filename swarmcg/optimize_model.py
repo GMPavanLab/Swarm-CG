@@ -28,32 +28,6 @@ def run(ns):
 
     # NOTE: gmx trjconv and sasa may produce bugs when using TPR produced with gromacs v5, only current solution seems to be implementing the SASA calculation using MDTraj
 
-    #####################################
-    # ARGUMENTS HANDLING / HELP DISPLAY #
-    #####################################
-
-    # namespace variables not directly linked to arguments for plotting or for global package interpretation
-    # TODO: we should not generate new vars here, but before we go into the function
-    ns.mismatch_order = False
-    ns.row_x_scaling = True
-    ns.row_y_scaling = True
-    ns.ncols_max = 0  # 0 to display all
-    # ns.atom_only = False
-    ns.molname_in = None  # if None the first found using TPR atom ordering will be used
-    ns.process_alive_time_sleep = 10  # nb of seconds between process alive check cycles
-    ns.process_alive_nb_cycles_dead = int(
-        ns.sim_kill_delay / ns.process_alive_time_sleep)  # nb of cycles without .log file bytes size changes to determine that the MD run is stuck
-    ns.bonds_rescaling_performed = False  # for user information display
-
-    # get basenames for simulation files
-    # TODO: this can be methods of a ns object which implements these operations
-    ns.cg_itp_basename = os.path.basename(ns.cg_itp_filename)
-    ns.gro_input_basename = os.path.basename(ns.gro_input_filename)
-    ns.top_input_basename = os.path.basename(ns.top_input_filename)
-    ns.mdp_minimization_basename = os.path.basename(ns.mdp_minimization_filename)
-    ns.mdp_equi_basename = os.path.basename(ns.mdp_equi_filename)
-    ns.mdp_md_basename = os.path.basename(ns.mdp_md_filename)
-
     ####################
     # ARGUMENTS CHECKS #
     ####################
@@ -68,17 +42,8 @@ def run(ns):
     # TODO: test this program with ITP files that contain all the different dihedral functions, angles functions, constraints etc
     # TODO: find some fuzzy logic to determine number of swarm iterations + take some large margin to ensure it will optimize correctly
 
-    # avoid overwriting an output directory of a previous optimization run
-    # TODO: this should be function or methods that checks before we go into the function
-    if os.path.isfile(ns.exec_folder) or os.path.isdir(ns.exec_folder):
-        msg = (
-            "Provided output folder already exists, please delete existing folder "
-            "manually or provide another folder name."
-        )
-        raise exceptions.AvoidOverwritingFolder(msg)
 
     # TODO: this eventually will need to be taked out of this function when we can avoid adding new attributed to ns
-    ns.mapping_type = ns.mapping_type.upper()
     input_parameter_validation(ns, config, step="optimisation")
 
     # check if we can find files at user-provided location(s)
@@ -140,9 +105,6 @@ def run(ns):
     ##################
     # INITIALIZATION #
     ##################
-
-    # scg.set_MDA_backend(ns)
-    ns.mda_backend = "serial"  # actually serial is faster because MDA is not properly parallelized atm
 
     # directory to write all files for current execution of optimizations routines
     # TODO: group this operations into a FileManager class
