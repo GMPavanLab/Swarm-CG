@@ -18,6 +18,7 @@ setup(
     long_description_content_type="text/markdown",
     keywords=['gromacs', 'coarse-grain', 'molecular model', 'optimization', 'force field'],
     packages=find_packages(include=['swarmcg', 'swarmcg.*']),
+    package_data={"": ['data/*']},
     install_requires=[
         'numpy>=1.16.4',
         'scipy>=1.2.2',
