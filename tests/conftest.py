@@ -89,17 +89,17 @@ def ns_opt():
 
 @pytest.fixture(scope="module")
 def mini():
-    return Minimisation(f"{TEST_DATA}mini.mdp")
+    return Minimisation(f"{ROOT_DIR}/data/mini.mdp")
 
 
 @pytest.fixture(scope="module")
 def equi():
-    return Equilibration(f"{TEST_DATA}equi.mdp")
+    return Equilibration(f"{ROOT_DIR}/data/equi.mdp")
 
 
 @pytest.fixture(scope="module")
 def md():
-    return Production(f"{TEST_DATA}md.mdp")
+    return Production(f"{ROOT_DIR}/data/md.mdp")
 
 
 @pytest.fixture(scope="module")

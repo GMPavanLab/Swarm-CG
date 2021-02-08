@@ -10,3 +10,4 @@ def test_defaults():
     assert defaults.user_params.action == "store_true"
     assert "metavar" not in defaults.user_params.args
     assert defaults.cg_mdp_mini.default[-13:] == "data/mini.mdp"
+    assert defaults.cg_mdp_equi.default[-13:] == "data/equi.mdp"

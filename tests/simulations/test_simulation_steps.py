@@ -2,8 +2,12 @@ import os
 
 import pytest
 
+import swarmcg
 from swarmcg.shared import exceptions
 from swarmcg.simulations.simulation_steps import Minimisation, Equilibration, Production
+
+
+ROOT_DIR = os.path.dirname(swarmcg.__file__)
 
 
 class BaseTest:
@@ -17,7 +21,7 @@ class BaseTest:
 
 class TestMinimisation(BaseTest):
 
-    filename = "./tests/data/mini.mdp"
+    filename = f"{ROOT_DIR}/data/mini.mdp"
 
     def test_init(self):
         Minimisation(TestMinimisation.filename)
@@ -64,7 +68,7 @@ class TestMinimisation(BaseTest):
 
 class TestEquilibration(BaseTest):
 
-    filename = "./tests/data/equi.mdp"
+    filename = f"{ROOT_DIR}/data/equi.mdp"
 
     def test_init(self):
         Equilibration(TestEquilibration.filename)
@@ -111,7 +115,7 @@ class TestEquilibration(BaseTest):
 
 class TestProduction(BaseTest):
 
-    filename = "./tests/data/md.mdp"
+    filename = f"{ROOT_DIR}/data/md.mdp"
 
     def test_init(self):
         Production(TestProduction.filename)

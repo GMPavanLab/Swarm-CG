@@ -20,7 +20,7 @@ def test___file_validation(ns_opt):
         _file_validation(ns)
 
     # when:
-    filename = "swarmcg/data/aa_topol.tpr"
+    filename = "tests/data/aa_topol.tpr"
     ns.aa_tpr_filename = filename
 
     # then:
@@ -28,7 +28,7 @@ def test___file_validation(ns_opt):
         _file_validation(ns)
 
     # when:
-    filename = "swarmcg/data/aa_traj.xtc"
+    filename = "tests/data/aa_traj.xtc"
     ns.aa_traj_filename = filename
 
     # then:
@@ -36,7 +36,7 @@ def test___file_validation(ns_opt):
         _file_validation(ns)
 
    # when:
-    filename = "swarmcg/data/cg_map.ndx"
+    filename = "tests/data/cg_map.ndx"
     ns.cg_map_filename = filename
 
     # then:
@@ -44,7 +44,7 @@ def test___file_validation(ns_opt):
         _file_validation(ns)
 
    # when:
-    filename = "swarmcg/data/cg_model.itp"
+    filename = "tests/data/cg_model.itp"
     ns.cg_itp_filename = filename
 
     # then:
