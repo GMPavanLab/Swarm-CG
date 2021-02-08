@@ -1,11 +1,15 @@
+import os
 from types import SimpleNamespace
+
 import pytest
 
+import swarmcg
 from swarmcg import config
 from swarmcg.simulations.runner import ns_to_runner, SimulationStep
 from swarmcg.simulations.simulation_steps import Minimisation, Equilibration, Production
 
 TEST_DATA = "tests/data/"
+ROOT_DIR = os.path.dirname(swarmcg.__file__)
 
 
 @pytest.fixture(scope="module")
@@ -14,17 +18,17 @@ def ns_opt():
     parameters = {
         "exec_folder": "./MODEL_FOLDER",
         "exec_mode": 1,
-        "aa_tpr_filename": config.metavar_aa_tpr,
-        "aa_traj_filename": config.metavar_aa_traj,
-        "cg_map_filename": config.metavar_cg_map,
+        "aa_tpr_filename": f"{TEST_DATA}{config.metavar_aa_tpr}",
+        "aa_traj_filename": f"{TEST_DATA}{config.metavar_aa_traj}",
+        "cg_map_filename": f"{TEST_DATA}{config.metavar_cg_map}",
         "mapping_type": "COM",
-        "cg_itp_filename": config.metavar_cg_itp,
-        "user_input": "store_true",
+        "cg_itp_filename": f"{TEST_DATA}{config.metavar_cg_itp}",
+        "user_input": False,
         "gro_input_filename": f"{TEST_DATA}start_conf.gro",
         "top_input_filename": f"{TEST_DATA}system.top",
-        "mdp_minimization_filename": f"{TEST_DATA}mini.mdp",
-        "mdp_equi_filename": f"{TEST_DATA}equi.mdp",
-        "mdp_md_filename": f"{TEST_DATA}md.mdp",
+        "mdp_minimization_filename": f"{ROOT_DIR}/data/mini.mdp",
+        "mdp_equi_filename": f"{ROOT_DIR}/data/equi.mdp",
+        "mdp_md_filename": f"{ROOT_DIR}/data/md.mdp",
         "output_folder": ".",
         "out_dir": "",
         "gmx_path": config.gmx_path,

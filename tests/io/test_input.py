@@ -52,7 +52,7 @@ class TestOptInput:
         ns = ns_opt()
 
         # thwn:
-        expected = ["./tests/data/aa_topol.tpr", "./tests/data/aa_traj.xtc", "./tests/data/cg_map.ndx"]
+        expected = ["tests/data/aa_topol.tpr", "tests/data/aa_traj.xtc", "tests/data/cg_map.ndx"]
         assert expected == OptInput(**vars(ns)).simulation_filenames(False)[:3]
 
         # given:
