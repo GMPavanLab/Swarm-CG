@@ -19,7 +19,7 @@ def check_ipt_dict(cg_itp):
 
 def test_read_itp():
     # when:
-    filename = f"tests/data/cg_model.itp"
+    filename = f"tests/data/test.itp"
 
     # then:
     _ = read_itp(filename)
@@ -41,7 +41,7 @@ def test_read_cg_itp_file(ns_opt):
                            "exclusion"]
 
     # when:
-    filename = f"tests/data/cg_model.itp"
+    filename = f"tests/data/test.itp"
     ns = ns_opt(cg_itp_filename=filename)
 
     # then:
