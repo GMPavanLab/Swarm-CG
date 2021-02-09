@@ -10,14 +10,14 @@ class TestBaseInput:
         ns = ns_opt()
 
         # then:
-        _ = BaseInput(**vars(ns))
+        _ = BaseInput(ns)
 
     def test__get_basename(self, ns_opt):
         # given:
         ns = ns_opt(mdp_equi_filename=__file__)
 
         # when:
-        base_input = BaseInput(**vars(ns))
+        base_input = BaseInput(ns)
 
         # then:
         assert "test_input.py" == base_input._get_basename("mdp_equi_filename")
@@ -35,14 +35,14 @@ class TestOptInput:
         ns = ns_opt()
 
         # then:
-        _ = OptInput(**vars(ns))
+        _ = OptInput(ns)
 
     def test_attributes(self, ns_opt):
         # given:
         ns = ns_opt()
 
         # when:
-        opt_input = OptInput(**vars(ns))
+        opt_input = OptInput(ns)
 
         # then:
         assert opt_input.cg_itp_basename == "cg_model.itp"
@@ -53,12 +53,12 @@ class TestOptInput:
 
         # thwn:
         expected = ["tests/data/aa_topol.tpr", "tests/data/aa_traj.xtc", "tests/data/cg_map.ndx"]
-        assert expected == OptInput(**vars(ns)).simulation_filenames(False)[:3]
+        assert expected == OptInput(ns).simulation_filenames(False)[:3]
 
         # given:
         ns = ns_opt(mdp_equi_filename="non_existing_file.txt")
 
         # when:
         with pytest.raises(FileNotFoundError):
-            _ = OptInput(**vars(ns)).simulation_filenames()
+            _ = OptInput(ns).simulation_filenames()
 

@@ -6,10 +6,14 @@ import MDAnalysis as mda
 from swarmcg.shared import exceptions
 
 
-class BaseInput(SimpleNamespace):
+class BaseInput:
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, ns):
+        self._ns = ns
+
+    def __getattr__(self, item):
+        if hasattr(self._ns, item):
+            return getattr(self._ns, item)
 
     def _get_basename(self, name):
         return os.path.basename(getattr(self, name))
@@ -34,8 +38,8 @@ class OptInput(BaseInput):
         "mdp_equi_filename", "mdp_md_filename"
     ]
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, ns):
+        super().__init__(ns)
         self.input_validation()
 
     def input_validation(self):
