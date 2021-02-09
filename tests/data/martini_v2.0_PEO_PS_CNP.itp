@@ -120,10 +120,6 @@ SCY     45.0    0.000   A       0.0     0.0 ; backbone bead
 ; PEO and CiEj surfactants
 EO     45.0    0.000   A       0.0     0.0
 
-; virtual sites (for Swarm-CG testing purposes only)
-vT      0.0    0.000   V       0.0     0.0
-
-
 
 [ nonbond_params ]
 
