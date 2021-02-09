@@ -39,13 +39,14 @@ class TestOptInput:
 
     def test_attributes(self, ns_opt):
         # given:
-        ns = ns_opt()
+        ns = ns_opt(mapping_type="com")
 
         # when:
         opt_input = OptInput(ns)
 
         # then:
         assert opt_input.cg_itp_basename == "cg_model.itp"
+        assert opt_input.mapping_type == "COM"
 
     def test_input_files(self, ns_opt):
         # given:

@@ -1,5 +1,4 @@
 import os
-from types import SimpleNamespace
 
 import MDAnalysis as mda
 
@@ -44,6 +43,10 @@ class OptInput(BaseInput):
 
     def input_validation(self):
         self._validate_output_folder()
+
+    @property
+    def mapping_type(self):
+        return getattr(self._ns, "mapping_type").upper()
 
     @property
     def molname_in(self):
