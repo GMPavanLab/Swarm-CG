@@ -1,6 +1,11 @@
+import os
 from types import SimpleNamespace
 
+import swarmcg
 from swarmcg import config
+
+
+ROOT_DIR = os.path.dirname(swarmcg.__file__)
 
 
 class BaseField(SimpleNamespace):
@@ -145,19 +150,19 @@ cg_traj = BaseField(
 cg_mdp_mini = BaseField(
     dest="mdp_minimization_filename",
     type=str,
-    default="mini.mdp",
+    default=f"{ROOT_DIR}/data/mini.mdp",
     help="MDP file used for minimization runs",
 )
 cg_mdp_equi = BaseField(
     dest="mdp_equi_filename",
     type=str,
-    default="equi.mdp",
+    default=f"{ROOT_DIR}/data/equi.mdp",
     help="MDP file used for equilibration runs",
 )
 cg_mdp_md = BaseField(
     dest="mdp_md_filename",
     type=str,
-    default="md.mdp",
+    default=f"{ROOT_DIR}/data/md.mdp",
     help="MDP file used for the MD runs analyzed for optimization",
 )
 

@@ -2,16 +2,18 @@ import time, os
 
 import pytest
 
+import swarmcg
 from swarmcg.simulations.runner import generate_steps, SimulationStep, ns_to_runner
 from swarmcg.simulations.simulation_steps import Minimisation
 from swarmcg.shared import exceptions
 
 TEST_DATA = "tests/data/"
+ROOT_DIR = os.path.dirname(swarmcg.__file__)
 
 
 def test_generate_steps(ns_opt):
     # given:
-    sim_steps = generate_steps(ns_opt(gro_input_basename="./test/data/start_conf.gro"))
+    sim_steps = generate_steps(ns_opt(gro_input_basename="./tests/data/start_conf.gro"))
 
     # when:
     sim1 = next(sim_steps)
@@ -51,7 +53,7 @@ class TestSimulationStep:
         command = step._prepare_cmd()
 
         # then:
-        expected = "gmx grompp -c tests/data/start_conf.gro -f tests/data/mini.mdp -p tests/data/system.top -o mini -maxwarn 0"
+        expected = f"gmx grompp -c tests/data/start_conf.gro -f {ROOT_DIR}/data/mini.mdp -p tests/data/system.top -o mini -maxwarn 0"
         assert command == expected
 
     def test__prepare_cmd_equi(self, simstep_equi):
@@ -62,7 +64,7 @@ class TestSimulationStep:
         command = step._prepare_cmd()
 
         # then:
-        expected = "gmx grompp -c tests/data/mini.gro -f tests/data/equi.mdp -p tests/data/system.top -o equi -maxwarn 0"
+        expected = f"gmx grompp -c tests/data/mini.gro -f {ROOT_DIR}/data/equi.mdp -p tests/data/system.top -o equi -maxwarn 0"
         assert command == expected
 
     def test__prepare_cmd_md(self, simstep_md):
@@ -73,7 +75,7 @@ class TestSimulationStep:
         command = step._prepare_cmd()
 
         # then:
-        expected = "gmx grompp -c tests/data/equi.gro -f tests/data/md.mdp -p tests/data/system.top -o md -maxwarn 0"
+        expected = f"gmx grompp -c tests/data/equi.gro -f {ROOT_DIR}/data/md.mdp -p tests/data/system.top -o md -maxwarn 0"
         assert command == expected
 
     def test__run_cmd(self, simstep_equi):
@@ -107,7 +109,7 @@ class TestSimulationStep:
         # given:
         ns = ns_opt(monitor_file="monitor.log", process_alive_nb_cycles_dead=2, process_alive_time_sleep=1)
 
-        filename = "./tests/data/md.mdp"
+        filename = f"{ROOT_DIR}/data/md.mdp"
         prev_gro = "./test/data/start_conf.gro"
 
         # when:
