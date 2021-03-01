@@ -318,6 +318,7 @@ def read_cg_itp_file(ns):
 					func = verify_handled_functions('constraint', sp_itp_line[2], i+1)
 					ns.cg_itp['constraint'][ns.nb_constraints]['func'].append(func)
 					ns.cg_itp['constraint'][ns.nb_constraints]['value'].append(float(sp_itp_line[3]))
+					ns.cg_itp['constraint'][ns.nb_constraints]['value_user'].append(float(sp_itp_line[3]))
 
 				elif section_read['bond']:
 
